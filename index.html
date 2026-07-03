@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ko" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E%F0%9F%A7%AC%3C/text%3E%3C/svg%3E" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="HelixForge AI — an agentic AI operating system for evidence-grounded drug discovery." />
+    <title>HelixForge AI — Agentic Drug Discovery OS</title>
+    <style>
+      html, body, #root { height: 100%; }
+      body { margin: 0; background: #070b16; }
+      /* First-paint splash to avoid a blank flash before React mounts */
+      #boot {
+        position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+        color: #79e6bd; font-family: ui-sans-serif, system-ui, sans-serif; letter-spacing: 0.08em;
+        font-size: 14px; background: #070b16;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"><div id="boot">HelixForge AI · booting agentic workbench…</div></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
