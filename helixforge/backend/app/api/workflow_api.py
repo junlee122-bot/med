@@ -68,9 +68,19 @@ def get_report(report_id: str):
     rep = db.get("reports", report_id)
     if not rep:
         raise HTTPException(status_code=404, detail=f"Report {report_id} not found")
+    # Report records come in two shapes: workflow reports carry a `json_audit`
+    # payload, while agentic/hybrid reports (rep-en-<run_id> / rep-ko-<run_id>)
+    # store their provenance as discrete fields instead. Fall back to the stored
+    # provenance so both retrieve cleanly (no fabricated audit, markdown untouched).
+    json_audit = rep.get("json_audit")
+    if not isinstance(json_audit, dict):
+        json_audit = {k: rep[k] for k in
+                      ("workflow_run_id", "language", "type", "safety_lint",
+                       "export_safe", "source_type") if k in rep}
     return ReportResponse(
-        report_id=rep["id"], title=rep["title"], created_at=rep["created_at"],
-        markdown=rep["markdown"], json_audit=rep["json_audit"], format="markdown",
+        report_id=rep.get("id", report_id), title=rep.get("title", ""),
+        created_at=rep.get("created_at", ""), markdown=rep.get("markdown", ""),
+        json_audit=json_audit, format="markdown",
     )
 
 
