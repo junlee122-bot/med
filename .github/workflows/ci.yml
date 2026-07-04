@@ -29,11 +29,9 @@ jobs:
                       "python-multipart>=0.0.9" "pytest>=8.0"
       - name: App imports and routes register
         run: |
-          python -c "import app.main as m; n=len([r for r in m.app.routes if getattr(r,'path','').startswith('/api')]); print('api routes:', n); assert n >= 45"
-      - name: Offline unit tests (scoring + safety lint)
-        run: pytest app/tests/test_scoring.py -q
-      - name: Structure tests that do not need live APIs or RDKit
-        run: pytest app/tests/test_agentic.py -q -m "integration" || true
+          python -c "import app.main as m; n=len([r for r in m.app.routes if getattr(r,'path','').startswith('/api')]); print('api routes:', n); assert n >= 80"
+      - name: Offline-safe tests (unit + integration; skips live_api/slow/local_tool)
+        run: pytest app/tests -q -m "unit or integration"
 
   frontend:
     name: Frontend (typecheck + build)
