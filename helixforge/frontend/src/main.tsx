@@ -11,6 +11,8 @@ import { PeerReview } from '@/pages/PeerReview'
 import { ProposalStudio } from '@/pages/ProposalStudio'
 import { EvidenceGrading } from '@/pages/EvidenceGrading'
 import { MoleculeQA } from '@/pages/MoleculeQA'
+import { ProfessionalReview } from '@/pages/ProfessionalReview'
+import { ExpertReview } from '@/pages/ExpertReview'
 import { DemoLab } from '@/pages/DemoLab'
 import { Snapshots } from '@/pages/Snapshots'
 import { ScenarioMatrix } from '@/pages/ScenarioMatrix'
@@ -53,6 +55,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/evidence" element={<EvidenceExplorer />} />
           <Route path="/evidence-grading" element={<EvidenceGrading />} />
           <Route path="/molecule-qa" element={<MoleculeQA />} />
+          <Route path="/professional-review" element={<ProfessionalReview />} />
+          <Route path="/expert-review" element={<ExpertReview />} />
           <Route path="/targets" element={<Targets />} />
           <Route path="/hypotheses" element={<Hypotheses />} />
           <Route path="/molecules" element={<MoleculeLab />} />

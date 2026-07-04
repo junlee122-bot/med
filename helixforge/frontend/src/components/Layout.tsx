@@ -22,6 +22,8 @@ export const NAV = [
   { path: '/clinical', label: 'Clinical & Regulatory', icon: 'Stethoscope', group: 'Run' },
   { path: '/safety', label: 'Safety Gate', icon: 'ShieldCheck', group: 'Governance' },
   { path: '/peer-review', label: 'Peer Review', icon: 'ClipboardCheck', group: 'Governance' },
+  { path: '/professional-review', label: 'Professional Review', icon: 'Microscope', group: 'Governance' },
+  { path: '/expert-review', label: 'Expert Review Board', icon: 'Users', group: 'Governance' },
   { path: '/evaluation', label: 'Evaluation Bench', icon: 'BarChart3', group: 'Analysis' },
   { path: '/scenarios', label: 'Scenario Matrix', icon: 'Grid3x3', group: 'Analysis' },
   { path: '/ai-ledger', label: 'AI Ledger', icon: 'ScrollText', group: 'Analysis' },
