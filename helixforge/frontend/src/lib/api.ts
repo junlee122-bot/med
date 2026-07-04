@@ -230,6 +230,38 @@ export const api = {
   runConfigs: () => get<any>('/api/run-configs'),
   runConfigValidate: (body: any) => post<any>('/api/run-configs/validate', body),
   runAgentic: (body: AgenticRequest) => post<AgenticRunResult>('/api/workflow/run-agentic-pipeline', body),
+
+  // ---- Phase 5: professional scientific validation ----
+  evidenceGradesRun: (run_id?: string) => post<any>(`/api/evidence-grades/compute${run_id ? `?run_id=${run_id}` : ''}`, {}),
+  evidenceGradeLint: (markdown: string) => post<any>('/api/evidence-grades/lint-report', { markdown }),
+  activitiesNormalizeRun: () => post<any>('/api/activities/normalize', { records: [] }),
+  activitiesRecompute: (run_id?: string) => post<any>(`/api/activities/recompute-candidate-scores${run_id ? `?run_id=${run_id}` : ''}`, {}),
+  medchemReviewRun: (run_id?: string) => post<any>(`/api/medchem/review-run${run_id ? `?run_id=${run_id}` : ''}`, {}),
+  medchemMolecule: (smiles: string, label?: string) => post<any>('/api/medchem/review-molecule', { smiles, label }),
+  applicabilityRun: (run_id?: string) => post<any>(`/api/applicability/run${run_id ? `?run_id=${run_id}` : ''}`, {}),
+  applicabilityMolecule: (smiles: string, reference_smiles: string[]) => post<any>('/api/applicability/assess-molecule', { smiles, reference_smiles }),
+  languageLintCheck: (text: string) => post<any>('/api/language-lint/check', { text }),
+  languageLintRewrite: (text: string) => post<any>('/api/language-lint/rewrite-safe', { text }),
+  // populated as backend modules land:
+  targetBiologyRun: (run_id?: string) => post<any>(`/api/target-biology/review-run${run_id ? `?run_id=${run_id}` : ''}`, {}),
+  translationalRun: (run_id?: string) => post<any>(`/api/translational/readiness/run${run_id ? `?run_id=${run_id}` : ''}`, {}),
+  clinicalPrecedentRun: (run_id?: string) => post<any>(`/api/clinical/precedent-review${run_id ? `?run_id=${run_id}` : ''}`, {}),
+  paretoRun: (run_id?: string) => post<any>(`/api/optimization/pareto/run${run_id ? `?run_id=${run_id}` : ''}`, {}),
+  dockingProtocolRun: (run_id?: string) => get<any>(`/api/docking/protocol/run/${run_id || 'latest'}`),
+  admetValidationRun: () => post<any>('/api/admet/validation/train', {}),
+  professionalReleaseLatest: () => get<any>('/api/release-readiness/professional/latest'),
+  professionalEvaluationRun: (run_id?: string) => post<any>(`/api/pro-evaluation/run${run_id ? `?run_id=${run_id}` : ''}`, {}),
+  agentPerformanceRun: (run_id?: string) => post<any>(`/api/agent-performance/evaluate-run${run_id ? `?run_id=${run_id}` : ''}`, {}),
+  redTeamProfessional: () => post<any>('/api/red-team/professional/run', {}),
+  identityNormalizeRun: (run_id?: string) => post<any>(`/api/identity/normalize-run${run_id ? `?run_id=${run_id}` : ''}`, {}),
+  expertReviewGenerate: (run_id?: string) => post<any>(`/api/expert-review/generate-from-run${run_id ? `?run_id=${run_id}` : ''}`, {}),
+  expertReviewItems: () => get<any>('/api/expert-review/items'),
+  expertReviewDecision: (id: string, body: any) => post<any>(`/api/expert-review/items/${id}/decision`, body),
+  professionalDocsGenerate: (doc_type: string) => post<any>('/api/professional-docs/generate', { doc_type }),
+  professionalDocsList: () => get<any>('/api/professional-docs'),
+  professionalDocsBundle: () => get<any>('/api/professional-docs/bundle'),
+  whitepaperGenerate: (lang: string) => post<any>('/api/whitepaper/generate', { lang }),
+  whitepaperLatest: () => get<any>('/api/whitepaper/latest'),
 }
 
 export interface AgentDef { name: string; role: string; stage: string; stage_index: number; allowed_tools: string[] }

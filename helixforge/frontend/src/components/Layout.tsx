@@ -11,6 +11,8 @@ export const NAV = [
   { path: '/demo-lab', label: 'Demo Lab', icon: 'Wand2', group: 'Run' },
   { path: '/snapshots', label: 'Snapshots', icon: 'DatabaseZap', group: 'Run' },
   { path: '/evidence', label: 'Evidence Explorer', icon: 'BookOpen', group: 'Run' },
+  { path: '/evidence-grading', label: 'Evidence Grading', icon: 'Scale', group: 'Analysis' },
+  { path: '/molecule-qa', label: 'Molecule QA', icon: 'FlaskConical', group: 'Analysis' },
   { path: '/targets', label: 'Targets', icon: 'Crosshair', group: 'Run' },
   { path: '/hypotheses', label: 'Hypotheses', icon: 'Lightbulb', group: 'Run' },
   { path: '/molecules', label: 'Molecule Lab', icon: 'Atom', group: 'Run' },
