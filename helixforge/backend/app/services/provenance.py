@@ -23,8 +23,16 @@ def redact_secrets(text: str) -> str:
     out = text
     if s.ncbi_api_key:
         out = out.replace(s.ncbi_api_key, "***REDACTED***")
+    # Redact the live Anthropic key value if present in the environment.
+    import os
+    ant = os.getenv("ANTHROPIC_API_KEY", "")
+    if ant:
+        out = out.replace(ant, "***REDACTED***")
+    # Strip common provider key patterns regardless of value (Anthropic/OpenAI style).
+    out = re.sub(r"sk-ant-[A-Za-z0-9_\-]+", "***REDACTED***", out)
+    out = re.sub(r"\bsk-[A-Za-z0-9]{16,}\b", "***REDACTED***", out)
     # Strip common key-bearing query params regardless of value.
-    out = re.sub(r"(api_key|apikey|key|token)=[^&\s\"']+", r"\1=***REDACTED***", out, flags=re.I)
+    out = re.sub(r"(api_key|apikey|key|token|authorization)=[^&\s\"']+", r"\1=***REDACTED***", out, flags=re.I)
     return out
 
 

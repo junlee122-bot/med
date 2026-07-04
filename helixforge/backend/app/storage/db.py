@@ -63,6 +63,13 @@ ENTITIES = [
     "expert_review_items",
     "identity_normalizations",
     "whitepapers",
+    # --- Phase 7: hybrid Fable agentic layer ---
+    "llm_calls",
+    "hybrid_plans",
+    "replan_events",
+    "semantic_critiques",
+    "rediscovery_runs",
+    "optimization_loop_runs",
 ]
 
 

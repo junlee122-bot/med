@@ -20,6 +20,7 @@ from app.api import (
     governance_api,
     health,
     literature,
+    llm_api,
     phase4_api,
     professional_docs_api,
     professional_ops_api,
@@ -71,7 +72,7 @@ def create_app() -> FastAPI:
                    snapshots_api, submission_api, scenarios_api, analysis_api, security_api,
                    governance_api, proposal_api, phase4_api, evidence_grading_api,
                    professional_science_api, translational_api, professional_ops_api,
-                   professional_docs_api):
+                   professional_docs_api, llm_api):
         app.include_router(module.router)
 
     @app.on_event("startup")
