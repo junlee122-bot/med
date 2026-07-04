@@ -6,6 +6,7 @@ import { api } from '@/lib/api'
 export const NAV = [
   { path: '/', label: 'Overview', icon: 'LayoutDashboard', group: 'Main' },
   { path: '/tools', label: 'Tool Registry', icon: 'Plug', group: 'Main' },
+  { path: '/new-run', label: 'New Run', icon: 'Rocket', group: 'Run' },
   { path: '/cockpit', label: 'Agent Cockpit', icon: 'Cpu', group: 'Run' },
   { path: '/demo-lab', label: 'Demo Lab', icon: 'Wand2', group: 'Run' },
   { path: '/snapshots', label: 'Snapshots', icon: 'DatabaseZap', group: 'Run' },
@@ -18,6 +19,7 @@ export const NAV = [
   { path: '/reinvent', label: 'REINVENT4 Studio', icon: 'FlaskConical', group: 'Run' },
   { path: '/clinical', label: 'Clinical & Regulatory', icon: 'Stethoscope', group: 'Run' },
   { path: '/safety', label: 'Safety Gate', icon: 'ShieldCheck', group: 'Governance' },
+  { path: '/peer-review', label: 'Peer Review', icon: 'ClipboardCheck', group: 'Governance' },
   { path: '/evaluation', label: 'Evaluation Bench', icon: 'BarChart3', group: 'Analysis' },
   { path: '/scenarios', label: 'Scenario Matrix', icon: 'Grid3x3', group: 'Analysis' },
   { path: '/ai-ledger', label: 'AI Ledger', icon: 'ScrollText', group: 'Analysis' },
@@ -25,6 +27,7 @@ export const NAV = [
   { path: '/rubric', label: 'Rubric Alignment', icon: 'Award', group: 'Analysis' },
   { path: '/release', label: 'Release Readiness', icon: 'Gauge', group: 'Submission' },
   { path: '/submission', label: 'Submission Center', icon: 'Package', group: 'Submission' },
+  { path: '/proposal-studio', label: 'Proposal Studio', icon: 'FileEdit', group: 'Submission' },
   { path: '/reports', label: 'Reports', icon: 'FileText', group: 'Submission' },
   { path: '/presentation', label: 'Presentation Mode', icon: 'Presentation', group: 'Demo' },
   { path: '/settings', label: 'Settings', icon: 'Settings', group: 'System' },

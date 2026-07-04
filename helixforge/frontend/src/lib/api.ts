@@ -214,6 +214,22 @@ export const api = {
   exportRun: (run_id: string) => get<any>(`/api/export/run/${run_id}`),
   safetyLintReport: (body: { markdown?: string; report_id?: string }) =>
     post<{ status: string; export_safe: boolean; findings: any[] }>('/api/safety/lint-report', body),
+
+  // ---- Phase 4 ----
+  toolsHealthTier: (mode: 'local' | 'live' | 'deep' = 'local', timeout_seconds = 6) =>
+    get<any>(`/api/tools/health?mode=${mode}&timeout_seconds=${timeout_seconds}`),
+  sourceTypeAudit: () => get<any>('/api/source-types/audit'),
+  dataRights: () => get<any>('/api/data-rights'),
+  dataRightsCheck: () => post<any>('/api/data-rights/check-submission', {}),
+  proposalGenerate: (kind: string) => post<any>('/api/proposal/generate', { kind }),
+  proposalLatest: () => get<any>('/api/proposal/latest'),
+  rubricScorecard: () => get<any>('/api/rubric/scorecard'),
+  plausibilityCheck: (run_id?: string) => get<any>(`/api/plausibility/check${run_id ? `?run_id=${run_id}` : ''}`),
+  hwpxHandoff: () => get<any>('/api/hwpx/handoff'),
+  redTeamRun: () => get<any>('/api/red-team/run'),
+  runConfigs: () => get<any>('/api/run-configs'),
+  runConfigValidate: (body: any) => post<any>('/api/run-configs/validate', body),
+  runAgentic: (body: AgenticRequest) => post<AgenticRunResult>('/api/workflow/run-agentic-pipeline', body),
 }
 
 export interface AgentDef { name: string; role: string; stage: string; stage_index: number; allowed_tools: string[] }

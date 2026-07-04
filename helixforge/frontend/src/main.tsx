@@ -5,7 +5,10 @@ import './index.css'
 import { Layout } from '@/components/Layout'
 import { Overview } from '@/pages/Overview'
 import { ToolRegistry } from '@/pages/ToolRegistry'
+import { NewRun } from '@/pages/NewRun'
 import { Cockpit } from '@/pages/Cockpit'
+import { PeerReview } from '@/pages/PeerReview'
+import { ProposalStudio } from '@/pages/ProposalStudio'
 import { DemoLab } from '@/pages/DemoLab'
 import { Snapshots } from '@/pages/Snapshots'
 import { ScenarioMatrix } from '@/pages/ScenarioMatrix'
@@ -35,7 +38,10 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <Routes>
           <Route path="/" element={<Overview />} />
           <Route path="/tools" element={<ToolRegistry />} />
+          <Route path="/new-run" element={<NewRun />} />
           <Route path="/cockpit" element={<Cockpit />} />
+          <Route path="/peer-review" element={<PeerReview />} />
+          <Route path="/proposal-studio" element={<ProposalStudio />} />
           <Route path="/demo-lab" element={<DemoLab />} />
           <Route path="/snapshots" element={<Snapshots />} />
           <Route path="/scenarios" element={<ScenarioMatrix />} />
