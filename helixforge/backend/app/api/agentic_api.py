@@ -77,6 +77,40 @@ def run_manifest(run_id: str):
     return build_manifest(run_id)
 
 
+@router.get("/workflow/runs/{run_id}/trace")
+def run_trace(run_id: str):
+    run = db.get("workflow_runs", run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="run not found")
+    agents = sorted([r for r in db.list_records("agent_runs", limit=1000) if r.get("workflow_run_id") == run_id],
+                    key=lambda r: r.get("stage_index", 0))
+    tools = [t for t in db.list_records("tool_runs", limit=2000) if t.get("workflow_run_id") == run_id]
+    revs = [r for r in db.list_records("revision_events", limit=500) if r.get("workflow_run_id") == run_id]
+    nodes = [{"id": a["stage"], "label": a["agent_name"], "index": a.get("stage_index", 0),
+              "status": a.get("status"), "confidence": a.get("confidence"),
+              "source_types": a.get("source_types", []),
+              "tool_count": len(a.get("tool_run_ids", [])), "is_revision": a.get("is_revision", False)}
+             for a in agents]
+    edges = [{"from": agents[i]["stage"], "to": agents[i + 1]["stage"]} for i in range(len(agents) - 1)]
+    st_counts: dict[str, int] = {}
+    for a in agents:
+        for st in a.get("source_types", []):
+            st_counts[st] = st_counts.get(st, 0) + 1
+    safety_events = [{"stage": a["stage"], "agent": a["agent_name"], "warnings": a.get("warnings", [])}
+                     for a in agents if a.get("warnings")]
+    return {
+        "run_id": run_id, "mode": ("RECORDED_REPLAY" if run.get("kind") == "agentic_replay"
+                                   else "PARTIAL_FAILURE" if run.get("status") == "warning" else "LIVE"),
+        "nodes": nodes, "edges": edges, "agent_runs": agents, "tool_runs": tools,
+        "revision_events": revs,
+        "confidence_series": [{"stage": a["stage"], "confidence": a.get("confidence")} for a in agents],
+        "source_type_counts": st_counts,
+        "stage_durations": [{"stage": a["stage"], "tool_count": len(a.get("tool_run_ids", []))} for a in agents],
+        "safety_events": safety_events,
+        "warnings": [w for a in agents for w in a.get("warnings", [])],
+    }
+
+
 @router.post("/safety/lint-report", response_model=SafetyLintResponse)
 def safety_lint_report(req: SafetyLintRequest):
     md = req.markdown

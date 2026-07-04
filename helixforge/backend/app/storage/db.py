@@ -39,6 +39,14 @@ ENTITIES = [
     "hypotheses",
     "evaluation_results",
     "run_manifests",
+    # --- Phase 3: submission-grade hardening ---
+    "run_snapshots",
+    "snapshot_artifacts",
+    "ai_interactions",
+    "scenario_runs",
+    "run_configs",
+    "regulatory_docs",
+    "submission_artifacts",
 ]
 
 
@@ -150,6 +158,16 @@ def count(table: str, project_id: Optional[str] = None) -> int:
         conn = _connect()
         row = conn.execute(q, params).fetchone()
     return int(row["c"]) if row else 0
+
+
+def delete(table: str, entity_id: str) -> bool:
+    _validate_table(table)
+    with _LOCK:
+        _ensure_schema()
+        conn = _connect()
+        cur = conn.execute(f"DELETE FROM {table} WHERE id = ?", (entity_id,))
+        conn.commit()
+        return cur.rowcount > 0
 
 
 def clear_all() -> None:

@@ -1,0 +1,3606 @@
+{
+  "run": {
+    "id": "arun-31e50983c6",
+    "project_id": "proj-57691163",
+    "created_at": "2026-07-04T10:55:09.844203+00:00",
+    "status": "complete",
+    "kind": "agentic",
+    "completed_at": "2026-07-04T10:55:15.762531+00:00",
+    "condition": "non-small cell lung cancer",
+    "target_query": "EGFR",
+    "counts": {
+      "REAL_TOOL_OUTPUT": 9,
+      "DEMO_FALLBACK": 0,
+      "CONFIGURED_BUT_NOT_RUN": 1,
+      "TOOL_ERROR": 0,
+      "HUMAN_INPUT": 0
+    },
+    "report_id": "rep-en-arun-31e50983c6",
+    "ko_report_id": "rep-ko-arun-31e50983c6",
+    "metrics": {
+      "real_tool_output_count": 9,
+      "configured_not_run_count": 1,
+      "tool_error_count": 0,
+      "tool_success_rate": 0.9,
+      "source_labeling_completeness": 1.0,
+      "evidence_count": 3,
+      "verified_citation_count": 3,
+      "failed_citation_count": 0,
+      "citation_verification_rate": 1.0,
+      "fake_citation_catch_rate": 1.0,
+      "evidence_to_hypothesis_coverage": 1.0,
+      "candidate_count": 3,
+      "valid_smiles_count": 3,
+      "invalid_smiles_caught": 0,
+      "molecule_validity_rate": 1.0,
+      "safety_pass_count": 3,
+      "safety_review_count": 0,
+      "safety_blocked_count": 0,
+      "agent_run_count": 15,
+      "revision_event_count": 0,
+      "self_correction_rate": 1.0,
+      "human_intervention_count": 0,
+      "runtime_seconds": 5.8,
+      "http_api_calls": 4,
+      "local_tool_calls": 4,
+      "estimated_api_calls": 4,
+      "cost_class": "low (deterministic local tools + public APIs; no LLM tokens billed)",
+      "top_target": "Epidermal growth factor receptor",
+      "top_target_chembl_id": "CHEMBL203",
+      "top_target_type": "SINGLE PROTEIN",
+      "top_target_organism": "Homo sapiens",
+      "pubmed_evidence_count": 3,
+      "clinicaltrials_count": 3,
+      "tdc_row_count": 910,
+      "retrospective": {
+        "criteria": {
+          "target_ranks_top": true,
+          "pubmed_evidence_exists": true,
+          "clinical_precedent_exists": true,
+          "valid_molecule_exists": true,
+          "report_generated": true
+        },
+        "passed": 5,
+        "total": 5,
+        "status": "pass",
+        "note": "Retrospective rediscovery benchmark for pipeline sanity and evidence retrieval \u2014 not a wet-lab validation."
+      },
+      "_counts": {
+        "REAL_TOOL_OUTPUT": 9,
+        "DEMO_FALLBACK": 0,
+        "CONFIGURED_BUT_NOT_RUN": 1,
+        "TOOL_ERROR": 0,
+        "HUMAN_INPUT": 0
+      }
+    },
+    "revision_count": 0
+  },
+  "plan": {
+    "id": "plan-arun-31e50983c6",
+    "project_id": "proj-57691163",
+    "created_at": "2026-07-04T10:55:09.844203+00:00",
+    "workflow_run_id": "arun-31e50983c6",
+    "objective": "Agentic evidence-grounded discovery for EGFR / non-small cell lung cancer",
+    "stages": [
+      {
+        "index": 1,
+        "agent": "Disease Biology Agent",
+        "stage": "disease_modeling"
+      },
+      {
+        "index": 2,
+        "agent": "Evidence Miner",
+        "stage": "evidence_mining"
+      },
+      {
+        "index": 3,
+        "agent": "Citation Verifier",
+        "stage": "citation_verification"
+      },
+      {
+        "index": 4,
+        "agent": "Target Scout",
+        "stage": "target_ranking"
+      },
+      {
+        "index": 5,
+        "agent": "Hypothesis Agent",
+        "stage": "hypothesis_generation"
+      },
+      {
+        "index": 6,
+        "agent": "Molecule Design Agent",
+        "stage": "molecule_design"
+      },
+      {
+        "index": 7,
+        "agent": "Cheminformatics Validator",
+        "stage": "structure_validation"
+      },
+      {
+        "index": 8,
+        "agent": "ADMET & Evaluation Grounding Agent",
+        "stage": "admet_grounding"
+      },
+      {
+        "index": 9,
+        "agent": "Binding & Structure Agent",
+        "stage": "binding"
+      },
+      {
+        "index": 10,
+        "agent": "Synthesis Feasibility Agent",
+        "stage": "synthesis_feasibility"
+      },
+      {
+        "index": 11,
+        "agent": "Safety Auditor",
+        "stage": "safety_audit"
+      },
+      {
+        "index": 12,
+        "agent": "Clinical Strategy Agent",
+        "stage": "clinical_strategy"
+      },
+      {
+        "index": 13,
+        "agent": "Regulatory Reviewer",
+        "stage": "regulatory_review"
+      },
+      {
+        "index": 14,
+        "agent": "Critic Agent",
+        "stage": "critic_review"
+      },
+      {
+        "index": 15,
+        "agent": "Evaluation Agent",
+        "stage": "evaluation"
+      },
+      {
+        "index": 16,
+        "agent": "Report Builder",
+        "stage": "report_generation"
+      }
+    ],
+    "assigned_agents": [
+      "Disease Biology Agent",
+      "Evidence Miner",
+      "Citation Verifier",
+      "Target Scout",
+      "Hypothesis Agent",
+      "Molecule Design Agent",
+      "Cheminformatics Validator",
+      "ADMET & Evaluation Grounding Agent",
+      "Binding & Structure Agent",
+      "Synthesis Feasibility Agent",
+      "Safety Auditor",
+      "Clinical Strategy Agent",
+      "Regulatory Reviewer",
+      "Critic Agent",
+      "Evaluation Agent",
+      "Report Builder"
+    ],
+    "dependencies": [
+      {
+        "from": "disease_modeling",
+        "to": "evidence_mining"
+      },
+      {
+        "from": "evidence_mining",
+        "to": "citation_verification"
+      },
+      {
+        "from": "citation_verification",
+        "to": "target_ranking"
+      },
+      {
+        "from": "target_ranking",
+        "to": "hypothesis_generation"
+      },
+      {
+        "from": "hypothesis_generation",
+        "to": "molecule_design"
+      },
+      {
+        "from": "molecule_design",
+        "to": "structure_validation"
+      },
+      {
+        "from": "structure_validation",
+        "to": "admet_grounding"
+      },
+      {
+        "from": "admet_grounding",
+        "to": "binding"
+      },
+      {
+        "from": "binding",
+        "to": "synthesis_feasibility"
+      },
+      {
+        "from": "synthesis_feasibility",
+        "to": "safety_audit"
+      },
+      {
+        "from": "safety_audit",
+        "to": "clinical_strategy"
+      },
+      {
+        "from": "clinical_strategy",
+        "to": "regulatory_review"
+      },
+      {
+        "from": "regulatory_review",
+        "to": "critic_review"
+      },
+      {
+        "from": "critic_review",
+        "to": "evaluation"
+      },
+      {
+        "from": "evaluation",
+        "to": "report_generation"
+      }
+    ],
+    "status": "created"
+  },
+  "agent_runs": [
+    {
+      "id": "ar-arun-31e50983c6-16",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.753037+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Report Builder",
+      "agent_role": "Assembles the English technical report and Korean judge report from real run artifacts, then runs the safety lint before marking them export-ready.",
+      "stage": "report_generation",
+      "stage_index": 16,
+      "status": "WARNING",
+      "started_at": "2026-07-04T10:55:15.753037+00:00",
+      "completed_at": "2026-07-04T10:55:15.753037+00:00",
+      "input_summary": "EGFR / non-small cell lung cancer",
+      "output_summary": "Generated EN technical report (rep-en-arun-31e50983c6) and KO judge report (rep-ko-arun-31e50983c6). Safety lint: EN=BLOCKED, KO=PASS.",
+      "rationale": "Every claim links to an evidence ID or a labeled assumption/source type; both reports embed the human-responsibility statement.",
+      "assumptions": [],
+      "uncertainty_notes": "",
+      "next_action": "Reports available for Markdown/JSON export.",
+      "tool_run_ids": [],
+      "evidence_ids": [],
+      "molecule_ids": [],
+      "target_ids": [],
+      "validation_status": "PASSED",
+      "validation_checks": [
+        {
+          "check": "en_export_safe",
+          "ok": false,
+          "detail": "BLOCKED"
+        },
+        {
+          "check": "ko_export_safe",
+          "ok": true,
+          "detail": "PASS"
+        },
+        {
+          "check": "disclaimer_present",
+          "ok": true,
+          "detail": ""
+        }
+      ],
+      "confidence": 0.85,
+      "source_types": [],
+      "warnings": [
+        "A report failed the safety lint; export gated."
+      ],
+      "errors": [],
+      "is_revision": false
+    },
+    {
+      "id": "ar-arun-31e50983c6-15",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.732859+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Evaluation Agent",
+      "agent_role": "Computes evaluation metrics from the observed run (tool integration, evidence integrity, molecule validity, agent autonomy, resource efficiency, retrospective rediscovery).",
+      "stage": "evaluation",
+      "stage_index": 15,
+      "status": "COMPLETE",
+      "started_at": "2026-07-04T10:55:15.732859+00:00",
+      "completed_at": "2026-07-04T10:55:15.732859+00:00",
+      "input_summary": "EGFR / non-small cell lung cancer",
+      "output_summary": "Metrics: 9 real-tool outputs, citation verification 1.0, molecule validity 1.0, 0 revisions, retrospective 5/5.",
+      "rationale": "All metrics are computed from observed pipeline state; none are fabricated.",
+      "assumptions": [
+        "Retrospective rediscovery is a sanity/retrieval benchmark, not wet-lab validation."
+      ],
+      "uncertainty_notes": "",
+      "next_action": "Report Builder assembles EN + KO reports.",
+      "tool_run_ids": [],
+      "evidence_ids": [],
+      "molecule_ids": [],
+      "target_ids": [],
+      "validation_status": "PASSED",
+      "validation_checks": [
+        {
+          "check": "retrospective_target_top",
+          "ok": true,
+          "detail": "Epidermal growth factor receptor"
+        }
+      ],
+      "confidence": 0.85,
+      "source_types": [],
+      "warnings": [],
+      "errors": [],
+      "is_revision": false
+    },
+    {
+      "id": "ar-arun-31e50983c6-14",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.630420+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Critic Agent",
+      "agent_role": "Adversarially reviews every prior agent output for invalid molecules, fake/unverified citations, overclaims, contradictions, unsafe suggestions, and provenance gaps. Forces revisions.",
+      "stage": "critic_review",
+      "stage_index": 14,
+      "status": "COMPLETE",
+      "started_at": "2026-07-04T10:55:15.630420+00:00",
+      "completed_at": "2026-07-04T10:55:15.630420+00:00",
+      "input_summary": "EGFR / non-small cell lung cancer",
+      "output_summary": "Critic review complete: 0 revision event(s) across no issues.",
+      "rationale": "Every prior output is checked against a fixed defect taxonomy; each detected defect produces a recorded, corrected revision.",
+      "assumptions": [
+        "Checks are deterministic rules, not a semantic LLM critique."
+      ],
+      "uncertainty_notes": "",
+      "next_action": "Evaluation Agent computes metrics.",
+      "tool_run_ids": [],
+      "evidence_ids": [],
+      "molecule_ids": [],
+      "target_ids": [],
+      "validation_status": "PASSED",
+      "validation_checks": [
+        {
+          "check": "invalid_excluded",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "check": "overclaims_rewritten",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "check": "failed_citations_demoted",
+          "ok": true,
+          "detail": ""
+        }
+      ],
+      "confidence": 0.8,
+      "source_types": [],
+      "warnings": [],
+      "errors": [],
+      "is_revision": false
+    },
+    {
+      "id": "ar-arun-31e50983c6-13",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.621039+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Regulatory Reviewer",
+      "agent_role": "Produces a high-level FDA/MFDS-style readiness checklist with honest source labels and explicit gaps. Never claims an approval path.",
+      "stage": "regulatory_review",
+      "stage_index": 13,
+      "status": "COMPLETE",
+      "started_at": "2026-07-04T10:55:15.621039+00:00",
+      "completed_at": "2026-07-04T10:55:15.621039+00:00",
+      "input_summary": "EGFR / non-small cell lung cancer",
+      "output_summary": "Regulatory checklist (10 items); 2 gaps: Nonclinical safety data, CMC / manufacturing.",
+      "rationale": "Checklist is a planning heuristic (ASSUMPTION), not real guidance-document retrieval; a RAG adapter is planned.",
+      "assumptions": [
+        "No regulatory approval or compliance is claimed."
+      ],
+      "uncertainty_notes": "",
+      "next_action": "Critic reviews the whole package.",
+      "tool_run_ids": [],
+      "evidence_ids": [],
+      "molecule_ids": [],
+      "target_ids": [],
+      "validation_status": "PASSED",
+      "validation_checks": [
+        {
+          "check": "no_approval_claim",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "check": "gaps_explicit",
+          "ok": true,
+          "detail": ""
+        }
+      ],
+      "confidence": 0.6,
+      "source_types": [],
+      "warnings": [],
+      "errors": [],
+      "is_revision": false
+    },
+    {
+      "id": "ar-arun-31e50983c6-12",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.611109+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Clinical Strategy Agent",
+      "agent_role": "Summarizes real ClinicalTrials.gov precedent into a high-level, non-advisory clinical strategy. No dosage or medical advice.",
+      "stage": "clinical_strategy",
+      "stage_index": 12,
+      "status": "COMPLETE",
+      "started_at": "2026-07-04T10:55:15.611109+00:00",
+      "completed_at": "2026-07-04T10:55:15.611109+00:00",
+      "input_summary": "EGFR / non-small cell lung cancer",
+      "output_summary": "Clinical strategy drafted from 3 real trial precedents (phases: {'N/A': 2, 'PHASE2': 1}).",
+      "rationale": "Only high-level design elements are produced; all specifics require expert clinical/biostatistics input.",
+      "assumptions": [
+        "Precedent presence indicates feasibility, not efficacy."
+      ],
+      "uncertainty_notes": "This is high-level research planning, not medical, legal, or regulatory advice.",
+      "next_action": "Regulatory Reviewer builds the checklist.",
+      "tool_run_ids": [],
+      "evidence_ids": [],
+      "molecule_ids": [],
+      "target_ids": [],
+      "validation_status": "PASSED",
+      "validation_checks": [
+        {
+          "check": "disclaimer_present",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "check": "no_dosage_or_medical_advice",
+          "ok": true,
+          "detail": ""
+        }
+      ],
+      "confidence": 0.62,
+      "source_types": [],
+      "warnings": [],
+      "errors": [],
+      "is_revision": false
+    },
+    {
+      "id": "ar-arun-31e50983c6-11",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.601998+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Safety Auditor",
+      "agent_role": "Screens candidate molecules and textual outputs; quarantines hazardous items with a non-actionable, redacted summary. Blocked items cannot be recommended.",
+      "stage": "safety_audit",
+      "stage_index": 11,
+      "status": "COMPLETE",
+      "started_at": "2026-07-04T10:55:15.601998+00:00",
+      "completed_at": "2026-07-04T10:55:15.601998+00:00",
+      "input_summary": "EGFR / non-small cell lung cancer",
+      "output_summary": "Safety gate complete: 0 blocked/quarantined, 0 review-required, text screen PASS.",
+      "rationale": "Hazardous or dual-use content is blocked with only a category shown; toxicity is screened, never optimized. No synthesis routes.",
+      "assumptions": [
+        "Blocked candidates are excluded from the recommended package."
+      ],
+      "uncertainty_notes": "",
+      "next_action": "Clinical Strategy Agent.",
+      "tool_run_ids": [],
+      "evidence_ids": [],
+      "molecule_ids": [],
+      "target_ids": [],
+      "validation_status": "PASSED",
+      "validation_checks": [
+        {
+          "check": "blocked_excluded_from_recommendation",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "check": "no_actionable_hazard_detail",
+          "ok": true,
+          "detail": ""
+        }
+      ],
+      "confidence": 0.86,
+      "source_types": [],
+      "warnings": [],
+      "errors": [],
+      "is_revision": false
+    },
+    {
+      "id": "ar-arun-31e50983c6-10",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.587259+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Synthesis Feasibility Agent",
+      "agent_role": "Produces a high-level, NON-ACTIONABLE feasibility summary only. By policy it never emits routes, reagents, conditions, or procedures.",
+      "stage": "synthesis_feasibility",
+      "stage_index": 10,
+      "status": "COMPLETE",
+      "started_at": "2026-07-04T10:55:15.587259+00:00",
+      "completed_at": "2026-07-04T10:55:15.587259+00:00",
+      "input_summary": "EGFR / non-small cell lung cancer",
+      "output_summary": "Feasibility band assigned to 3 candidates (High=0). Score/complexity only \u2014 NO synthesis route, reagents, or conditions are produced (policy).",
+      "rationale": "Feasibility is a coarse descriptor-complexity heuristic for prioritization; expert review is required.",
+      "assumptions": [
+        "Feasibility band is not a retrosynthesis result and implies nothing about a real route."
+      ],
+      "uncertainty_notes": "",
+      "next_action": "Safety Auditor gate.",
+      "tool_run_ids": [],
+      "evidence_ids": [],
+      "molecule_ids": [],
+      "target_ids": [],
+      "validation_status": "PASSED",
+      "validation_checks": [
+        {
+          "check": "no_synthesis_route_emitted",
+          "ok": true,
+          "detail": "policy: routes withheld"
+        }
+      ],
+      "confidence": 0.6,
+      "source_types": [],
+      "warnings": [],
+      "errors": [],
+      "is_revision": false
+    },
+    {
+      "id": "ar-arun-31e50983c6-9",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.578177+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Binding & Structure Agent",
+      "agent_role": "Runs fixture-based AutoDock Vina docking when configured. Never fabricates a docking score; reports honest status when Vina is unavailable.",
+      "stage": "binding",
+      "stage_index": 9,
+      "status": "COMPLETE",
+      "started_at": "2026-07-04T10:55:15.578177+00:00",
+      "completed_at": "2026-07-04T10:55:15.578177+00:00",
+      "input_summary": "EGFR / non-small cell lung cancer",
+      "output_summary": "Vina fixture docking not requested. Adapter health: NOT_CONFIGURED.",
+      "rationale": "Fixture-based docking only; arbitrary receptor preparation is future work and requires expert setup.",
+      "assumptions": [
+        "Docking scores, when present, are in-silico estimates, not experimental affinities."
+      ],
+      "uncertainty_notes": "",
+      "next_action": "Synthesis Feasibility Agent (score only).",
+      "tool_run_ids": [],
+      "evidence_ids": [],
+      "molecule_ids": [],
+      "target_ids": [],
+      "validation_status": "PASSED",
+      "validation_checks": [
+        {
+          "check": "no_fabricated_docking",
+          "ok": true,
+          "detail": "score shown only if REAL_TOOL_OUTPUT"
+        }
+      ],
+      "confidence": 0.55,
+      "source_types": [
+        "CONFIGURED_BUT_NOT_RUN"
+      ],
+      "warnings": [],
+      "errors": [],
+      "is_revision": false
+    },
+    {
+      "id": "ar-arun-31e50983c6-8",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.568057+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "ADMET & Toxicology Agent",
+      "agent_role": "Loads a real TDC ADME dataset as evaluation/training substrate and computes each candidate's composite prioritization score. Does not claim per-candidate ADMET prediction without a real model.",
+      "stage": "admet_grounding",
+      "stage_index": 8,
+      "status": "COMPLETE",
+      "started_at": "2026-07-04T10:55:15.568057+00:00",
+      "completed_at": "2026-07-04T10:55:15.568057+00:00",
+      "input_summary": "EGFR / non-small cell lung cancer",
+      "output_summary": "TDC Caco2_Wang loaded (910 rows) as evaluation substrate; scored 3 valid candidates with the transparent composite score.",
+      "rationale": "TDC dataset is loaded as an evaluation/training substrate (splits + size are real). No per-candidate ADMET prediction is claimed unless a trained model exists; the composite score aggregates QED/Lipinski/activity/druglikeness/provenance with safety and uncertainty penalties.",
+      "assumptions": [
+        "TDC dataset grounds evaluation; it is not used here as a fitted predictor."
+      ],
+      "uncertainty_notes": "Composite score is a prioritization aid, not an efficacy prediction.",
+      "next_action": "Binding & Structure Agent.",
+      "tool_run_ids": [
+        "ae-e1810d265c78"
+      ],
+      "evidence_ids": [],
+      "molecule_ids": [],
+      "target_ids": [],
+      "validation_status": "PASSED",
+      "validation_checks": [
+        {
+          "check": "tdc_loaded",
+          "ok": true,
+          "detail": "Loaded Caco2_Wang: 910 rows, splits {'train': 637, 'valid': 91, 'test': 182} (real PyTDC)."
+        },
+        {
+          "check": "candidates_scored",
+          "ok": true,
+          "detail": ""
+        }
+      ],
+      "confidence": 0.75,
+      "source_types": [
+        "REAL_TOOL_OUTPUT"
+      ],
+      "warnings": [],
+      "errors": [],
+      "is_revision": false
+    },
+    {
+      "id": "ar-arun-31e50983c6-7",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.523701+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Cheminformatics Validator",
+      "agent_role": "Validates every candidate SMILES with real RDKit, computes descriptors, and screens each molecule. Rejects invalid structures.",
+      "stage": "structure_validation",
+      "stage_index": 7,
+      "status": "COMPLETE",
+      "started_at": "2026-07-04T10:55:15.523701+00:00",
+      "completed_at": "2026-07-04T10:55:15.523701+00:00",
+      "input_summary": "EGFR / non-small cell lung cancer",
+      "output_summary": "3/3 candidate SMILES valid (RDKit); 0 invalid rejected.",
+      "rationale": "Invalid structures are rejected before scoring and flagged for the Critic to request regeneration/removal.",
+      "assumptions": [],
+      "uncertainty_notes": "",
+      "next_action": "ADMET grounding + composite scoring.",
+      "tool_run_ids": [
+        "ae-47c272f6feb4",
+        "ae-459c6de9829d",
+        "ae-ae0b278ca175"
+      ],
+      "evidence_ids": [],
+      "molecule_ids": [
+        "mol-arun-31e50983c6-1",
+        "mol-arun-31e50983c6-2",
+        "mol-arun-31e50983c6-3"
+      ],
+      "target_ids": [],
+      "validation_status": "PASSED",
+      "validation_checks": [
+        {
+          "check": "all_scored_are_valid",
+          "ok": true,
+          "detail": "invalid molecules excluded from ranking"
+        }
+      ],
+      "confidence": 0.85,
+      "source_types": [
+        "REAL_TOOL_OUTPUT",
+        "REAL_TOOL_OUTPUT",
+        "REAL_TOOL_OUTPUT"
+      ],
+      "warnings": [],
+      "errors": [],
+      "is_revision": false
+    },
+    {
+      "id": "ar-arun-31e50983c6-6",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.457497+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Molecule Design Agent",
+      "agent_role": "Imports real candidate molecules from ChEMBL activities for the selected target and, if configured, creates a REINVENT4 config. Never fabricates molecules.",
+      "stage": "molecule_design",
+      "stage_index": 6,
+      "status": "COMPLETE",
+      "started_at": "2026-07-04T10:55:15.457497+00:00",
+      "completed_at": "2026-07-04T10:55:15.457497+00:00",
+      "input_summary": "EGFR / non-small cell lung cancer",
+      "output_summary": "Imported 3 real candidate molecules (ChEMBL activities for CHEMBL203).",
+      "rationale": "Real bioactive structures are used as the candidate pool; generative design is prepared via a real config but not run here.",
+      "assumptions": [
+        "ChEMBL activity molecules are comparators/starting points, not novel generated molecules."
+      ],
+      "uncertainty_notes": "",
+      "next_action": "Cheminformatics Validator validates every SMILES.",
+      "tool_run_ids": [
+        "ae-e5543ba37fc6"
+      ],
+      "evidence_ids": [],
+      "molecule_ids": [
+        "CHEMBL68920",
+        "CHEMBL69960",
+        "CHEMBL137635"
+      ],
+      "target_ids": [],
+      "validation_status": "PASSED",
+      "validation_checks": [
+        {
+          "check": "candidates_imported",
+          "ok": true,
+          "detail": "3 candidates"
+        }
+      ],
+      "confidence": 0.8,
+      "source_types": [
+        "REAL_TOOL_OUTPUT"
+      ],
+      "warnings": [],
+      "errors": [],
+      "is_revision": false
+    },
+    {
+      "id": "ar-arun-31e50983c6-5",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:14.504015+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Hypothesis Agent",
+      "agent_role": "Converts evidence into 2-3 conservative, evidence-linked in-silico hypotheses. Never claims validated efficacy.",
+      "stage": "hypothesis_generation",
+      "stage_index": 5,
+      "status": "COMPLETE",
+      "started_at": "2026-07-04T10:55:14.504015+00:00",
+      "completed_at": "2026-07-04T10:55:14.504015+00:00",
+      "input_summary": "EGFR / non-small cell lung cancer",
+      "output_summary": "Generated 2 in-silico hypotheses for Epidermal growth factor receptor; each linked to verified evidence or marked as assumption.",
+      "rationale": "Hypotheses use guarded language ('in-silico', 'candidate for expert review') and link to verified PMIDs.",
+      "assumptions": [
+        "No efficacy, cure, or clinical-confirmation claim is made."
+      ],
+      "uncertainty_notes": "",
+      "next_action": "Molecule Design Agent imports candidates.",
+      "tool_run_ids": [],
+      "evidence_ids": [
+        "ev-31564718",
+        "ev-36482474",
+        "ev-35122001"
+      ],
+      "molecule_ids": [],
+      "target_ids": [],
+      "validation_status": "PASSED",
+      "validation_checks": [
+        {
+          "check": "hypotheses_linked_or_assumption",
+          "ok": true,
+          "detail": ""
+        }
+      ],
+      "confidence": 0.7,
+      "source_types": [],
+      "warnings": [],
+      "errors": [],
+      "is_revision": false
+    },
+    {
+      "id": "ar-arun-31e50983c6-4",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:14.487861+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Target Scout",
+      "agent_role": "Calls real ChEMBL target search + ClinicalTrials.gov precedent, then ranks targets with the transparent Target Opportunity Score.",
+      "stage": "target_ranking",
+      "stage_index": 4,
+      "status": "COMPLETE",
+      "started_at": "2026-07-04T10:55:14.487861+00:00",
+      "completed_at": "2026-07-04T10:55:14.487861+00:00",
+      "input_summary": "EGFR / non-small cell lung cancer",
+      "output_summary": "Ranked 15 ChEMBL targets. Selected Epidermal growth factor receptor (CHEMBL203, score 61.2/100) with 3 clinical precedents.",
+      "rationale": "Selection favors exact-name single-protein human targets with bioactivity data, literature evidence, and clinical precedent \u2014 via the transparent Target Opportunity Score (weights shown in the report).",
+      "assumptions": [
+        "Clinical precedent count is a proxy signal, not a measure of efficacy."
+      ],
+      "uncertainty_notes": "",
+      "next_action": "Hypothesis Agent generates therapeutic hypotheses.",
+      "tool_run_ids": [
+        "ae-aa20dbd82da7",
+        "ae-c77d670c2352"
+      ],
+      "evidence_ids": [],
+      "molecule_ids": [],
+      "target_ids": [
+        "tgt-CHEMBL203",
+        "tgt-CHEMBL1824",
+        "tgt-CHEMBL3009",
+        "tgt-CHEMBL5838",
+        "tgt-CHEMBL3137284",
+        "tgt-CHEMBL4523747",
+        "tgt-CHEMBL5465557",
+        "tgt-CHEMBL3608",
+        "tgt-CHEMBL2363049",
+        "tgt-CHEMBL3848",
+        "tgt-CHEMBL2111431",
+        "tgt-CHEMBL4523680",
+        "tgt-CHEMBL4523998",
+        "tgt-CHEMBL6193842",
+        "tgt-CHEMBL6193841"
+      ],
+      "validation_status": "PASSED",
+      "validation_checks": [
+        {
+          "check": "target_selected",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "check": "target_has_evidence_path",
+          "ok": true,
+          "detail": "\u22651 evidence or clinical path"
+        }
+      ],
+      "confidence": 0.82,
+      "source_types": [
+        "REAL_TOOL_OUTPUT",
+        "REAL_TOOL_OUTPUT"
+      ],
+      "warnings": [],
+      "errors": [],
+      "is_revision": false
+    },
+    {
+      "id": "ar-arun-31e50983c6-3",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:11.701112+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Citation Verifier",
+      "agent_role": "Verifies every evidence item has a resolvable identifier (PMID/NCT/ChEMBL/DOI). Fails fabricated citations.",
+      "stage": "citation_verification",
+      "stage_index": 3,
+      "status": "COMPLETE",
+      "started_at": "2026-07-04T10:55:11.701112+00:00",
+      "completed_at": "2026-07-04T10:55:11.701112+00:00",
+      "input_summary": "EGFR / non-small cell lung cancer",
+      "output_summary": "Verified 3, failed 0, unverified 0 of 3 evidence items.",
+      "rationale": "PMID/NCT/ChEMBL/DOI presence yields VERIFIED; fabricated/unresolvable identifiers yield FAILED.",
+      "assumptions": [],
+      "uncertainty_notes": "",
+      "next_action": "Target Scout ranks targets.",
+      "tool_run_ids": [],
+      "evidence_ids": [
+        "ev-31564718",
+        "ev-36482474",
+        "ev-35122001"
+      ],
+      "molecule_ids": [],
+      "target_ids": [],
+      "validation_status": "PASSED",
+      "validation_checks": [
+        {
+          "check": "no_failed_verified_as_real",
+          "ok": true,
+          "detail": "failed citations are not counted as verified"
+        }
+      ],
+      "confidence": 0.85,
+      "source_types": [],
+      "warnings": [],
+      "errors": [],
+      "is_revision": false
+    },
+    {
+      "id": "ar-arun-31e50983c6-2",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:11.682288+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Evidence Miner",
+      "agent_role": "Calls the real PubMed adapter, stores evidence items, and classifies direction (supports/contradicts/neutral).",
+      "stage": "evidence_mining",
+      "stage_index": 2,
+      "status": "COMPLETE",
+      "started_at": "2026-07-04T10:55:11.682288+00:00",
+      "completed_at": "2026-07-04T10:55:11.682288+00:00",
+      "input_summary": "EGFR / non-small cell lung cancer",
+      "output_summary": "Retrieved 3 evidence items (3 supporting, 0 contradictory) from real PubMed.",
+      "rationale": "Direction is inferred with conservative keyword heuristics; ambiguous items default to 'supports' and are flagged for the Critic.",
+      "assumptions": [
+        "Direction classification is heuristic, not a semantic reading of full text."
+      ],
+      "uncertainty_notes": "",
+      "next_action": "Citation Verifier checks identifiers.",
+      "tool_run_ids": [
+        "ae-a2a9a0ed4862"
+      ],
+      "evidence_ids": [
+        "ev-31564718",
+        "ev-36482474",
+        "ev-35122001"
+      ],
+      "molecule_ids": [],
+      "target_ids": [],
+      "validation_status": "PASSED",
+      "validation_checks": [
+        {
+          "check": "evidence_retrieved",
+          "ok": true,
+          "detail": "3 items"
+        }
+      ],
+      "confidence": 0.8,
+      "source_types": [
+        "REAL_TOOL_OUTPUT"
+      ],
+      "warnings": [],
+      "errors": [],
+      "is_revision": false
+    },
+    {
+      "id": "ar-arun-31e50983c6-1",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:10.129972+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Disease Biology Agent",
+      "agent_role": "Frames high-level disease context and the evidence-search strategy. Does not fabricate biological claims.",
+      "stage": "disease_modeling",
+      "stage_index": 1,
+      "status": "COMPLETE",
+      "started_at": "2026-07-04T10:55:10.129972+00:00",
+      "completed_at": "2026-07-04T10:55:10.129972+00:00",
+      "input_summary": "EGFR / non-small cell lung cancer",
+      "output_summary": "Scoped indication 'non-small cell lung cancer' with target hypothesis 'EGFR'. PubMed search strategy: \"EGFR non-small cell lung cancer resistance\".",
+      "rationale": "Framing the indication and a precise query up front lets the Evidence Miner retrieve relevant, verifiable literature rather than broad, noisy results.",
+      "assumptions": [
+        "Disease context is a scoping artifact, not a validated biological model.",
+        "All downstream claims must be backed by retrieved evidence IDs or marked as assumptions."
+      ],
+      "uncertainty_notes": "No biological assertions are made at this stage; scope only.",
+      "next_action": "Evidence Miner retrieves literature for the query.",
+      "tool_run_ids": [],
+      "evidence_ids": [],
+      "molecule_ids": [],
+      "target_ids": [],
+      "validation_status": "PASSED",
+      "validation_checks": [
+        {
+          "check": "query_defined",
+          "ok": true,
+          "detail": ""
+        }
+      ],
+      "confidence": 0.8,
+      "source_types": [],
+      "warnings": [],
+      "errors": [],
+      "is_revision": false
+    },
+    {
+      "id": "ar-arun-31e50983c6-0",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:10.116535+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Project Orchestrator",
+      "agent_role": "Decomposes the objective into a DAG, assigns stages to specialized agents, tracks state, and decides when to revise.",
+      "stage": "planning",
+      "stage_index": 0,
+      "status": "COMPLETE",
+      "started_at": "2026-07-04T10:55:10.116535+00:00",
+      "completed_at": "2026-07-04T10:55:10.116535+00:00",
+      "input_summary": "EGFR / non-small cell lung cancer",
+      "output_summary": "16-stage agentic workflow created for EGFR / non-small cell lung cancer with evidence mining, target scoring, molecule screening, safety gate, evaluation, and report generation.",
+      "rationale": "The objective is decomposed into a directed pipeline where each stage's artifacts gate the next. Deterministic chemistry/data tasks route to local tools (RDKit, TDC); evidence tasks route to public APIs (PubMed, ChEMBL, ClinicalTrials.gov); a critic loop revises failures.",
+      "assumptions": [
+        "EGFR/NSCLC is used as the retrospective-rediscovery anchor scenario."
+      ],
+      "uncertainty_notes": "",
+      "next_action": "Dispatch Disease Biology Agent.",
+      "tool_run_ids": [],
+      "evidence_ids": [],
+      "molecule_ids": [],
+      "target_ids": [],
+      "validation_status": "PASSED",
+      "validation_checks": [
+        {
+          "check": "plan_has_stages",
+          "ok": true,
+          "detail": "16 stages"
+        }
+      ],
+      "confidence": 0.9,
+      "source_types": [],
+      "warnings": [],
+      "errors": [],
+      "is_revision": false
+    }
+  ],
+  "tool_runs": [
+    {
+      "id": "tr-f545bf0b5013",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.596181+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "tool_name": "Safety",
+      "tool_category": "safety",
+      "source_type": "REAL_TOOL_OUTPUT",
+      "input_summary": "screen label=pipeline_output",
+      "output_summary": "Safety status: PASS",
+      "validation_status": "PASSED",
+      "latency_ms": 0.0,
+      "raw_output_ref": null,
+      "errors": [],
+      "warnings": [],
+      "audit_event_id": "ae-eb7ad9b39852"
+    },
+    {
+      "id": "tr-c695b549d252",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.548125+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "tool_name": "TDC/PyTDC",
+      "tool_category": "chemistry",
+      "source_type": "REAL_TOOL_OUTPUT",
+      "input_summary": "dataset=\"Caco2_Wang\"",
+      "output_summary": "Loaded Caco2_Wang: 910 rows, splits {'train': 637, 'valid': 91, 'test': 182} (real PyTDC).",
+      "validation_status": "PASSED",
+      "latency_ms": 14.6,
+      "raw_output_ref": null,
+      "errors": [],
+      "warnings": [],
+      "audit_event_id": "ae-e1810d265c78"
+    },
+    {
+      "id": "tr-e7678299d22e",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.514970+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "tool_name": "Safety",
+      "tool_category": "safety",
+      "source_type": "REAL_TOOL_OUTPUT",
+      "input_summary": "screen label=CHEMBL137635",
+      "output_summary": "Safety status: PASS",
+      "validation_status": "PASSED",
+      "latency_ms": 0.0,
+      "raw_output_ref": null,
+      "errors": [],
+      "warnings": [],
+      "audit_event_id": "ae-cd3dc86db076"
+    },
+    {
+      "id": "tr-f3f6bce78b37",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.508505+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "tool_name": "RDKit",
+      "tool_category": "chemistry",
+      "source_type": "REAL_TOOL_OUTPUT",
+      "input_summary": "smiles=\"CN(c1ccccc1)c1ncnc2ccc(N/N=N/Cc3ccccn3)cc12\"",
+      "output_summary": "MW 369.43, logP 4.77, QED 0.391, Lipinski pass.",
+      "validation_status": "PASSED",
+      "latency_ms": 2.4,
+      "raw_output_ref": null,
+      "errors": [],
+      "warnings": [],
+      "audit_event_id": "ae-ae0b278ca175"
+    },
+    {
+      "id": "tr-95f4b31132c1",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.496911+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "tool_name": "Safety",
+      "tool_category": "safety",
+      "source_type": "REAL_TOOL_OUTPUT",
+      "input_summary": "screen label=CHEMBL69960",
+      "output_summary": "Safety status: PASS",
+      "validation_status": "PASSED",
+      "latency_ms": 0.0,
+      "raw_output_ref": null,
+      "errors": [],
+      "warnings": [],
+      "audit_event_id": "ae-cc52d03260b1"
+    },
+    {
+      "id": "tr-35869e20def0",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.490371+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "tool_name": "RDKit",
+      "tool_category": "chemistry",
+      "source_type": "REAL_TOOL_OUTPUT",
+      "input_summary": "smiles=\"Cc1cc(C(=O)N2CCOCC2)[nH]c1/C=C1\\C(=O)Nc2ncnc(Nc3ccc(F)c(Cl)c3)c21\"",
+      "output_summary": "MW 482.9, logP 3.61, QED 0.49, Lipinski pass.",
+      "validation_status": "PASSED",
+      "latency_ms": 2.7,
+      "raw_output_ref": null,
+      "errors": [],
+      "warnings": [],
+      "audit_event_id": "ae-459c6de9829d"
+    },
+    {
+      "id": "tr-22c889934520",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.478641+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "tool_name": "Safety",
+      "tool_category": "safety",
+      "source_type": "REAL_TOOL_OUTPUT",
+      "input_summary": "screen label=CHEMBL68920",
+      "output_summary": "Safety status: PASS",
+      "validation_status": "PASSED",
+      "latency_ms": 0.7,
+      "raw_output_ref": null,
+      "errors": [],
+      "warnings": [],
+      "audit_event_id": "ae-b491f03bb007"
+    },
+    {
+      "id": "tr-e5f85dcd05f0",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.471553+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "tool_name": "RDKit",
+      "tool_category": "chemistry",
+      "source_type": "REAL_TOOL_OUTPUT",
+      "input_summary": "smiles=\"Cc1cc(C)c(/C=C2\\C(=O)Nc3ncnc(Nc4ccc(F)c(Cl)c4)c32)[nH]1\"",
+      "output_summary": "MW 383.81, logP 4.45, QED 0.583, Lipinski pass.",
+      "validation_status": "PASSED",
+      "latency_ms": 4.3,
+      "raw_output_ref": null,
+      "errors": [],
+      "warnings": [],
+      "audit_event_id": "ae-47c272f6feb4"
+    },
+    {
+      "id": "tr-300d2417d75c",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.448763+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "tool_name": "ChEMBL",
+      "tool_category": "chemistry",
+      "source_type": "REAL_TOOL_OUTPUT",
+      "input_summary": "activities target=CHEMBL203, type=IC50, limit=9",
+      "output_summary": "9 activities (9 with structures) (real ChEMBL via httpx).",
+      "validation_status": "PASSED",
+      "latency_ms": 935.4,
+      "raw_output_ref": null,
+      "errors": [],
+      "warnings": [],
+      "audit_event_id": "ae-e5543ba37fc6"
+    },
+    {
+      "id": "tr-2c1a7fbd10bf",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:14.426085+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "tool_name": "ClinicalTrials.gov",
+      "tool_category": "clinical",
+      "source_type": "REAL_TOOL_OUTPUT",
+      "input_summary": "condition=\"non-small cell lung cancer\", query=\"EGFR\", max_results=3",
+      "output_summary": "3 trials retrieved from ClinicalTrials.gov v2 (via curl).",
+      "validation_status": "PASSED",
+      "latency_ms": 1167.6,
+      "raw_output_ref": null,
+      "errors": [],
+      "warnings": [],
+      "audit_event_id": "ae-c77d670c2352"
+    },
+    {
+      "id": "tr-6593688e82e5",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:13.249857+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "tool_name": "ChEMBL",
+      "tool_category": "chemistry",
+      "source_type": "REAL_TOOL_OUTPUT",
+      "input_summary": "target search q=\"EGFR\", limit=15",
+      "output_summary": "15 ChEMBL targets (real ChEMBL via httpx).",
+      "validation_status": "PASSED",
+      "latency_ms": 1539.5,
+      "raw_output_ref": null,
+      "errors": [],
+      "warnings": [],
+      "audit_event_id": "ae-aa20dbd82da7"
+    },
+    {
+      "id": "tr-811b926e835a",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:11.664468+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "tool_name": "PubMed",
+      "tool_category": "literature",
+      "source_type": "REAL_TOOL_OUTPUT",
+      "input_summary": "query=\"EGFR non-small cell lung cancer resistance\", max_results=3",
+      "output_summary": "3 PubMed records retrieved (real E-utilities via httpx).",
+      "validation_status": "PASSED",
+      "latency_ms": 1524.3,
+      "raw_output_ref": null,
+      "errors": [],
+      "warnings": [],
+      "audit_event_id": "ae-a2a9a0ed4862"
+    }
+  ],
+  "audit_events": [
+    {
+      "id": "ae-f74a4bc05585",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.756425+00:00",
+      "timestamp": "2026-07-04T10:55:15.756425+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Report Builder",
+      "tool_name": "",
+      "event_type": "agent_run",
+      "source_type": "HUMAN_INPUT",
+      "input_summary": "EGFR / non-small cell lung cancer",
+      "output_summary": "Generated EN technical report (rep-en-arun-31e50983c6) and KO judge report (rep-ko-arun-31e50983c6). Safety lint: EN=BLOCKED, KO=PASS.",
+      "validation_status": "PASSED",
+      "confidence": 0.85,
+      "warnings": [
+        "A report failed the safety lint; export gated."
+      ],
+      "errors": []
+    },
+    {
+      "id": "ae-e07ef65d73f3",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.735868+00:00",
+      "timestamp": "2026-07-04T10:55:15.735868+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Evaluation Agent",
+      "tool_name": "",
+      "event_type": "agent_run",
+      "source_type": "HUMAN_INPUT",
+      "input_summary": "EGFR / non-small cell lung cancer",
+      "output_summary": "Metrics: 9 real-tool outputs, citation verification 1.0, molecule validity 1.0, 0 revisions, retrospective 5/5.",
+      "validation_status": "PASSED",
+      "confidence": 0.85,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "id": "ae-78e31cd41e69",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.633611+00:00",
+      "timestamp": "2026-07-04T10:55:15.633611+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Critic Agent",
+      "tool_name": "",
+      "event_type": "agent_run",
+      "source_type": "HUMAN_INPUT",
+      "input_summary": "EGFR / non-small cell lung cancer",
+      "output_summary": "Critic review complete: 0 revision event(s) across no issues.",
+      "validation_status": "PASSED",
+      "confidence": 0.8,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "id": "ae-9e18e5bbdb2c",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.624169+00:00",
+      "timestamp": "2026-07-04T10:55:15.624169+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Regulatory Reviewer",
+      "tool_name": "",
+      "event_type": "agent_run",
+      "source_type": "HUMAN_INPUT",
+      "input_summary": "EGFR / non-small cell lung cancer",
+      "output_summary": "Regulatory checklist (10 items); 2 gaps: Nonclinical safety data, CMC / manufacturing.",
+      "validation_status": "PASSED",
+      "confidence": 0.6,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "id": "ae-cba82a28ef28",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.614230+00:00",
+      "timestamp": "2026-07-04T10:55:15.614230+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Clinical Strategy Agent",
+      "tool_name": "",
+      "event_type": "agent_run",
+      "source_type": "HUMAN_INPUT",
+      "input_summary": "EGFR / non-small cell lung cancer",
+      "output_summary": "Clinical strategy drafted from 3 real trial precedents (phases: {'N/A': 2, 'PHASE2': 1}).",
+      "validation_status": "PASSED",
+      "confidence": 0.62,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "id": "ae-ebcbab01df50",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.604828+00:00",
+      "timestamp": "2026-07-04T10:55:15.604828+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Safety Auditor",
+      "tool_name": "",
+      "event_type": "agent_run",
+      "source_type": "HUMAN_INPUT",
+      "input_summary": "EGFR / non-small cell lung cancer",
+      "output_summary": "Safety gate complete: 0 blocked/quarantined, 0 review-required, text screen PASS.",
+      "validation_status": "PASSED",
+      "confidence": 0.86,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "id": "ae-eb7ad9b39852",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.596181+00:00",
+      "timestamp": "2026-07-04T10:55:15.596181+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Safety Auditor",
+      "tool_name": "Safety",
+      "event_type": "tool_call",
+      "source_type": "REAL_TOOL_OUTPUT",
+      "input_summary": "screen label=pipeline_output",
+      "output_summary": "Safety status: PASS",
+      "validation_status": "PASSED",
+      "confidence": null,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "id": "ae-ddc2b9c441d3",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.590298+00:00",
+      "timestamp": "2026-07-04T10:55:15.590298+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Synthesis Feasibility Agent",
+      "tool_name": "",
+      "event_type": "agent_run",
+      "source_type": "HUMAN_INPUT",
+      "input_summary": "EGFR / non-small cell lung cancer",
+      "output_summary": "Feasibility band assigned to 3 candidates (High=0). Score/complexity only \u2014 NO synthesis route, reagents, or conditions are produced (policy).",
+      "validation_status": "PASSED",
+      "confidence": 0.6,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "id": "ae-5bbd70b0a44c",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.581054+00:00",
+      "timestamp": "2026-07-04T10:55:15.581054+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Binding & Structure Agent",
+      "tool_name": "",
+      "event_type": "agent_run",
+      "source_type": "HUMAN_INPUT",
+      "input_summary": "EGFR / non-small cell lung cancer",
+      "output_summary": "Vina fixture docking not requested. Adapter health: NOT_CONFIGURED.",
+      "validation_status": "PASSED",
+      "confidence": 0.55,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "id": "ae-9718989d8557",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.571113+00:00",
+      "timestamp": "2026-07-04T10:55:15.571113+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "ADMET & Toxicology Agent",
+      "tool_name": "",
+      "event_type": "agent_run",
+      "source_type": "REAL_TOOL_OUTPUT",
+      "input_summary": "EGFR / non-small cell lung cancer",
+      "output_summary": "TDC Caco2_Wang loaded (910 rows) as evaluation substrate; scored 3 valid candidates with the transparent composite score.",
+      "validation_status": "PASSED",
+      "confidence": 0.75,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "id": "ae-e1810d265c78",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.548125+00:00",
+      "timestamp": "2026-07-04T10:55:15.548125+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "ADMET & Toxicology Agent",
+      "tool_name": "TDC/PyTDC",
+      "event_type": "tool_call",
+      "source_type": "REAL_TOOL_OUTPUT",
+      "input_summary": "dataset=\"Caco2_Wang\"",
+      "output_summary": "Loaded Caco2_Wang: 910 rows, splits {'train': 637, 'valid': 91, 'test': 182} (real PyTDC).",
+      "validation_status": "PASSED",
+      "confidence": null,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "id": "ae-b1ecc4d25ee3",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.526767+00:00",
+      "timestamp": "2026-07-04T10:55:15.526767+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Cheminformatics Validator",
+      "tool_name": "",
+      "event_type": "agent_run",
+      "source_type": "REAL_TOOL_OUTPUT",
+      "input_summary": "EGFR / non-small cell lung cancer",
+      "output_summary": "3/3 candidate SMILES valid (RDKit); 0 invalid rejected.",
+      "validation_status": "PASSED",
+      "confidence": 0.85,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "id": "ae-cd3dc86db076",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.514970+00:00",
+      "timestamp": "2026-07-04T10:55:15.514970+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Safety Auditor",
+      "tool_name": "Safety",
+      "event_type": "tool_call",
+      "source_type": "REAL_TOOL_OUTPUT",
+      "input_summary": "screen label=CHEMBL137635",
+      "output_summary": "Safety status: PASS",
+      "validation_status": "PASSED",
+      "confidence": null,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "id": "ae-ae0b278ca175",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.508505+00:00",
+      "timestamp": "2026-07-04T10:55:15.508505+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Cheminformatics Validator",
+      "tool_name": "RDKit",
+      "event_type": "tool_call",
+      "source_type": "REAL_TOOL_OUTPUT",
+      "input_summary": "smiles=\"CN(c1ccccc1)c1ncnc2ccc(N/N=N/Cc3ccccn3)cc12\"",
+      "output_summary": "MW 369.43, logP 4.77, QED 0.391, Lipinski pass.",
+      "validation_status": "PASSED",
+      "confidence": null,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "id": "ae-cc52d03260b1",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.496911+00:00",
+      "timestamp": "2026-07-04T10:55:15.496911+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Safety Auditor",
+      "tool_name": "Safety",
+      "event_type": "tool_call",
+      "source_type": "REAL_TOOL_OUTPUT",
+      "input_summary": "screen label=CHEMBL69960",
+      "output_summary": "Safety status: PASS",
+      "validation_status": "PASSED",
+      "confidence": null,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "id": "ae-459c6de9829d",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.490371+00:00",
+      "timestamp": "2026-07-04T10:55:15.490371+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Cheminformatics Validator",
+      "tool_name": "RDKit",
+      "event_type": "tool_call",
+      "source_type": "REAL_TOOL_OUTPUT",
+      "input_summary": "smiles=\"Cc1cc(C(=O)N2CCOCC2)[nH]c1/C=C1\\C(=O)Nc2ncnc(Nc3ccc(F)c(Cl)c3)c21\"",
+      "output_summary": "MW 482.9, logP 3.61, QED 0.49, Lipinski pass.",
+      "validation_status": "PASSED",
+      "confidence": null,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "id": "ae-b491f03bb007",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.478641+00:00",
+      "timestamp": "2026-07-04T10:55:15.478641+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Safety Auditor",
+      "tool_name": "Safety",
+      "event_type": "tool_call",
+      "source_type": "REAL_TOOL_OUTPUT",
+      "input_summary": "screen label=CHEMBL68920",
+      "output_summary": "Safety status: PASS",
+      "validation_status": "PASSED",
+      "confidence": null,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "id": "ae-47c272f6feb4",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.471553+00:00",
+      "timestamp": "2026-07-04T10:55:15.471553+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Cheminformatics Validator",
+      "tool_name": "RDKit",
+      "event_type": "tool_call",
+      "source_type": "REAL_TOOL_OUTPUT",
+      "input_summary": "smiles=\"Cc1cc(C)c(/C=C2\\C(=O)Nc3ncnc(Nc4ccc(F)c(Cl)c4)c32)[nH]1\"",
+      "output_summary": "MW 383.81, logP 4.45, QED 0.583, Lipinski pass.",
+      "validation_status": "PASSED",
+      "confidence": null,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "id": "ae-aa135515a43e",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.460854+00:00",
+      "timestamp": "2026-07-04T10:55:15.460854+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Molecule Design Agent",
+      "tool_name": "",
+      "event_type": "agent_run",
+      "source_type": "REAL_TOOL_OUTPUT",
+      "input_summary": "EGFR / non-small cell lung cancer",
+      "output_summary": "Imported 3 real candidate molecules (ChEMBL activities for CHEMBL203).",
+      "validation_status": "PASSED",
+      "confidence": 0.8,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "id": "ae-e5543ba37fc6",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.448763+00:00",
+      "timestamp": "2026-07-04T10:55:15.448763+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Target Scout",
+      "tool_name": "ChEMBL",
+      "event_type": "tool_call",
+      "source_type": "REAL_TOOL_OUTPUT",
+      "input_summary": "activities target=CHEMBL203, type=IC50, limit=9",
+      "output_summary": "9 activities (9 with structures) (real ChEMBL via httpx).",
+      "validation_status": "PASSED",
+      "confidence": null,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "id": "ae-38d12d3cc464",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:14.507109+00:00",
+      "timestamp": "2026-07-04T10:55:14.507109+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Hypothesis Agent",
+      "tool_name": "",
+      "event_type": "agent_run",
+      "source_type": "HUMAN_INPUT",
+      "input_summary": "EGFR / non-small cell lung cancer",
+      "output_summary": "Generated 2 in-silico hypotheses for Epidermal growth factor receptor; each linked to verified evidence or marked as assumption.",
+      "validation_status": "PASSED",
+      "confidence": 0.7,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "id": "ae-6bc1091b5d78",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:14.491081+00:00",
+      "timestamp": "2026-07-04T10:55:14.491081+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Target Scout",
+      "tool_name": "",
+      "event_type": "agent_run",
+      "source_type": "REAL_TOOL_OUTPUT",
+      "input_summary": "EGFR / non-small cell lung cancer",
+      "output_summary": "Ranked 15 ChEMBL targets. Selected Epidermal growth factor receptor (CHEMBL203, score 61.2/100) with 3 clinical precedents.",
+      "validation_status": "PASSED",
+      "confidence": 0.82,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "id": "ae-c77d670c2352",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:14.426085+00:00",
+      "timestamp": "2026-07-04T10:55:14.426085+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Clinical Strategy Agent",
+      "tool_name": "ClinicalTrials.gov",
+      "event_type": "tool_call",
+      "source_type": "REAL_TOOL_OUTPUT",
+      "input_summary": "condition=\"non-small cell lung cancer\", query=\"EGFR\", max_results=3",
+      "output_summary": "3 trials retrieved from ClinicalTrials.gov v2 (via curl).",
+      "validation_status": "PASSED",
+      "confidence": null,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "id": "ae-aa20dbd82da7",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:13.249857+00:00",
+      "timestamp": "2026-07-04T10:55:13.249857+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Target Scout",
+      "tool_name": "ChEMBL",
+      "event_type": "tool_call",
+      "source_type": "REAL_TOOL_OUTPUT",
+      "input_summary": "target search q=\"EGFR\", limit=15",
+      "output_summary": "15 ChEMBL targets (real ChEMBL via httpx).",
+      "validation_status": "PASSED",
+      "confidence": null,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "id": "ae-1d4c3daa9bf0",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:11.704182+00:00",
+      "timestamp": "2026-07-04T10:55:11.704182+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Citation Verifier",
+      "tool_name": "",
+      "event_type": "agent_run",
+      "source_type": "HUMAN_INPUT",
+      "input_summary": "EGFR / non-small cell lung cancer",
+      "output_summary": "Verified 3, failed 0, unverified 0 of 3 evidence items.",
+      "validation_status": "PASSED",
+      "confidence": 0.85,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "id": "ae-a9e89587ca11",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:11.686057+00:00",
+      "timestamp": "2026-07-04T10:55:11.686057+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Evidence Miner",
+      "tool_name": "",
+      "event_type": "agent_run",
+      "source_type": "REAL_TOOL_OUTPUT",
+      "input_summary": "EGFR / non-small cell lung cancer",
+      "output_summary": "Retrieved 3 evidence items (3 supporting, 0 contradictory) from real PubMed.",
+      "validation_status": "PASSED",
+      "confidence": 0.8,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "id": "ae-a2a9a0ed4862",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:11.664468+00:00",
+      "timestamp": "2026-07-04T10:55:11.664468+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Evidence Miner",
+      "tool_name": "PubMed",
+      "event_type": "tool_call",
+      "source_type": "REAL_TOOL_OUTPUT",
+      "input_summary": "query=\"EGFR non-small cell lung cancer resistance\", max_results=3",
+      "output_summary": "3 PubMed records retrieved (real E-utilities via httpx).",
+      "validation_status": "PASSED",
+      "confidence": null,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "id": "ae-4865cabe97ee",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:10.133260+00:00",
+      "timestamp": "2026-07-04T10:55:10.133260+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Disease Biology Agent",
+      "tool_name": "",
+      "event_type": "agent_run",
+      "source_type": "HUMAN_INPUT",
+      "input_summary": "EGFR / non-small cell lung cancer",
+      "output_summary": "Scoped indication 'non-small cell lung cancer' with target hypothesis 'EGFR'. PubMed search strategy: \"EGFR non-small cell lung cancer resistance\".",
+      "validation_status": "PASSED",
+      "confidence": 0.8,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "id": "ae-145d162a43e0",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:10.119756+00:00",
+      "timestamp": "2026-07-04T10:55:10.119756+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "agent_name": "Project Orchestrator",
+      "tool_name": "",
+      "event_type": "agent_run",
+      "source_type": "HUMAN_INPUT",
+      "input_summary": "EGFR / non-small cell lung cancer",
+      "output_summary": "16-stage agentic workflow created for EGFR / non-small cell lung cancer with evidence mining, target scoring, molecule screening, safety gate, evaluation, and report generation.",
+      "validation_status": "PASSED",
+      "confidence": 0.9,
+      "warnings": [],
+      "errors": []
+    }
+  ],
+  "evidence_items": [
+    {
+      "id": "ev-35122001",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:11.678936+00:00",
+      "source_name": "PubMed",
+      "source_type": "REAL_TOOL_OUTPUT",
+      "identifier_type": "PMID",
+      "identifier": "PMID:35122001",
+      "title": "Overcoming therapy resistance in EGFR-mutant lung cancer.",
+      "year": "2021",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/35122001/",
+      "claim": "Overcoming therapy resistance in EGFR-mutant lung cancer.",
+      "evidence_direction": "supports",
+      "verification_status": "VERIFIED",
+      "verification_reason": "PubMed PMID present.",
+      "retrieved_at": "2026-07-04T10:55:11.664207+00:00",
+      "linked_tool_run_id": "ae-a2a9a0ed4862"
+    },
+    {
+      "id": "ev-36482474",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:11.675673+00:00",
+      "source_name": "PubMed",
+      "source_type": "REAL_TOOL_OUTPUT",
+      "identifier_type": "PMID",
+      "identifier": "PMID:36482474",
+      "title": "Therapeutic strategies for EGFR-mutated non-small cell lung cancer patients with osimertinib resistance.",
+      "year": "2022",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/36482474/",
+      "claim": "Therapeutic strategies for EGFR-mutated non-small cell lung cancer patients with osimertinib resistance.",
+      "evidence_direction": "supports",
+      "verification_status": "VERIFIED",
+      "verification_reason": "PubMed PMID present.",
+      "retrieved_at": "2026-07-04T10:55:11.664143+00:00",
+      "linked_tool_run_id": "ae-a2a9a0ed4862"
+    },
+    {
+      "id": "ev-31564718",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:11.672291+00:00",
+      "source_name": "PubMed",
+      "source_type": "REAL_TOOL_OUTPUT",
+      "identifier_type": "PMID",
+      "identifier": "PMID:31564718",
+      "title": "Resistance mechanisms to osimertinib in EGFR-mutated non-small cell lung cancer.",
+      "year": "2019",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/31564718/",
+      "claim": "Resistance mechanisms to osimertinib in EGFR-mutated non-small cell lung cancer.",
+      "evidence_direction": "supports",
+      "verification_status": "VERIFIED",
+      "verification_reason": "PubMed PMID present.",
+      "retrieved_at": "2026-07-04T10:55:11.664034+00:00",
+      "linked_tool_run_id": "ae-a2a9a0ed4862"
+    }
+  ],
+  "target_candidates": [
+    {
+      "id": "tgt-CHEMBL2111431",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:14.435533+00:00",
+      "target_chembl_id": "CHEMBL2111431",
+      "pref_name": "Epidermal growth factor receptor and ErbB2 (HER1 and HER2)",
+      "organism": "Homo sapiens",
+      "target_type": "PROTEIN FAMILY",
+      "score": 54.9,
+      "score_breakdown": [
+        {
+          "input": "target_name_match",
+          "value": 0.4,
+          "weight": 0.2,
+          "contribution": 8.42
+        },
+        {
+          "input": "target_type_score",
+          "value": 0.6,
+          "weight": 0.15,
+          "contribution": 9.47
+        },
+        {
+          "input": "organism_score",
+          "value": 1.0,
+          "weight": 0.1,
+          "contribution": 10.53
+        },
+        {
+          "input": "chembl_confidence_score",
+          "value": 0.5,
+          "weight": 0.15,
+          "contribution": 7.89
+        },
+        {
+          "input": "pubmed_evidence_score",
+          "value": 0.375,
+          "weight": 0.15,
+          "contribution": 5.92
+        },
+        {
+          "input": "clinical_precedent_score",
+          "value": 0.6,
+          "weight": 0.1,
+          "contribution": 6.32
+        },
+        {
+          "input": "molecule_activity_availability",
+          "value": 0.8,
+          "weight": 0.1,
+          "contribution": 8.42
+        },
+        {
+          "input": "safety_penalty",
+          "value": 0.0,
+          "weight": -0.1,
+          "contribution": 0.0
+        },
+        {
+          "input": "uncertainty_penalty",
+          "value": 0.2,
+          "weight": -0.1,
+          "contribution": -2.11
+        }
+      ],
+      "score_warnings": [],
+      "evidence_count": 3,
+      "clinical_precedent_count": 3,
+      "activity_availability": 8,
+      "source_type": "REAL_TOOL_OUTPUT",
+      "status": "ranked",
+      "rank": 11
+    },
+    {
+      "id": "tgt-CHEMBL5838",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:14.435516+00:00",
+      "target_chembl_id": "CHEMBL5838",
+      "pref_name": "Receptor tyrosine-protein kinase erbB-3",
+      "organism": "Homo sapiens",
+      "target_type": "SINGLE PROTEIN",
+      "score": 61.2,
+      "score_breakdown": [
+        {
+          "input": "target_name_match",
+          "value": 0.4,
+          "weight": 0.2,
+          "contribution": 8.42
+        },
+        {
+          "input": "target_type_score",
+          "value": 1.0,
+          "weight": 0.15,
+          "contribution": 15.79
+        },
+        {
+          "input": "organism_score",
+          "value": 1.0,
+          "weight": 0.1,
+          "contribution": 10.53
+        },
+        {
+          "input": "chembl_confidence_score",
+          "value": 0.5,
+          "weight": 0.15,
+          "contribution": 7.89
+        },
+        {
+          "input": "pubmed_evidence_score",
+          "value": 0.375,
+          "weight": 0.15,
+          "contribution": 5.92
+        },
+        {
+          "input": "clinical_precedent_score",
+          "value": 0.6,
+          "weight": 0.1,
+          "contribution": 6.32
+        },
+        {
+          "input": "molecule_activity_availability",
+          "value": 0.8,
+          "weight": 0.1,
+          "contribution": 8.42
+        },
+        {
+          "input": "safety_penalty",
+          "value": 0.0,
+          "weight": -0.1,
+          "contribution": 0.0
+        },
+        {
+          "input": "uncertainty_penalty",
+          "value": 0.2,
+          "weight": -0.1,
+          "contribution": -2.11
+        }
+      ],
+      "score_warnings": [],
+      "evidence_count": 3,
+      "clinical_precedent_count": 3,
+      "activity_availability": 8,
+      "source_type": "REAL_TOOL_OUTPUT",
+      "status": "ranked",
+      "rank": 4
+    },
+    {
+      "id": "tgt-CHEMBL3009",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:14.435498+00:00",
+      "target_chembl_id": "CHEMBL3009",
+      "pref_name": "Receptor tyrosine-protein kinase erbB-4",
+      "organism": "Homo sapiens",
+      "target_type": "SINGLE PROTEIN",
+      "score": 61.2,
+      "score_breakdown": [
+        {
+          "input": "target_name_match",
+          "value": 0.4,
+          "weight": 0.2,
+          "contribution": 8.42
+        },
+        {
+          "input": "target_type_score",
+          "value": 1.0,
+          "weight": 0.15,
+          "contribution": 15.79
+        },
+        {
+          "input": "organism_score",
+          "value": 1.0,
+          "weight": 0.1,
+          "contribution": 10.53
+        },
+        {
+          "input": "chembl_confidence_score",
+          "value": 0.5,
+          "weight": 0.15,
+          "contribution": 7.89
+        },
+        {
+          "input": "pubmed_evidence_score",
+          "value": 0.375,
+          "weight": 0.15,
+          "contribution": 5.92
+        },
+        {
+          "input": "clinical_precedent_score",
+          "value": 0.6,
+          "weight": 0.1,
+          "contribution": 6.32
+        },
+        {
+          "input": "molecule_activity_availability",
+          "value": 0.8,
+          "weight": 0.1,
+          "contribution": 8.42
+        },
+        {
+          "input": "safety_penalty",
+          "value": 0.0,
+          "weight": -0.1,
+          "contribution": 0.0
+        },
+        {
+          "input": "uncertainty_penalty",
+          "value": 0.2,
+          "weight": -0.1,
+          "contribution": -2.11
+        }
+      ],
+      "score_warnings": [],
+      "evidence_count": 3,
+      "clinical_precedent_count": 3,
+      "activity_availability": 8,
+      "source_type": "REAL_TOOL_OUTPUT",
+      "status": "ranked",
+      "rank": 3
+    },
+    {
+      "id": "tgt-CHEMBL3848",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:14.435484+00:00",
+      "target_chembl_id": "CHEMBL3848",
+      "pref_name": "Receptor tyrosine-protein kinase erbB-2",
+      "organism": "Rattus norvegicus",
+      "target_type": "SINGLE PROTEIN",
+      "score": 54.9,
+      "score_breakdown": [
+        {
+          "input": "target_name_match",
+          "value": 0.4,
+          "weight": 0.2,
+          "contribution": 8.42
+        },
+        {
+          "input": "target_type_score",
+          "value": 1.0,
+          "weight": 0.15,
+          "contribution": 15.79
+        },
+        {
+          "input": "organism_score",
+          "value": 0.4,
+          "weight": 0.1,
+          "contribution": 4.21
+        },
+        {
+          "input": "chembl_confidence_score",
+          "value": 0.5,
+          "weight": 0.15,
+          "contribution": 7.89
+        },
+        {
+          "input": "pubmed_evidence_score",
+          "value": 0.375,
+          "weight": 0.15,
+          "contribution": 5.92
+        },
+        {
+          "input": "clinical_precedent_score",
+          "value": 0.6,
+          "weight": 0.1,
+          "contribution": 6.32
+        },
+        {
+          "input": "molecule_activity_availability",
+          "value": 0.8,
+          "weight": 0.1,
+          "contribution": 8.42
+        },
+        {
+          "input": "safety_penalty",
+          "value": 0.0,
+          "weight": -0.1,
+          "contribution": 0.0
+        },
+        {
+          "input": "uncertainty_penalty",
+          "value": 0.2,
+          "weight": -0.1,
+          "contribution": -2.11
+        }
+      ],
+      "score_warnings": [],
+      "evidence_count": 3,
+      "clinical_precedent_count": 3,
+      "activity_availability": 8,
+      "source_type": "REAL_TOOL_OUTPUT",
+      "status": "ranked",
+      "rank": 10
+    },
+    {
+      "id": "tgt-CHEMBL1824",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:14.435467+00:00",
+      "target_chembl_id": "CHEMBL1824",
+      "pref_name": "Receptor tyrosine-protein kinase erbB-2",
+      "organism": "Homo sapiens",
+      "target_type": "SINGLE PROTEIN",
+      "score": 61.2,
+      "score_breakdown": [
+        {
+          "input": "target_name_match",
+          "value": 0.4,
+          "weight": 0.2,
+          "contribution": 8.42
+        },
+        {
+          "input": "target_type_score",
+          "value": 1.0,
+          "weight": 0.15,
+          "contribution": 15.79
+        },
+        {
+          "input": "organism_score",
+          "value": 1.0,
+          "weight": 0.1,
+          "contribution": 10.53
+        },
+        {
+          "input": "chembl_confidence_score",
+          "value": 0.5,
+          "weight": 0.15,
+          "contribution": 7.89
+        },
+        {
+          "input": "pubmed_evidence_score",
+          "value": 0.375,
+          "weight": 0.15,
+          "contribution": 5.92
+        },
+        {
+          "input": "clinical_precedent_score",
+          "value": 0.6,
+          "weight": 0.1,
+          "contribution": 6.32
+        },
+        {
+          "input": "molecule_activity_availability",
+          "value": 0.8,
+          "weight": 0.1,
+          "contribution": 8.42
+        },
+        {
+          "input": "safety_penalty",
+          "value": 0.0,
+          "weight": -0.1,
+          "contribution": 0.0
+        },
+        {
+          "input": "uncertainty_penalty",
+          "value": 0.2,
+          "weight": -0.1,
+          "contribution": -2.11
+        }
+      ],
+      "score_warnings": [],
+      "evidence_count": 3,
+      "clinical_precedent_count": 3,
+      "activity_availability": 8,
+      "source_type": "REAL_TOOL_OUTPUT",
+      "status": "ranked",
+      "rank": 2
+    },
+    {
+      "id": "tgt-CHEMBL6193841",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:14.435448+00:00",
+      "target_chembl_id": "CHEMBL6193841",
+      "pref_name": "Protein cereblon/Epidermal growth factor receptor",
+      "organism": "Mus musculus",
+      "target_type": "PROTEIN-PROTEIN INTERACTION",
+      "score": 43.8,
+      "score_breakdown": [
+        {
+          "input": "target_name_match",
+          "value": 0.4,
+          "weight": 0.2,
+          "contribution": 8.42
+        },
+        {
+          "input": "target_type_score",
+          "value": 0.3,
+          "weight": 0.15,
+          "contribution": 4.74
+        },
+        {
+          "input": "organism_score",
+          "value": 0.4,
+          "weight": 0.1,
+          "contribution": 4.21
+        },
+        {
+          "input": "chembl_confidence_score",
+          "value": 0.5,
+          "weight": 0.15,
+          "contribution": 7.89
+        },
+        {
+          "input": "pubmed_evidence_score",
+          "value": 0.375,
+          "weight": 0.15,
+          "contribution": 5.92
+        },
+        {
+          "input": "clinical_precedent_score",
+          "value": 0.6,
+          "weight": 0.1,
+          "contribution": 6.32
+        },
+        {
+          "input": "molecule_activity_availability",
+          "value": 0.8,
+          "weight": 0.1,
+          "contribution": 8.42
+        },
+        {
+          "input": "safety_penalty",
+          "value": 0.0,
+          "weight": -0.1,
+          "contribution": 0.0
+        },
+        {
+          "input": "uncertainty_penalty",
+          "value": 0.2,
+          "weight": -0.1,
+          "contribution": -2.11
+        }
+      ],
+      "score_warnings": [],
+      "evidence_count": 3,
+      "clinical_precedent_count": 3,
+      "activity_availability": 8,
+      "source_type": "REAL_TOOL_OUTPUT",
+      "status": "ranked",
+      "rank": 15
+    },
+    {
+      "id": "tgt-CHEMBL4523998",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:14.435428+00:00",
+      "target_chembl_id": "CHEMBL4523998",
+      "pref_name": "von Hippel-Lindau disease tumor suppressor/Epidermal growth factor receptor",
+      "organism": "Homo sapiens",
+      "target_type": "PROTEIN-PROTEIN INTERACTION",
+      "score": 50.1,
+      "score_breakdown": [
+        {
+          "input": "target_name_match",
+          "value": 0.4,
+          "weight": 0.2,
+          "contribution": 8.42
+        },
+        {
+          "input": "target_type_score",
+          "value": 0.3,
+          "weight": 0.15,
+          "contribution": 4.74
+        },
+        {
+          "input": "organism_score",
+          "value": 1.0,
+          "weight": 0.1,
+          "contribution": 10.53
+        },
+        {
+          "input": "chembl_confidence_score",
+          "value": 0.5,
+          "weight": 0.15,
+          "contribution": 7.89
+        },
+        {
+          "input": "pubmed_evidence_score",
+          "value": 0.375,
+          "weight": 0.15,
+          "contribution": 5.92
+        },
+        {
+          "input": "clinical_precedent_score",
+          "value": 0.6,
+          "weight": 0.1,
+          "contribution": 6.32
+        },
+        {
+          "input": "molecule_activity_availability",
+          "value": 0.8,
+          "weight": 0.1,
+          "contribution": 8.42
+        },
+        {
+          "input": "safety_penalty",
+          "value": 0.0,
+          "weight": -0.1,
+          "contribution": 0.0
+        },
+        {
+          "input": "uncertainty_penalty",
+          "value": 0.2,
+          "weight": -0.1,
+          "contribution": -2.11
+        }
+      ],
+      "score_warnings": [],
+      "evidence_count": 3,
+      "clinical_precedent_count": 3,
+      "activity_availability": 8,
+      "source_type": "REAL_TOOL_OUTPUT",
+      "status": "ranked",
+      "rank": 13
+    },
+    {
+      "id": "tgt-CHEMBL3137284",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:14.435405+00:00",
+      "target_chembl_id": "CHEMBL3137284",
+      "pref_name": "MER intracellular domain/EGFR extracellular domain chimera",
+      "organism": "Homo sapiens",
+      "target_type": "CHIMERIC PROTEIN",
+      "score": 59.1,
+      "score_breakdown": [
+        {
+          "input": "target_name_match",
+          "value": 0.75,
+          "weight": 0.2,
+          "contribution": 15.79
+        },
+        {
+          "input": "target_type_score",
+          "value": 0.4,
+          "weight": 0.15,
+          "contribution": 6.32
+        },
+        {
+          "input": "organism_score",
+          "value": 1.0,
+          "weight": 0.1,
+          "contribution": 10.53
+        },
+        {
+          "input": "chembl_confidence_score",
+          "value": 0.5,
+          "weight": 0.15,
+          "contribution": 7.89
+        },
+        {
+          "input": "pubmed_evidence_score",
+          "value": 0.375,
+          "weight": 0.15,
+          "contribution": 5.92
+        },
+        {
+          "input": "clinical_precedent_score",
+          "value": 0.6,
+          "weight": 0.1,
+          "contribution": 6.32
+        },
+        {
+          "input": "molecule_activity_availability",
+          "value": 0.8,
+          "weight": 0.1,
+          "contribution": 8.42
+        },
+        {
+          "input": "safety_penalty",
+          "value": 0.0,
+          "weight": -0.1,
+          "contribution": 0.0
+        },
+        {
+          "input": "uncertainty_penalty",
+          "value": 0.2,
+          "weight": -0.1,
+          "contribution": -2.11
+        }
+      ],
+      "score_warnings": [],
+      "evidence_count": 3,
+      "clinical_precedent_count": 3,
+      "activity_availability": 8,
+      "source_type": "REAL_TOOL_OUTPUT",
+      "status": "ranked",
+      "rank": 5
+    },
+    {
+      "id": "tgt-CHEMBL2363049",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:14.435373+00:00",
+      "target_chembl_id": "CHEMBL2363049",
+      "pref_name": "Epidermal growth factor receptor",
+      "organism": "Homo sapiens",
+      "target_type": "PROTEIN FAMILY",
+      "score": 54.9,
+      "score_breakdown": [
+        {
+          "input": "target_name_match",
+          "value": 0.4,
+          "weight": 0.2,
+          "contribution": 8.42
+        },
+        {
+          "input": "target_type_score",
+          "value": 0.6,
+          "weight": 0.15,
+          "contribution": 9.47
+        },
+        {
+          "input": "organism_score",
+          "value": 1.0,
+          "weight": 0.1,
+          "contribution": 10.53
+        },
+        {
+          "input": "chembl_confidence_score",
+          "value": 0.5,
+          "weight": 0.15,
+          "contribution": 7.89
+        },
+        {
+          "input": "pubmed_evidence_score",
+          "value": 0.375,
+          "weight": 0.15,
+          "contribution": 5.92
+        },
+        {
+          "input": "clinical_precedent_score",
+          "value": 0.6,
+          "weight": 0.1,
+          "contribution": 6.32
+        },
+        {
+          "input": "molecule_activity_availability",
+          "value": 0.8,
+          "weight": 0.1,
+          "contribution": 8.42
+        },
+        {
+          "input": "safety_penalty",
+          "value": 0.0,
+          "weight": -0.1,
+          "contribution": 0.0
+        },
+        {
+          "input": "uncertainty_penalty",
+          "value": 0.2,
+          "weight": -0.1,
+          "contribution": -2.11
+        }
+      ],
+      "score_warnings": [],
+      "evidence_count": 3,
+      "clinical_precedent_count": 3,
+      "activity_availability": 8,
+      "source_type": "REAL_TOOL_OUTPUT",
+      "status": "ranked",
+      "rank": 9
+    },
+    {
+      "id": "tgt-CHEMBL4523680",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:14.435353+00:00",
+      "target_chembl_id": "CHEMBL4523680",
+      "pref_name": "Protein cereblon/Epidermal growth factor receptor",
+      "organism": "Homo sapiens",
+      "target_type": "PROTEIN-PROTEIN INTERACTION",
+      "score": 50.1,
+      "score_breakdown": [
+        {
+          "input": "target_name_match",
+          "value": 0.4,
+          "weight": 0.2,
+          "contribution": 8.42
+        },
+        {
+          "input": "target_type_score",
+          "value": 0.3,
+          "weight": 0.15,
+          "contribution": 4.74
+        },
+        {
+          "input": "organism_score",
+          "value": 1.0,
+          "weight": 0.1,
+          "contribution": 10.53
+        },
+        {
+          "input": "chembl_confidence_score",
+          "value": 0.5,
+          "weight": 0.15,
+          "contribution": 7.89
+        },
+        {
+          "input": "pubmed_evidence_score",
+          "value": 0.375,
+          "weight": 0.15,
+          "contribution": 5.92
+        },
+        {
+          "input": "clinical_precedent_score",
+          "value": 0.6,
+          "weight": 0.1,
+          "contribution": 6.32
+        },
+        {
+          "input": "molecule_activity_availability",
+          "value": 0.8,
+          "weight": 0.1,
+          "contribution": 8.42
+        },
+        {
+          "input": "safety_penalty",
+          "value": 0.0,
+          "weight": -0.1,
+          "contribution": 0.0
+        },
+        {
+          "input": "uncertainty_penalty",
+          "value": 0.2,
+          "weight": -0.1,
+          "contribution": -2.11
+        }
+      ],
+      "score_warnings": [],
+      "evidence_count": 3,
+      "clinical_precedent_count": 3,
+      "activity_availability": 8,
+      "source_type": "REAL_TOOL_OUTPUT",
+      "status": "ranked",
+      "rank": 12
+    },
+    {
+      "id": "tgt-CHEMBL203",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:14.435333+00:00",
+      "target_chembl_id": "CHEMBL203",
+      "pref_name": "Epidermal growth factor receptor",
+      "organism": "Homo sapiens",
+      "target_type": "SINGLE PROTEIN",
+      "score": 61.2,
+      "score_breakdown": [
+        {
+          "input": "target_name_match",
+          "value": 0.4,
+          "weight": 0.2,
+          "contribution": 8.42
+        },
+        {
+          "input": "target_type_score",
+          "value": 1.0,
+          "weight": 0.15,
+          "contribution": 15.79
+        },
+        {
+          "input": "organism_score",
+          "value": 1.0,
+          "weight": 0.1,
+          "contribution": 10.53
+        },
+        {
+          "input": "chembl_confidence_score",
+          "value": 0.5,
+          "weight": 0.15,
+          "contribution": 7.89
+        },
+        {
+          "input": "pubmed_evidence_score",
+          "value": 0.375,
+          "weight": 0.15,
+          "contribution": 5.92
+        },
+        {
+          "input": "clinical_precedent_score",
+          "value": 0.6,
+          "weight": 0.1,
+          "contribution": 6.32
+        },
+        {
+          "input": "molecule_activity_availability",
+          "value": 0.8,
+          "weight": 0.1,
+          "contribution": 8.42
+        },
+        {
+          "input": "safety_penalty",
+          "value": 0.0,
+          "weight": -0.1,
+          "contribution": 0.0
+        },
+        {
+          "input": "uncertainty_penalty",
+          "value": 0.2,
+          "weight": -0.1,
+          "contribution": -2.11
+        }
+      ],
+      "score_warnings": [],
+      "evidence_count": 3,
+      "clinical_precedent_count": 3,
+      "activity_availability": 8,
+      "source_type": "REAL_TOOL_OUTPUT",
+      "status": "selected",
+      "rank": 1
+    },
+    {
+      "id": "tgt-CHEMBL6193842",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:14.435297+00:00",
+      "target_chembl_id": "CHEMBL6193842",
+      "pref_name": "Protein cereblon/Epidermal growth factor receptor",
+      "organism": "Mus musculus",
+      "target_type": "PROTEIN-PROTEIN INTERACTION",
+      "score": 43.8,
+      "score_breakdown": [
+        {
+          "input": "target_name_match",
+          "value": 0.4,
+          "weight": 0.2,
+          "contribution": 8.42
+        },
+        {
+          "input": "target_type_score",
+          "value": 0.3,
+          "weight": 0.15,
+          "contribution": 4.74
+        },
+        {
+          "input": "organism_score",
+          "value": 0.4,
+          "weight": 0.1,
+          "contribution": 4.21
+        },
+        {
+          "input": "chembl_confidence_score",
+          "value": 0.5,
+          "weight": 0.15,
+          "contribution": 7.89
+        },
+        {
+          "input": "pubmed_evidence_score",
+          "value": 0.375,
+          "weight": 0.15,
+          "contribution": 5.92
+        },
+        {
+          "input": "clinical_precedent_score",
+          "value": 0.6,
+          "weight": 0.1,
+          "contribution": 6.32
+        },
+        {
+          "input": "molecule_activity_availability",
+          "value": 0.8,
+          "weight": 0.1,
+          "contribution": 8.42
+        },
+        {
+          "input": "safety_penalty",
+          "value": 0.0,
+          "weight": -0.1,
+          "contribution": 0.0
+        },
+        {
+          "input": "uncertainty_penalty",
+          "value": 0.2,
+          "weight": -0.1,
+          "contribution": -2.11
+        }
+      ],
+      "score_warnings": [],
+      "evidence_count": 3,
+      "clinical_precedent_count": 3,
+      "activity_availability": 8,
+      "source_type": "REAL_TOOL_OUTPUT",
+      "status": "ranked",
+      "rank": 14
+    },
+    {
+      "id": "tgt-CHEMBL3608",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:14.435278+00:00",
+      "target_chembl_id": "CHEMBL3608",
+      "pref_name": "Epidermal growth factor receptor",
+      "organism": "Mus musculus",
+      "target_type": "SINGLE PROTEIN",
+      "score": 54.9,
+      "score_breakdown": [
+        {
+          "input": "target_name_match",
+          "value": 0.4,
+          "weight": 0.2,
+          "contribution": 8.42
+        },
+        {
+          "input": "target_type_score",
+          "value": 1.0,
+          "weight": 0.15,
+          "contribution": 15.79
+        },
+        {
+          "input": "organism_score",
+          "value": 0.4,
+          "weight": 0.1,
+          "contribution": 4.21
+        },
+        {
+          "input": "chembl_confidence_score",
+          "value": 0.5,
+          "weight": 0.15,
+          "contribution": 7.89
+        },
+        {
+          "input": "pubmed_evidence_score",
+          "value": 0.375,
+          "weight": 0.15,
+          "contribution": 5.92
+        },
+        {
+          "input": "clinical_precedent_score",
+          "value": 0.6,
+          "weight": 0.1,
+          "contribution": 6.32
+        },
+        {
+          "input": "molecule_activity_availability",
+          "value": 0.8,
+          "weight": 0.1,
+          "contribution": 8.42
+        },
+        {
+          "input": "safety_penalty",
+          "value": 0.0,
+          "weight": -0.1,
+          "contribution": 0.0
+        },
+        {
+          "input": "uncertainty_penalty",
+          "value": 0.2,
+          "weight": -0.1,
+          "contribution": -2.11
+        }
+      ],
+      "score_warnings": [],
+      "evidence_count": 3,
+      "clinical_precedent_count": 3,
+      "activity_availability": 8,
+      "source_type": "REAL_TOOL_OUTPUT",
+      "status": "ranked",
+      "rank": 8
+    },
+    {
+      "id": "tgt-CHEMBL5465557",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:14.435257+00:00",
+      "target_chembl_id": "CHEMBL5465557",
+      "pref_name": "CCN2-EGFR",
+      "organism": "Homo sapiens",
+      "target_type": "PROTEIN-PROTEIN INTERACTION",
+      "score": 57.5,
+      "score_breakdown": [
+        {
+          "input": "target_name_match",
+          "value": 0.75,
+          "weight": 0.2,
+          "contribution": 15.79
+        },
+        {
+          "input": "target_type_score",
+          "value": 0.3,
+          "weight": 0.15,
+          "contribution": 4.74
+        },
+        {
+          "input": "organism_score",
+          "value": 1.0,
+          "weight": 0.1,
+          "contribution": 10.53
+        },
+        {
+          "input": "chembl_confidence_score",
+          "value": 0.5,
+          "weight": 0.15,
+          "contribution": 7.89
+        },
+        {
+          "input": "pubmed_evidence_score",
+          "value": 0.375,
+          "weight": 0.15,
+          "contribution": 5.92
+        },
+        {
+          "input": "clinical_precedent_score",
+          "value": 0.6,
+          "weight": 0.1,
+          "contribution": 6.32
+        },
+        {
+          "input": "molecule_activity_availability",
+          "value": 0.8,
+          "weight": 0.1,
+          "contribution": 8.42
+        },
+        {
+          "input": "safety_penalty",
+          "value": 0.0,
+          "weight": -0.1,
+          "contribution": 0.0
+        },
+        {
+          "input": "uncertainty_penalty",
+          "value": 0.2,
+          "weight": -0.1,
+          "contribution": -2.11
+        }
+      ],
+      "score_warnings": [],
+      "evidence_count": 3,
+      "clinical_precedent_count": 3,
+      "activity_availability": 8,
+      "source_type": "REAL_TOOL_OUTPUT",
+      "status": "ranked",
+      "rank": 7
+    },
+    {
+      "id": "tgt-CHEMBL4523747",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:14.435215+00:00",
+      "target_chembl_id": "CHEMBL4523747",
+      "pref_name": "EGFR/PPP1CA",
+      "organism": "Homo sapiens",
+      "target_type": "PROTEIN-PROTEIN INTERACTION",
+      "score": 57.5,
+      "score_breakdown": [
+        {
+          "input": "target_name_match",
+          "value": 0.75,
+          "weight": 0.2,
+          "contribution": 15.79
+        },
+        {
+          "input": "target_type_score",
+          "value": 0.3,
+          "weight": 0.15,
+          "contribution": 4.74
+        },
+        {
+          "input": "organism_score",
+          "value": 1.0,
+          "weight": 0.1,
+          "contribution": 10.53
+        },
+        {
+          "input": "chembl_confidence_score",
+          "value": 0.5,
+          "weight": 0.15,
+          "contribution": 7.89
+        },
+        {
+          "input": "pubmed_evidence_score",
+          "value": 0.375,
+          "weight": 0.15,
+          "contribution": 5.92
+        },
+        {
+          "input": "clinical_precedent_score",
+          "value": 0.6,
+          "weight": 0.1,
+          "contribution": 6.32
+        },
+        {
+          "input": "molecule_activity_availability",
+          "value": 0.8,
+          "weight": 0.1,
+          "contribution": 8.42
+        },
+        {
+          "input": "safety_penalty",
+          "value": 0.0,
+          "weight": -0.1,
+          "contribution": 0.0
+        },
+        {
+          "input": "uncertainty_penalty",
+          "value": 0.2,
+          "weight": -0.1,
+          "contribution": -2.11
+        }
+      ],
+      "score_warnings": [],
+      "evidence_count": 3,
+      "clinical_precedent_count": 3,
+      "activity_availability": 8,
+      "source_type": "REAL_TOOL_OUTPUT",
+      "status": "ranked",
+      "rank": 6
+    }
+  ],
+  "molecule_candidates": [
+    {
+      "id": "mol-arun-31e50983c6-3",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.520868+00:00",
+      "molecule_chembl_id": "CHEMBL137635",
+      "label": "CHEMBL137635",
+      "smiles": "CN(c1ccccc1)c1ncnc2ccc(N/N=N/Cc3ccccn3)cc12",
+      "canonical_smiles": "CN(c1ccccc1)c1ncnc2ccc(N/N=N/Cc3ccccn3)cc12",
+      "valid": true,
+      "validity_reason": null,
+      "descriptors": {
+        "mol_weight": 369.43,
+        "logp": 4.77,
+        "hbd": 1,
+        "hba": 6,
+        "tpsa": 78.66,
+        "rotatable_bonds": 6,
+        "ring_count": 4,
+        "qed": 0.391,
+        "lipinski_pass": true,
+        "lipinski_violations": 0
+      },
+      "activity_type": "IC50",
+      "standard_value": "9300.0",
+      "standard_units": "nM",
+      "pchembl_value": "5.03",
+      "source": "ChEMBL activity",
+      "source_type": "REAL_TOOL_OUTPUT",
+      "safety_status": "PASS",
+      "safety_categories": [],
+      "composite_score": 58.5,
+      "recommendation": "Needs optimization",
+      "rdkit_validity": true,
+      "score_breakdown": [
+        {
+          "input": "qed_score",
+          "value": 0.391,
+          "weight": 0.2,
+          "contribution": 7.82
+        },
+        {
+          "input": "lipinski_score",
+          "value": 1.0,
+          "weight": 0.15,
+          "contribution": 15.0
+        },
+        {
+          "input": "activity_proxy_score",
+          "value": 0.20600000000000004,
+          "weight": 0.2,
+          "contribution": 4.12
+        },
+        {
+          "input": "descriptor_druglikeness_score",
+          "value": 1.0,
+          "weight": 0.15,
+          "contribution": 15.0
+        },
+        {
+          "input": "tdc_readiness_score",
+          "value": 0.7,
+          "weight": 0.1,
+          "contribution": 7.0
+        },
+        {
+          "input": "provenance_confidence",
+          "value": 0.7,
+          "weight": 0.1,
+          "contribution": 7.0
+        },
+        {
+          "input": "novelty_or_diversity_proxy",
+          "value": 0.5,
+          "weight": 0.1,
+          "contribution": 5.0
+        },
+        {
+          "input": "safety_penalty",
+          "value": "PASS",
+          "weight": null,
+          "contribution": -0.0
+        },
+        {
+          "input": "uncertainty_penalty",
+          "value": 0.2,
+          "weight": null,
+          "contribution": -2.4
+        }
+      ],
+      "score_warnings": [
+        "missing 'qed_score' \u2192 conservative default 0.391"
+      ]
+    },
+    {
+      "id": "mol-arun-31e50983c6-2",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.503100+00:00",
+      "molecule_chembl_id": "CHEMBL69960",
+      "label": "CHEMBL69960",
+      "smiles": "Cc1cc(C(=O)N2CCOCC2)[nH]c1/C=C1\\C(=O)Nc2ncnc(Nc3ccc(F)c(Cl)c3)c21",
+      "canonical_smiles": "Cc1cc(C(=O)N2CCOCC2)[nH]c1/C=C1\\C(=O)Nc2ncnc(Nc3ccc(F)c(Cl)c3)c21",
+      "valid": true,
+      "validity_reason": null,
+      "descriptors": {
+        "mol_weight": 482.9,
+        "logp": 3.61,
+        "hbd": 3,
+        "hba": 6,
+        "tpsa": 112.24,
+        "rotatable_bonds": 4,
+        "ring_count": 5,
+        "qed": 0.49,
+        "lipinski_pass": true,
+        "lipinski_violations": 0
+      },
+      "activity_type": "IC50",
+      "standard_value": "170.0",
+      "standard_units": "nM",
+      "pchembl_value": "6.77",
+      "source": "ChEMBL activity",
+      "source_type": "REAL_TOOL_OUTPUT",
+      "safety_status": "PASS",
+      "safety_categories": [],
+      "composite_score": 67.5,
+      "recommendation": "Needs optimization",
+      "rdkit_validity": true,
+      "score_breakdown": [
+        {
+          "input": "qed_score",
+          "value": 0.49,
+          "weight": 0.2,
+          "contribution": 9.8
+        },
+        {
+          "input": "lipinski_score",
+          "value": 1.0,
+          "weight": 0.15,
+          "contribution": 15.0
+        },
+        {
+          "input": "activity_proxy_score",
+          "value": 0.5539999999999999,
+          "weight": 0.2,
+          "contribution": 11.08
+        },
+        {
+          "input": "descriptor_druglikeness_score",
+          "value": 1.0,
+          "weight": 0.15,
+          "contribution": 15.0
+        },
+        {
+          "input": "tdc_readiness_score",
+          "value": 0.7,
+          "weight": 0.1,
+          "contribution": 7.0
+        },
+        {
+          "input": "provenance_confidence",
+          "value": 0.7,
+          "weight": 0.1,
+          "contribution": 7.0
+        },
+        {
+          "input": "novelty_or_diversity_proxy",
+          "value": 0.5,
+          "weight": 0.1,
+          "contribution": 5.0
+        },
+        {
+          "input": "safety_penalty",
+          "value": "PASS",
+          "weight": null,
+          "contribution": -0.0
+        },
+        {
+          "input": "uncertainty_penalty",
+          "value": 0.2,
+          "weight": null,
+          "contribution": -2.4
+        }
+      ],
+      "score_warnings": [
+        "missing 'qed_score' \u2192 conservative default 0.49"
+      ]
+    },
+    {
+      "id": "mol-arun-31e50983c6-1",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.484648+00:00",
+      "molecule_chembl_id": "CHEMBL68920",
+      "label": "CHEMBL68920",
+      "smiles": "Cc1cc(C)c(/C=C2\\C(=O)Nc3ncnc(Nc4ccc(F)c(Cl)c4)c32)[nH]1",
+      "canonical_smiles": "Cc1cc(C)c(/C=C2\\C(=O)Nc3ncnc(Nc4ccc(F)c(Cl)c4)c32)[nH]1",
+      "valid": true,
+      "validity_reason": null,
+      "descriptors": {
+        "mol_weight": 383.81,
+        "logp": 4.45,
+        "hbd": 3,
+        "hba": 4,
+        "tpsa": 82.7,
+        "rotatable_bonds": 3,
+        "ring_count": 4,
+        "qed": 0.583,
+        "lipinski_pass": true,
+        "lipinski_violations": 0
+      },
+      "activity_type": "IC50",
+      "standard_value": "41.0",
+      "standard_units": "nM",
+      "pchembl_value": "7.39",
+      "source": "ChEMBL activity",
+      "source_type": "REAL_TOOL_OUTPUT",
+      "safety_status": "PASS",
+      "safety_categories": [],
+      "composite_score": 71.8,
+      "recommendation": "Needs optimization",
+      "rdkit_validity": true,
+      "score_breakdown": [
+        {
+          "input": "qed_score",
+          "value": 0.583,
+          "weight": 0.2,
+          "contribution": 11.66
+        },
+        {
+          "input": "lipinski_score",
+          "value": 1.0,
+          "weight": 0.15,
+          "contribution": 15.0
+        },
+        {
+          "input": "activity_proxy_score",
+          "value": 0.6779999999999999,
+          "weight": 0.2,
+          "contribution": 13.56
+        },
+        {
+          "input": "descriptor_druglikeness_score",
+          "value": 1.0,
+          "weight": 0.15,
+          "contribution": 15.0
+        },
+        {
+          "input": "tdc_readiness_score",
+          "value": 0.7,
+          "weight": 0.1,
+          "contribution": 7.0
+        },
+        {
+          "input": "provenance_confidence",
+          "value": 0.7,
+          "weight": 0.1,
+          "contribution": 7.0
+        },
+        {
+          "input": "novelty_or_diversity_proxy",
+          "value": 0.5,
+          "weight": 0.1,
+          "contribution": 5.0
+        },
+        {
+          "input": "safety_penalty",
+          "value": "PASS",
+          "weight": null,
+          "contribution": -0.0
+        },
+        {
+          "input": "uncertainty_penalty",
+          "value": 0.2,
+          "weight": null,
+          "contribution": -2.4
+        }
+      ],
+      "score_warnings": [
+        "missing 'qed_score' \u2192 conservative default 0.583"
+      ]
+    }
+  ],
+  "hypotheses": [
+    {
+      "id": "hyp-arun-31e50983c6-2",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:14.500725+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "target_symbol": "Epidermal growth factor receptor",
+      "target_id": "CHEMBL203",
+      "statement": "Candidate prioritization for Epidermal growth factor receptor can be grounded in ChEMBL bioactivity plus literature evidence; candidates require expert review.",
+      "mechanism_summary": "Bioactivity-informed candidate selection.",
+      "evidence_ids": [
+        "ev-31564718",
+        "ev-36482474"
+      ],
+      "confidence": 0.65,
+      "assumptions": [
+        "In-silico hypothesis only; no wet-lab or clinical validation."
+      ],
+      "limitations": "Requires expert review; not a validated mechanism or efficacy claim.",
+      "critic_status": "pending",
+      "overclaim": false,
+      "status": "draft"
+    },
+    {
+      "id": "hyp-arun-31e50983c6-1",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:14.497693+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "target_symbol": "Epidermal growth factor receptor",
+      "target_id": "CHEMBL203",
+      "statement": "An Epidermal growth factor receptor-directed small molecule is an in-silico hypothesis for expert review in non-small cell lung cancer, supported by public-data signals.",
+      "mechanism_summary": "Modulation of Epidermal growth factor receptor activity in the non-small cell lung cancer context.",
+      "evidence_ids": [
+        "ev-31564718",
+        "ev-36482474",
+        "ev-35122001"
+      ],
+      "confidence": 0.7,
+      "assumptions": [
+        "In-silico hypothesis only; no wet-lab or clinical validation."
+      ],
+      "limitations": "Requires expert review; not a validated mechanism or efficacy claim.",
+      "critic_status": "pending",
+      "overclaim": false,
+      "status": "draft"
+    }
+  ],
+  "evaluation_results": [
+    {
+      "id": "eval-arun-31e50983c6-31",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.729995+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "module": "retrospective_rediscovery",
+      "metric_name": "tdc_row_count",
+      "value": 910,
+      "status": "info"
+    },
+    {
+      "id": "eval-arun-31e50983c6-30",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.727168+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "module": "retrospective_rediscovery",
+      "metric_name": "clinicaltrials_count",
+      "value": 3,
+      "status": "info"
+    },
+    {
+      "id": "eval-arun-31e50983c6-29",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.724184+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "module": "retrospective_rediscovery",
+      "metric_name": "pubmed_evidence_count",
+      "value": 3,
+      "status": "info"
+    },
+    {
+      "id": "eval-arun-31e50983c6-28",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.721113+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "module": "retrospective_rediscovery",
+      "metric_name": "top_target",
+      "value": "Epidermal growth factor receptor",
+      "status": "info"
+    },
+    {
+      "id": "eval-arun-31e50983c6-27",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.718280+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "module": "resource_efficiency",
+      "metric_name": "cost_class",
+      "value": "low (deterministic local tools + public APIs; no LLM tokens billed)",
+      "status": "info"
+    },
+    {
+      "id": "eval-arun-31e50983c6-26",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.715435+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "module": "resource_efficiency",
+      "metric_name": "estimated_api_calls",
+      "value": 4,
+      "status": "info"
+    },
+    {
+      "id": "eval-arun-31e50983c6-25",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.712437+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "module": "resource_efficiency",
+      "metric_name": "local_tool_calls",
+      "value": 4,
+      "status": "info"
+    },
+    {
+      "id": "eval-arun-31e50983c6-24",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.709035+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "module": "resource_efficiency",
+      "metric_name": "http_api_calls",
+      "value": 4,
+      "status": "info"
+    },
+    {
+      "id": "eval-arun-31e50983c6-23",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.705998+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "module": "resource_efficiency",
+      "metric_name": "runtime_seconds",
+      "value": 5.8,
+      "status": "info"
+    },
+    {
+      "id": "eval-arun-31e50983c6-22",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.703081+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "module": "agent_autonomy",
+      "metric_name": "human_intervention_count",
+      "value": 0,
+      "status": "info"
+    },
+    {
+      "id": "eval-arun-31e50983c6-21",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.700184+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "module": "agent_autonomy",
+      "metric_name": "self_correction_rate",
+      "value": 1.0,
+      "status": "info"
+    },
+    {
+      "id": "eval-arun-31e50983c6-20",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.696941+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "module": "agent_autonomy",
+      "metric_name": "revision_event_count",
+      "value": 0,
+      "status": "info"
+    },
+    {
+      "id": "eval-arun-31e50983c6-19",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.694076+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "module": "agent_autonomy",
+      "metric_name": "agent_run_count",
+      "value": 15,
+      "status": "info"
+    },
+    {
+      "id": "eval-arun-31e50983c6-18",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.691216+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "module": "molecule_validity",
+      "metric_name": "safety_blocked_count",
+      "value": 0,
+      "status": "info"
+    },
+    {
+      "id": "eval-arun-31e50983c6-17",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.688453+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "module": "molecule_validity",
+      "metric_name": "safety_review_count",
+      "value": 0,
+      "status": "info"
+    },
+    {
+      "id": "eval-arun-31e50983c6-16",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.685596+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "module": "molecule_validity",
+      "metric_name": "safety_pass_count",
+      "value": 3,
+      "status": "info"
+    },
+    {
+      "id": "eval-arun-31e50983c6-15",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.682718+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "module": "molecule_validity",
+      "metric_name": "molecule_validity_rate",
+      "value": 1.0,
+      "status": "info"
+    },
+    {
+      "id": "eval-arun-31e50983c6-14",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.679758+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "module": "molecule_validity",
+      "metric_name": "invalid_smiles_caught",
+      "value": 0,
+      "status": "info"
+    },
+    {
+      "id": "eval-arun-31e50983c6-13",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.676589+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "module": "molecule_validity",
+      "metric_name": "valid_smiles_count",
+      "value": 3,
+      "status": "info"
+    },
+    {
+      "id": "eval-arun-31e50983c6-12",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.673664+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "module": "molecule_validity",
+      "metric_name": "candidate_count",
+      "value": 3,
+      "status": "info"
+    },
+    {
+      "id": "eval-arun-31e50983c6-11",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.670513+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "module": "evidence_integrity",
+      "metric_name": "evidence_to_hypothesis_coverage",
+      "value": 1.0,
+      "status": "info"
+    },
+    {
+      "id": "eval-arun-31e50983c6-10",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.667642+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "module": "evidence_integrity",
+      "metric_name": "fake_citation_catch_rate",
+      "value": 1.0,
+      "status": "info"
+    },
+    {
+      "id": "eval-arun-31e50983c6-9",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.662855+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "module": "evidence_integrity",
+      "metric_name": "citation_verification_rate",
+      "value": 1.0,
+      "status": "info"
+    },
+    {
+      "id": "eval-arun-31e50983c6-8",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.659904+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "module": "evidence_integrity",
+      "metric_name": "failed_citation_count",
+      "value": 0,
+      "status": "info"
+    },
+    {
+      "id": "eval-arun-31e50983c6-7",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.657041+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "module": "evidence_integrity",
+      "metric_name": "verified_citation_count",
+      "value": 3,
+      "status": "info"
+    },
+    {
+      "id": "eval-arun-31e50983c6-6",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.654291+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "module": "evidence_integrity",
+      "metric_name": "evidence_count",
+      "value": 3,
+      "status": "info"
+    },
+    {
+      "id": "eval-arun-31e50983c6-5",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.651549+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "module": "tool_integration",
+      "metric_name": "source_labeling_completeness",
+      "value": 1.0,
+      "status": "info"
+    },
+    {
+      "id": "eval-arun-31e50983c6-4",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.648481+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "module": "tool_integration",
+      "metric_name": "tool_success_rate",
+      "value": 0.9,
+      "status": "info"
+    },
+    {
+      "id": "eval-arun-31e50983c6-3",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.645557+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "module": "tool_integration",
+      "metric_name": "tool_error_count",
+      "value": 0,
+      "status": "info"
+    },
+    {
+      "id": "eval-arun-31e50983c6-2",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.642664+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "module": "tool_integration",
+      "metric_name": "configured_not_run_count",
+      "value": 1,
+      "status": "info"
+    },
+    {
+      "id": "eval-arun-31e50983c6-1",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.639772+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "module": "tool_integration",
+      "metric_name": "real_tool_output_count",
+      "value": 9,
+      "status": "info"
+    }
+  ],
+  "revision_events": [],
+  "reports": {
+    "en": {
+      "id": "rep-en-arun-31e50983c6",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.746019+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "type": "en_technical",
+      "title": "HelixForge \u2014 EGFR/non-small cell lung cancer Agentic Report (EN)",
+      "markdown": "# HelixForge AI \u2014 Agentic Pipeline Report\n**Run:** arun-31e50983c6 \u00b7 **Project:** proj-57691163 \u00b7 **Generated:** 2026-07-04T10:55:15.742361+00:00\n\n> This system is research decision support only. It does not replace expert scientific, clinical, regulatory, legal, or ethical review. Final responsibility belongs to the human research team.\n\n## 1. Objective\nEvidence-grounded, agentic discovery for **EGFR / non-small cell lung cancer** (retrospective rediscovery mode).\n\n## 2. Multi-agent architecture\nA Project Orchestrator decomposed the objective into a 16-run agentic workflow. Agent trace:\n- **Project Orchestrator** (planning) \u2014 COMPLETE, confidence 0.9: 16-stage agentic workflow created for EGFR / non-small cell lung cancer with evidence mining, target scoring, molecule screening, safety gate, evaluation, and report generation.\n- **Disease Biology Agent** (disease_modeling) \u2014 COMPLETE, confidence 0.8: Scoped indication 'non-small cell lung cancer' with target hypothesis 'EGFR'. PubMed search strategy: \"EGFR non-small cell lung cancer resistance\".\n- **Evidence Miner** (evidence_mining) \u2014 COMPLETE, confidence 0.8: Retrieved 3 evidence items (3 supporting, 0 contradictory) from real PubMed.\n- **Citation Verifier** (citation_verification) \u2014 COMPLETE, confidence 0.85: Verified 3, failed 0, unverified 0 of 3 evidence items.\n- **Target Scout** (target_ranking) \u2014 COMPLETE, confidence 0.82: Ranked 15 ChEMBL targets. Selected Epidermal growth factor receptor (CHEMBL203, score 61.2/100) with 3 clinical precedents.\n- **Hypothesis Agent** (hypothesis_generation) \u2014 COMPLETE, confidence 0.7: Generated 2 in-silico hypotheses for Epidermal growth factor receptor; each linked to verified evidence or marked as assumption.\n- **Molecule Design Agent** (molecule_design) \u2014 COMPLETE, confidence 0.8: Imported 3 real candidate molecules (ChEMBL activities for CHEMBL203).\n- **Cheminformatics Validator** (structure_validation) \u2014 COMPLETE, confidence 0.85: 3/3 candidate SMILES valid (RDKit); 0 invalid rejected.\n- **ADMET & Toxicology Agent** (admet_grounding) \u2014 COMPLETE, confidence 0.75: TDC Caco2_Wang loaded (910 rows) as evaluation substrate; scored 3 valid candidates with the transparent composite score.\n- **Binding & Structure Agent** (binding) \u2014 COMPLETE, confidence 0.55: Vina fixture docking not requested. Adapter health: NOT_CONFIGURED.\n- **Synthesis Feasibility Agent** (synthesis_feasibility) \u2014 COMPLETE, confidence 0.6: Feasibility band assigned to 3 candidates (High=0). Score/complexity only \u2014 NO synthesis route, reagents, or conditions are produced (policy).\n- **Safety Auditor** (safety_audit) \u2014 COMPLETE, confidence 0.86: Safety gate complete: 0 blocked/quarantined, 0 review-required, text screen PASS.\n- **Clinical Strategy Agent** (clinical_strategy) \u2014 COMPLETE, confidence 0.62: Clinical strategy drafted from 3 real trial precedents (phases: {'N/A': 2, 'PHASE2': 1}).\n- **Regulatory Reviewer** (regulatory_review) \u2014 COMPLETE, confidence 0.6: Regulatory checklist (10 items); 2 gaps: Nonclinical safety data, CMC / manufacturing.\n- **Critic Agent** (critic_review) \u2014 COMPLETE, confidence 0.8: Critic review complete: 0 revision event(s) across no issues.\n- **Evaluation Agent** (evaluation) \u2014 COMPLETE, confidence 0.85: Metrics: 9 real-tool outputs, citation verification 1.0, molecule validity 1.0, 0 revisions, retrospective 5/5.\n\n## 3. Real tool integration\n- Real-tool outputs: **9** \u00b7 configured-not-run: **1** \u00b7 tool errors: **0**\n- Tools used: PubMed (E-utilities), ChEMBL, ClinicalTrials.gov v2, RDKit, TDC/PyTDC; Vina/REINVENT4 honest status.\n\n## 4. Evidence\nVerification rate **1.0** (3 verified / 0 failed).\n| ID | Source | Identifier | Direction | Verification |\n|---|---|---|---|---|\n| ev-31564718 | PubMed | PMID:31564718 | supports | VERIFIED |\n| ev-36482474 | PubMed | PMID:36482474 | supports | VERIFIED |\n| ev-35122001 | PubMed | PMID:35122001 | supports | VERIFIED |\n\n## 5. Target prioritization\nTop target: **Epidermal growth factor receptor (CHEMBL203)** \u2014 Target Opportunity Score **61.2/100**.\n| Rank | Target | ChEMBL ID | Type | Organism | Score |\n|---|---|---|---|---|---|\n| 1 | Epidermal growth factor receptor | CHEMBL203 | SINGLE PROTEIN | Homo sapiens | 61.2/100 |\n| 2 | Receptor tyrosine-protein kinase erbB-2 | CHEMBL1824 | SINGLE PROTEIN | Homo sapiens | 61.2/100 |\n| 3 | Receptor tyrosine-protein kinase erbB-4 | CHEMBL3009 | SINGLE PROTEIN | Homo sapiens | 61.2/100 |\n| 4 | Receptor tyrosine-protein kinase erbB-3 | CHEMBL5838 | SINGLE PROTEIN | Homo sapiens | 61.2/100 |\n| 5 | MER intracellular domain/EGFR extracellular domain chimera | CHEMBL3137284 | CHIMERIC PROTEIN | Homo sapiens | 59.1/100 |\n| 6 | EGFR/PPP1CA | CHEMBL4523747 | PROTEIN-PROTEIN INTERACTION | Homo sapiens | 57.5/100 |\n| 7 | CCN2-EGFR | CHEMBL5465557 | PROTEIN-PROTEIN INTERACTION | Homo sapiens | 57.5/100 |\n| 8 | Epidermal growth factor receptor | CHEMBL3608 | SINGLE PROTEIN | Mus musculus | 54.9/100 |\n\n## 6. Hypotheses\n- An Epidermal growth factor receptor-directed small molecule is an in-silico hypothesis for expert review in non-small cell lung cancer, supported by public-data signals. _(confidence 0.7)_\n- Candidate prioritization for Epidermal growth factor receptor can be grounded in ChEMBL bioactivity plus literature evidence; candidates require expert review. _(confidence 0.65)_\n\n## 7. Candidate molecules (real ChEMBL structures, RDKit-validated)\nValidity rate **1.0**; 0 invalid caught.\n| Rank | ChEMBL ID | Valid | MW | QED | Lipinski | Safety | Score | Recommendation |\n|---|---|---|---|---|---|---|---|---|\n| 1 | CHEMBL68920 | yes | 383.81 | 0.583 | pass | PASS | 71.8 | Needs optimization |\n| 2 | CHEMBL69960 | yes | 482.9 | 0.49 | pass | PASS | 67.5 | Needs optimization |\n| 3 | CHEMBL137635 | yes | 369.43 | 0.391 | pass | PASS | 58.5 | Needs optimization |\n\n_Top valid candidate:_ CHEMBL68920. Synthesis feasibility is summarized only \u2014 no routes are shown by policy.\n\n## 8. Self-correction (revision events)\n_No revisions were required in this run._\n\n## 9. Safety gate\nBlocked/quarantined: **0**, review-required: **0**. Report passed the safety lint (no forbidden content, disclaimer present).\nNo wet-lab protocols, synthesis routes, reagents, conditions, dosage, or medical advice are produced.\n\n## 10. Clinical & regulatory (high-level)\nClinical precedents: 3 real trials. Regulatory gaps: Nonclinical safety data, CMC / manufacturing.\n_High-level planning only; not medical, legal, or regulatory advice._\n\n## 11. Evaluation metrics\n- Tool success rate: 0.9\n- Citation verification: 1.0\n- Molecule validity: 1.0\n- Self-correction rate: 1.0 (0 revisions)\n- Runtime: 5.8s \u00b7 HTTP calls: 4 \u00b7 local tool calls: 4\n- Retrospective rediscovery: 5/5 criteria \u2014 pass\n\n## 12. Limitations\nIn-silico decision support only. TDC is loaded as evaluation substrate (not a fitted per-candidate predictor). Vina is fixture-based; REINVENT4 requires external setup. No wet-lab, clinical, or regulatory validation is claimed.\n\n## 13. Human responsibility\nThis system is research decision support only. It does not replace expert scientific, clinical, regulatory, legal, or ethical review. Final responsibility belongs to the human research team.\n",
+      "language": "en",
+      "safety_lint": {
+        "status": "BLOCKED",
+        "export_safe": false,
+        "findings": [
+          {
+            "severity": "BLOCKED",
+            "category": "forbidden_content",
+            "detail": "Report contains forbidden content: dosage."
+          }
+        ]
+      },
+      "export_safe": false,
+      "source_type": "REAL_TOOL_OUTPUT"
+    },
+    "ko": {
+      "id": "rep-ko-arun-31e50983c6",
+      "project_id": "proj-57691163",
+      "created_at": "2026-07-04T10:55:15.749433+00:00",
+      "workflow_run_id": "arun-31e50983c6",
+      "type": "ko_judge",
+      "title": "HelixForge \u2014 \uc2ec\uc0ac\uc704\uc6d0 \ub9ac\ud3ec\ud2b8 (KO)",
+      "markdown": "# HelixForge AI \u2014 \uc2ec\uc0ac\uc704\uc6d0\uc6a9 \ub9ac\ud3ec\ud2b8 (Judge Report)\n**\uc2e4\ud589 ID:** arun-31e50983c6 \u00b7 **\uc0dd\uc131 \uc2dc\uac01:** 2026-07-04T10:55:15.742516+00:00\n\n> \ubcf8 \uc2dc\uc2a4\ud15c\uc740 \uc5f0\uad6c \uc758\uc0ac\uacb0\uc815 \ubcf4\uc870 \ub3c4\uad6c\uc774\uba70, \uc804\ubb38\uac00\uc758 \uacfc\ud559\uc801\u00b7\uc784\uc0c1\uc801\u00b7\uaddc\uc81c\uc801\u00b7\uc724\ub9ac\uc801 \uac80\ud1a0\ub97c \ub300\uccb4\ud558\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4. \ucd5c\uc885 \ud310\ub2e8\uacfc \ucc45\uc784\uc740 \uc5f0\uad6c\uc790\uc5d0\uac8c \uc788\uc2b5\ub2c8\ub2e4.\n\n## 1. \uac1c\uc694\nHelixForge AI\ub294 \uc2e4\uc81c \ub3c4\uad6c(PubMed, ChEMBL, ClinicalTrials.gov, RDKit, TDC)\uc5d0 \uc5f0\ub3d9\ub41c **\uba40\ud2f0 \uc5d0\uc774\uc804\ud2b8 \uc2e0\uc57d\uac1c\ubc1c \uc758\uc0ac\uacb0\uc815 \ubcf4\uc870 \uc2dc\uc2a4\ud15c**\uc785\ub2c8\ub2e4. \ubcf8 \uc2e4\ud589\uc740 **EGFR / non-small cell lung cancer** \uc2dc\ub098\ub9ac\uc624\uc5d0 \ub300\ud55c \uadfc\uac70 \uae30\ubc18 \uc790\uc728 \ud30c\uc774\ud504\ub77c\uc778 \uacb0\uacfc\uc785\ub2c8\ub2e4.\n\n## 2. \ud574\uacb0\ud558\ub824\ub294 \uc2e0\uc57d\uac1c\ubc1c \ubb38\uc81c\n\ucd08\uae30 \ud0d0\uc0c9 \ub2e8\uacc4\uc5d0\uc11c \ubb38\ud5cc\u00b7\ud0c0\uae43\u00b7\ubd84\uc790\u00b7\ub3c5\uc131\u00b7\uc784\uc0c1 \uc120\ub840\u00b7\uaddc\uc81c \ub9ac\uc2a4\ud06c\uac00 \ubd84\ub9ac\ub418\uc5b4 \uc788\uc5b4 \ud6c4\ubcf4 \uc6b0\uc120\uc21c\uc704\ud654\uc5d0 \ub9ce\uc740 \uc2dc\uac04\uc774 \uc18c\uc694\ub429\ub2c8\ub2e4. \ubcf8 \uc2dc\uc2a4\ud15c\uc740 \uc774 \uacfc\uc815\uc744 \uad00\ucc30 \uac00\ub2a5\ud55c(auditable) \uc5d0\uc774\uc804\ud2b8 \uc6cc\ud06c\ud50c\ub85c\uc6b0\ub85c \uc5f0\uacb0\ud569\ub2c8\ub2e4.\n\n## 3. \ubd84\uc57c 4 \uc735\ud569 \uc804\ub7b5\n\uc790\uc728 \uac00\uc124 \uc0dd\uc131 \u2192 \ub3c4\uad6c \uae30\ubc18 \ubd84\uc790 \ubd84\uc11d \u2192 \uc548\uc804\uc131/\ub3c5\uc131 \uc2a4\ud06c\ub9ac\ub2dd \u2192 \uc784\uc0c1\u00b7\uaddc\uc81c \uc804\ub7b5 \u2192 \ud3c9\uac00\u00b7\uac10\uc0ac \ub85c\uadf8\ub97c \ud558\ub098\uc758 \ud30c\uc774\ud504\ub77c\uc778\uc73c\ub85c \ud1b5\ud569\ud588\uc2b5\ub2c8\ub2e4.\n\n## 4. \uba40\ud2f0 \uc5d0\uc774\uc804\ud2b8 \uc544\ud0a4\ud14d\ucc98\nProject Orchestrator\uac00 \ubaa9\ud45c\ub97c 16\uac1c \uc5d0\uc774\uc804\ud2b8 \uc2e4\ud589\uc73c\ub85c \ubd84\ud574\ud588\uc2b5\ub2c8\ub2e4. \uc5d0\uc774\uc804\ud2b8 \uc2e4\ud589 \ucd94\uc801:\n- **Project Orchestrator** \u2014 16-stage agentic workflow created for EGFR / non-small cell lung cancer with evidence mining, target scoring, molecule screening, safety gate, evaluation, and report generation.\n- **Disease Biology Agent** \u2014 Scoped indication 'non-small cell lung cancer' with target hypothesis 'EGFR'. PubMed search strategy: \"EGFR non-small cell lung cancer resistance\".\n- **Evidence Miner** \u2014 Retrieved 3 evidence items (3 supporting, 0 contradictory) from real PubMed.\n- **Citation Verifier** \u2014 Verified 3, failed 0, unverified 0 of 3 evidence items.\n- **Target Scout** \u2014 Ranked 15 ChEMBL targets. Selected Epidermal growth factor receptor (CHEMBL203, score 61.2/100) with 3 clinical precedents.\n- **Hypothesis Agent** \u2014 Generated 2 in-silico hypotheses for Epidermal growth factor receptor; each linked to verified evidence or marked as assumption.\n- **Molecule Design Agent** \u2014 Imported 3 real candidate molecules (ChEMBL activities for CHEMBL203).\n- **Cheminformatics Validator** \u2014 3/3 candidate SMILES valid (RDKit); 0 invalid rejected.\n- **ADMET & Toxicology Agent** \u2014 TDC Caco2_Wang loaded (910 rows) as evaluation substrate; scored 3 valid candidates with the transparent composite score.\n- **Binding & Structure Agent** \u2014 Vina fixture docking not requested. Adapter health: NOT_CONFIGURED.\n- **Synthesis Feasibility Agent** \u2014 Feasibility band assigned to 3 candidates (High=0). Score/complexity only \u2014 NO synthesis route, reagents, or conditions are produced (policy).\n- **Safety Auditor** \u2014 Safety gate complete: 0 blocked/quarantined, 0 review-required, text screen PASS.\n- **Clinical Strategy Agent** \u2014 Clinical strategy drafted from 3 real trial precedents (phases: {'N/A': 2, 'PHASE2': 1}).\n- **Regulatory Reviewer** \u2014 Regulatory checklist (10 items); 2 gaps: Nonclinical safety data, CMC / manufacturing.\n- **Critic Agent** \u2014 Critic review complete: 0 revision event(s) across no issues.\n- **Evaluation Agent** \u2014 Metrics: 9 real-tool outputs, citation verification 1.0, molecule validity 1.0, 0 revisions, retrospective 5/5.\n\n## 5. \uc2e4\uc81c \uc5f0\ub3d9 \ub3c4\uad6c\n- \uc2e4\uc81c \ub3c4\uad6c \ucd9c\ub825(REAL_TOOL_OUTPUT): **9\uac74**\n- \uc124\uc815\ub428\u00b7\ubbf8\uc2e4\ud589(CONFIGURED_BUT_NOT_RUN): **1\uac74** \u00b7 \ub3c4\uad6c \uc624\ub958: **0\uac74**\n- \ubaa8\ub4e0 \uacb0\uacfc\uc5d0\ub294 \ucd9c\ucc98 \uc720\ud615(source type)\uc774 \ud45c\uae30\ub418\uc5b4, \ubbf8\uc2e4\ud589 \ub3c4\uad6c\uac00 \uc2e4\uc81c \uacb0\uacfc\ucc98\ub7fc \ud45c\uc2dc\ub418\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4.\n\n## 6. \uc5d0\uc774\uc804\ud2b8\ubcc4 \uc5ed\ud560\n\uadfc\uac70 \ub9c8\uc774\ub2dd, \uc778\uc6a9 \uac80\uc99d, \ud0c0\uae43 \uc810\uc218\ud654, \uac00\uc124 \uc0dd\uc131, \ubd84\uc790 \uac80\uc99d, \uc548\uc804\uc131 \uac10\uc0ac, \uc784\uc0c1/\uaddc\uc81c, \ube44\ud3c9(Critic), \ud3c9\uac00, \ub9ac\ud3ec\ud2b8 \uc791\uc131 \uc5d0\uc774\uc804\ud2b8\uac00 \ud611\uc5c5\ud569\ub2c8\ub2e4.\n\n## 7. \uc790\uc728 \uacc4\ud68d \ubc0f \ud53c\ub4dc\ubc31 \ub8e8\ud504\nCritic \uc5d0\uc774\uc804\ud2b8\uac00 \uc798\ubabb\ub41c \uad6c\uc870, \ud5c8\uc704 \uc778\uc6a9, \uacfc\uc7a5 \ud45c\ud604, \ubaa8\uc21c \uadfc\uac70\ub97c \ud0d0\uc9c0\ud558\uc5ec **0\uac74\uc758 \uc790\uae30\uc218\uc815(revision)** \uc744 \uc218\ud589\ud588\uc2b5\ub2c8\ub2e4:\n\uc5c6\uc74c\n\n## 8. \uacfc\ud559\uc801 \ud0c0\ub2f9\uc131\n\ud6c4\ubcf4 \ubd84\uc790\ub294 \uc2e4\uc81c ChEMBL \ud65c\uc131 \ub370\uc774\ud130\uc5d0\uc11c \ud655\ubcf4\ud558\uace0 RDKit\uc73c\ub85c \uac80\uc99d\ud588\uc2b5\ub2c8\ub2e4(\uc720\ud6a8\uc728 1.0). \uac00\uc124\uc740 \uac80\uc99d\ub41c PMID \uadfc\uac70\uc5d0 \uc5f0\uacb0\ub418\uba70, \"in-silico \uac00\uc124\u00b7\uc804\ubb38\uac00 \uac80\ud1a0 \ud544\uc694\"\uc640 \uac19\uc774 \ubcf4\uc218\uc801\uc73c\ub85c \ud45c\ud604\ub429\ub2c8\ub2e4. \ud6a8\ub2a5\u00b7\uc644\uce58 \uc8fc\uc7a5\uc744 \ud558\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4.\n\n## 9. EGFR/NSCLC \uc2e4\ub370\uc774\ud130 \ud30c\uc774\ud504\ub77c\uc778 \uacb0\uacfc\n- \uc120\uc815 \ud0c0\uae43: **Epidermal growth factor receptor (CHEMBL203)**, \ud0c0\uae43 \uae30\ud68c \uc810\uc218 **61.2/100**\n- PubMed \uadfc\uac70 3\uac74 \u00b7 \uc784\uc0c1 \uc120\ub840 3\uac74 \u00b7 TDC \ub370\uc774\ud130 910\ud589\n- \ud6c4\ubcf4 \ubd84\uc790 3\uac1c (\uc720\ud6a8 3\uac1c)\n\n## 10. \ud6c4\ubcf4 \ubd84\uc790 \uc6b0\uc120\uc21c\uc704\ud654\n\ud22c\uba85\ud55c \ubcf5\ud569 \uc810\uc218(composite score)\ub85c \ud6c4\ubcf4\ub97c \uc815\ub82c\ud588\uc73c\uba70, \uc548\uc804\uc131/\ubd88\ud655\uc2e4\uc131 \ud398\ub110\ud2f0\ub97c \ubc18\uc601\ud569\ub2c8\ub2e4. \ud569\uc131 \uacbd\ub85c\ub294 \uc815\ucc45\uc0c1 \uc81c\uacf5\ud558\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4.\n\n## 11. \uc548\uc804\uc131 \ubc0f \uc724\ub9ac \uac8c\uc774\ud2b8\n\ucc28\ub2e8/\uaca9\ub9ac 0\uac74, \uac80\ud1a0 \ud544\uc694 0\uac74. \uc704\ud5d8/\uc774\uc911\uc6a9\ub3c4 \ucf58\ud150\uce20\ub294 \uc2e4\ud589 \uac00\ub2a5\ud55c \uc138\ubd80\uc815\ubcf4 \uc5c6\uc774 \uce74\ud14c\uace0\ub9ac\ub9cc \ud45c\uc2dc\ud569\ub2c8\ub2e4. \ud569\uc131 \ub808\uc2dc\ud53c\u00b7\uc2dc\uc57d\u00b7\ubc18\uc751\uc870\uac74\u00b7\uc6a9\ub7c9\u00b7\uc758\ub8cc \uc790\ubb38\uc740 \uc0dd\uc131\ud558\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4.\n\n## 12. \ud3c9\uac00 \uc9c0\ud45c\n- \ub3c4\uad6c \uc131\uacf5\ub960 0.9 \u00b7 \uc778\uc6a9 \uac80\uc99d\ub960 1.0\n- \ubd84\uc790 \uc720\ud6a8\uc728 1.0 \u00b7 \uc790\uae30\uc218\uc815\ub960 1.0\n- \uc2e4\ud589 \uc2dc\uac04 5.8\ucd08 \u00b7 HTTP \ud638\ucd9c 4 \u00b7 \ub85c\uceec \ub3c4\uad6c \ud638\ucd9c 4\n- \ud68c\uace0\uc801 \uc7ac\ubc1c\uacac(retrospective rediscovery): 5/5 \uae30\uc900 \ucda9\uc871 \u2014 pass\n\n## 13. \ub9ac\uc18c\uc2a4 \ud6a8\uc728\uc131\n\uacb0\uc815\ub860\uc801 \ud654\ud559/\ub370\uc774\ud130 \uc791\uc5c5\uc740 \ub85c\uceec \ub3c4\uad6c(RDKit, TDC)\ub85c, \uadfc\uac70 \uc870\ud68c\ub294 \uacf5\uac1c API\ub85c \ub77c\uc6b0\ud305\ud558\uc5ec \ube44\uc6a9\uc744 \ub0ae\ucda5\ub2c8\ub2e4(low (deterministic local tools + public APIs; no LLM tokens billed)).\n\n## 14. \uc2e4\uc81c \uad6c\ud604 \uac00\ub2a5\uc131\nFastAPI \ubc31\uc5d4\ub4dc + React \ud504\ub7f0\ud2b8\uc5d4\ub4dc + Docker\ub85c \uad6c\uc131\ub418\uc5b4 \uc2e4\uc81c \ubc30\ud3ec\uac00 \uac00\ub2a5\ud569\ub2c8\ub2e4. Vina/REINVENT4\ub294 \uc5b4\ub311\ud130\ub85c \uc5f0\ub3d9\ub418\uc5b4 \uc124\uc815 \uc2dc \uc2e4\uc81c \uc2e4\ud589\ub429\ub2c8\ub2e4.\n\n## 15. \ud55c\uacc4\uc640 \ud5a5\ud6c4 \uac1c\ubc1c \uacc4\ud68d\nin-silico \uc758\uc0ac\uacb0\uc815 \ubcf4\uc870 \ub2e8\uacc4\uc774\uba70, \uc2b5\uc2dd \uc2e4\ud5d8\u00b7\uc784\uc0c1\u00b7\uaddc\uc81c \uac80\uc99d\uc744 \ub300\uccb4\ud558\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4. \ud5a5\ud6c4 REINVENT4 \uc2e4\uc81c \uc0dd\uc131, TDC \uc608\uce21 \ubaa8\ub378 \ud559\uc2b5, \uaddc\uc81c \ubb38\uc11c RAG\ub97c \uacc4\ud68d\ud569\ub2c8\ub2e4.\n\n## 16. \ucd5c\uc885 \ucc45\uc784 \ubc0f \uc804\ubb38\uac00 \uac80\ud1a0 \ud544\uc694\uc131\n\ubcf8 \uc2dc\uc2a4\ud15c\uc740 \uc5f0\uad6c \uc758\uc0ac\uacb0\uc815 \ubcf4\uc870 \ub3c4\uad6c\uc774\uba70, \uc804\ubb38\uac00\uc758 \uacfc\ud559\uc801\u00b7\uc784\uc0c1\uc801\u00b7\uaddc\uc81c\uc801\u00b7\uc724\ub9ac\uc801 \uac80\ud1a0\ub97c \ub300\uccb4\ud558\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4. \ucd5c\uc885 \ud310\ub2e8\uacfc \ucc45\uc784\uc740 \uc5f0\uad6c\uc790\uc5d0\uac8c \uc788\uc2b5\ub2c8\ub2e4.\n\n## 17. \uac10\uc0ac \ub85c\uadf8 \uc694\uc57d\n\ucd1d \uc5d0\uc774\uc804\ud2b8 \uc2e4\ud589 16\uac74, \uc790\uae30\uc218\uc815 0\uac74, \ub3c4\uad6c \ud638\ucd9c\uc740 \ubaa8\ub450 \ucd9c\ucc98 \uc720\ud615\uacfc \ud568\uaed8 \uae30\ub85d\ub418\uc5b4 \uc7ac\ud604\u00b7\uac80\uc99d\uc774 \uac00\ub2a5\ud569\ub2c8\ub2e4.\n",
+      "language": "ko",
+      "safety_lint": {
+        "status": "PASS",
+        "export_safe": true,
+        "findings": []
+      },
+      "export_safe": true,
+      "source_type": "REAL_TOOL_OUTPUT"
+    }
+  },
+  "counts": {
+    "REAL_TOOL_OUTPUT": 9,
+    "DEMO_FALLBACK": 0,
+    "CONFIGURED_BUT_NOT_RUN": 1,
+    "TOOL_ERROR": 0,
+    "HUMAN_INPUT": 0
+  },
+  "metrics": {
+    "real_tool_output_count": 9,
+    "configured_not_run_count": 1,
+    "tool_error_count": 0,
+    "tool_success_rate": 0.9,
+    "source_labeling_completeness": 1.0,
+    "evidence_count": 3,
+    "verified_citation_count": 3,
+    "failed_citation_count": 0,
+    "citation_verification_rate": 1.0,
+    "fake_citation_catch_rate": 1.0,
+    "evidence_to_hypothesis_coverage": 1.0,
+    "candidate_count": 3,
+    "valid_smiles_count": 3,
+    "invalid_smiles_caught": 0,
+    "molecule_validity_rate": 1.0,
+    "safety_pass_count": 3,
+    "safety_review_count": 0,
+    "safety_blocked_count": 0,
+    "agent_run_count": 15,
+    "revision_event_count": 0,
+    "self_correction_rate": 1.0,
+    "human_intervention_count": 0,
+    "runtime_seconds": 5.8,
+    "http_api_calls": 4,
+    "local_tool_calls": 4,
+    "estimated_api_calls": 4,
+    "cost_class": "low (deterministic local tools + public APIs; no LLM tokens billed)",
+    "top_target": "Epidermal growth factor receptor",
+    "top_target_chembl_id": "CHEMBL203",
+    "top_target_type": "SINGLE PROTEIN",
+    "top_target_organism": "Homo sapiens",
+    "pubmed_evidence_count": 3,
+    "clinicaltrials_count": 3,
+    "tdc_row_count": 910,
+    "retrospective": {
+      "criteria": {
+        "target_ranks_top": true,
+        "pubmed_evidence_exists": true,
+        "clinical_precedent_exists": true,
+        "valid_molecule_exists": true,
+        "report_generated": true
+      },
+      "passed": 5,
+      "total": 5,
+      "status": "pass",
+      "note": "Retrospective rediscovery benchmark for pipeline sanity and evidence retrieval \u2014 not a wet-lab validation."
+    },
+    "_counts": {
+      "REAL_TOOL_OUTPUT": 9,
+      "DEMO_FALLBACK": 0,
+      "CONFIGURED_BUT_NOT_RUN": 1,
+      "TOOL_ERROR": 0,
+      "HUMAN_INPUT": 0
+    }
+  },
+  "_name": "Built-in EGFR/NSCLC recorded real snapshot",
+  "_description": "Limited, sanitized, timestamped built-in snapshot (max_results=3)."
+}

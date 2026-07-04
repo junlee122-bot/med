@@ -22,10 +22,15 @@ def utcnow() -> str:
 # ---------------------------------------------------------------------------
 class SourceType(str, Enum):
     REAL_TOOL_OUTPUT = "REAL_TOOL_OUTPUT"
+    RECORDED_REAL_TOOL_OUTPUT = "RECORDED_REAL_TOOL_OUTPUT"  # replayed captured real data
     DEMO_FALLBACK = "DEMO_FALLBACK"
     CONFIGURED_BUT_NOT_RUN = "CONFIGURED_BUT_NOT_RUN"
     TOOL_ERROR = "TOOL_ERROR"
     HUMAN_INPUT = "HUMAN_INPUT"
+    BASELINE_MODEL_OUTPUT = "BASELINE_MODEL_OUTPUT"  # a locally-trained baseline model
+    HEURISTIC_ANALYSIS = "HEURISTIC_ANALYSIS"        # rule-based, not a tool/DB result
+    ASSUMPTION = "ASSUMPTION"                        # explicitly-labeled assumption
+    SAFETY_REDACTED = "SAFETY_REDACTED"              # content withheld by policy
 
 
 class ValidationStatus(str, Enum):

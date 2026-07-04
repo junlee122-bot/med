@@ -16,8 +16,12 @@ class TargetScoutAgent(BaseAgent):
 
     def run(self, ctx: AgentContext) -> AgentOutput:
         out = AgentOutput()
+        # Target search breadth is decoupled from max_results: targets are cheap
+        # and the druggable single-protein human target (e.g. EGFR CHEMBL203) may
+        # rank below related complexes/orthologs, so always fetch a healthy set.
+        target_fetch = max(15, ctx.max_results)
         targets_res = track(ctx, out, reg.chembl.execute(
-            {"operation": "targets", "query": ctx.target_query, "max_results": ctx.max_results},
+            {"operation": "targets", "query": ctx.target_query, "max_results": target_fetch},
             project_id=ctx.project_id, workflow_run_id=ctx.workflow_run_id), network=True)
 
         # Clinical precedent is a genuine target-ranking signal; fetch once and

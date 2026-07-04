@@ -7,9 +7,16 @@
 .pytest_cache/
 .mypy_cache/
 
-# Backend runtime data (SQLite db, tool cache, runtime settings, job outputs)
-backend/data/
-backend/**/data/
+# Backend runtime data (SQLite db, tool cache, runtime settings, job outputs).
+# Ignore contents, but KEEP the snapshots README + small sanitized built-in
+# snapshots (record/replay demo-safety net). User snapshots (snap-*.json) stay
+# ignored, as do generated model binaries and submission artifacts.
+backend/data/*
+!backend/data/snapshots/
+backend/data/snapshots/*
+!backend/data/snapshots/README.md
+!backend/data/snapshots/.gitkeep
+!backend/data/snapshots/builtin-*.json
 *.db
 *.sqlite3
 

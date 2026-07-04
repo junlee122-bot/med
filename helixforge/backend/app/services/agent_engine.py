@@ -31,6 +31,7 @@ from app.agents.evaluation_agent import EvaluationAgent
 from app.agents.report_builder_agent import ReportBuilderAgent
 from app.models.schemas import SourceType, ValidationStatus, utcnow
 from app.services import audit
+from app.services import ai_interaction_ledger as ledger
 from app.storage import db
 
 AGENT_SEQUENCE = [
@@ -72,6 +73,12 @@ def _agent_run_record(agent, out, ctx, run_id, stage_index) -> dict[str, Any]:
         project_id=ctx.project_id, workflow_run_id=run_id,
         validation_status=out.validation_status, confidence=out.confidence,
         warnings=out.warnings, errors=out.errors)
+    # AI interaction ledger: record the deterministic agent step for transparency.
+    ledger.record(
+        run_id=run_id, agent_run_id=rec["id"], interaction_type="DETERMINISTIC_AGENT",
+        system_prompt_summary=f"{agent.name}: {agent.role}",
+        user_prompt_summary=rec["input_summary"], tool_config_summary=", ".join(agent.allowed_tools),
+        project_id=ctx.project_id, notes=out.output_summary)
     return rec
 
 
