@@ -225,6 +225,7 @@ def bundle() -> dict[str, Any]:
     run_id = run.get("id")
     readiness = release_readiness.compute()
     latest_report = (db.list_records("reports", limit=50) or [{}])[0]
+    from app.services import data_rights
     return {
         "generated_at": utcnow(), "app_version": get_settings().app_version, "git_commit": _git_commit(),
         "artifacts": {a["type"]: a["markdown"] for a in arts},
@@ -232,6 +233,8 @@ def bundle() -> dict[str, Any]:
         "safety_lint": lint_report(latest_report.get("markdown", "")) if latest_report else None,
         "evidence_lint": lint_run(run_id) if run_id else None,
         "ai_ledger_summary": ledger.summary_for_run(run_id) if run_id else None,
+        "data_rights": data_rights.list_records(),
+        "third_party_data_notice": data_rights.THIRD_PARTY_NOTICE,
         "disclaimer": DISCLAIMER_EN,
         "note": "Secrets excluded. Not-run tools are labeled honestly.",
     }

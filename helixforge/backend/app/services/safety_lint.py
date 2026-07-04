@@ -67,6 +67,27 @@ DISCLAIMER_MARKERS = ("research decision support", "연구 의사결정 보조",
 # Conservative Korean replacements for overclaims.
 KO_SAFE_REPLACEMENT = "in-silico 후보 우선순위화(전문가 검토 필요)"
 
+# Safe-policy contexts: sentences that MENTION a forbidden concept only to state
+# it is prohibited/withheld. These are neutralized before forbidden detection so
+# the safety policy statement itself is not falsely blocked.
+SAFE_CONTEXT_PATTERNS = [
+    # English "no ... (forbidden terms) ..." within one sentence
+    re.compile(r"\bno\b[^.\n]*\b(wet-lab|synthesis route|reagent|reaction condition|purification|dosage|medical advice)[^.\n]*", re.I),
+    re.compile(r"(not|never|intentionally not|withheld|excluded|by policy|do not (show|display|provide|generate|produce))[^.\n]*\b(synthesis route|reaction condition|reagent|dosage|purification|toxicity)[^.\n]*", re.I),
+    re.compile(r"\b(synthesis route|reaction condition|reagent|dosage)[^.\n]*(are|is)?[^.\n]*(not|never|intentionally|withheld|excluded)[^.\n]*", re.I),
+    # Korean no-synthesis / no-dosage policy statements
+    re.compile(r"무합성경로[^\n]*"),
+    re.compile(r"(합성\s*경로|합성법|제조\s*법|반응\s*조건|시약\s*목록|정제\s*절차|단계별\s*합성|투여량|복용량|용량\s*지침|의료\s*자문|독성\s*증가)[^\n]{0,24}(미제공|미표시|제공하지\s*않|표시하지\s*않|생성하지\s*않|하지\s*않|없\b|없습니다|아님|정책)"),
+    re.compile(r"(제공하지\s*않|미제공|미표시|생성하지\s*않)[^\n]{0,24}(합성\s*경로|합성법|반응\s*조건|시약\s*목록|정제\s*절차|투여량|복용량|의료\s*자문)"),
+]
+
+
+def _scrub_safe_context(text: str) -> str:
+    out = text
+    for rx in SAFE_CONTEXT_PATTERNS:
+        out = rx.sub(" [SAFE-POLICY] ", out)
+    return out
+
 
 def detect_overclaims(text: str) -> list[str]:
     hits = []
@@ -99,9 +120,13 @@ def rewrite_overclaims_ko(text: str) -> dict[str, Any]:
 
 
 def _forbidden_hits(text: str) -> list[dict]:
+    # Neutralize safe-policy contexts (statements that a concept is prohibited/
+    # withheld) before matching, so the app's own safety statements are not
+    # falsely blocked. Genuinely actionable content is untouched by the scrub.
+    scrubbed = _scrub_safe_context(text)
     hits = []
     for rx, label in FORBIDDEN_PATTERNS + FORBIDDEN_PATTERNS_KO:
-        if rx.search(text):
+        if rx.search(scrubbed):
             hits.append({"severity": "BLOCKED", "category": "forbidden_content",
                          "detail": f"Contains forbidden content: {label}."})
     return hits

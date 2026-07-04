@@ -109,3 +109,92 @@ def test_source_types_audit_endpoint():
     r = client.get("/api/source-types/audit")
     assert r.status_code == 200
     assert "source_type_counts" in r.json()
+
+
+# ---- Safe-context awareness (no false block on the app's own safety policy) ----
+@pytest.mark.unit
+def test_safe_policy_statement_not_blocked_en():
+    text = ("No wet-lab protocols, synthesis routes, reagents, reaction conditions, "
+            "purification, dosage, or medical advice — by policy. 책임은 연구자에게 있습니다.")
+    assert lint_report(text)["status"] != "BLOCKED"
+
+
+@pytest.mark.unit
+def test_safe_policy_statement_not_blocked_ko():
+    text = "무합성경로 정책, 합성 경로·의료 자문 미제공. 책임은 연구자에게 있습니다."
+    assert lint_report(text)["status"] != "BLOCKED"
+
+
+@pytest.mark.unit
+def test_actionable_synthesis_still_blocked_after_scrub():
+    # The scrub must not weaken genuine actionable content detection.
+    assert lint_report("다음은 합성 경로입니다: 80도로 가열. 책임은 연구자에게 있습니다.")["status"] == "BLOCKED"
+    assert lint_report("Step-by-step synthesis: heat reagents to 80C.", require_disclaimer=False)["status"] == "BLOCKED"
+
+
+# ---- Full Korean proposal generator ----
+@pytest.mark.unit
+def test_full_korean_proposal_contains_rubric_sections():
+    from app.services import proposal_writer
+    md = proposal_writer.build_full_proposal_ko()
+    for needle in ("분야 4", "멀티", "안전", "한계", "책임은 연구자", "CONFIGURED_BUT_NOT_RUN"):
+        assert needle in md, f"missing section marker: {needle}"
+
+
+@pytest.mark.unit
+def test_proposal_artifacts_are_export_safe():
+    from app.services import proposal_writer
+    for builder in (proposal_writer.build_full_proposal_ko,
+                    proposal_writer.build_peer_one_pager_ko,
+                    proposal_writer.build_qa_defense_ko):
+        lr = lint_report(builder())
+        assert lr["export_safe"] is True
+        assert lr["status"] != "BLOCKED"
+
+
+@pytest.mark.unit
+def test_proposal_has_no_forbidden_overclaims():
+    from app.services.safety_lint import detect_overclaims
+    from app.services import proposal_writer
+    assert detect_overclaims(proposal_writer.build_full_proposal_ko()) == []
+
+
+@pytest.mark.integration
+def test_proposal_generate_endpoint_persists_artifact():
+    r = client.post("/api/proposal/generate", json={"kind": "full_proposal_ko"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["export_safe"] is True
+    assert body["kind"] == "full_proposal_ko"
+
+
+# ---- Data rights & attribution ----
+@pytest.mark.unit
+def test_data_rights_records_exist_for_core_sources():
+    from app.services import data_rights
+    covered = {r["source"] for r in data_rights.RECORDS}
+    assert data_rights.CORE_SOURCES.issubset(covered)
+
+
+@pytest.mark.unit
+def test_data_rights_check_submission_ok():
+    from app.services import data_rights
+    res = data_rights.check_submission()
+    assert res["ok"] is True
+    assert res["missing_core_sources"] == []
+
+
+@pytest.mark.integration
+def test_submission_bundle_includes_data_rights_notice():
+    from app.services import submission_pack
+    bundle = submission_pack.bundle()
+    assert "data_rights" in bundle
+    assert bundle["third_party_data_notice"]
+    assert "records" in bundle["data_rights"]
+
+
+@pytest.mark.integration
+def test_data_rights_endpoint():
+    r = client.get("/api/data-rights")
+    assert r.status_code == 200
+    assert len(r.json()["records"]) >= 5
