@@ -32,6 +32,13 @@ ENTITIES = [
     "tdc_dataset_records",
     "safety_flags",
     "reports",
+    # --- Phase 2: agentic layer ---
+    "agent_runs",
+    "agent_plans",
+    "revision_events",
+    "hypotheses",
+    "evaluation_results",
+    "run_manifests",
 ]
 
 

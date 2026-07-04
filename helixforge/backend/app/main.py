@@ -10,7 +10,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import (
+    agentic_api,
     chembl_api,
+    data_api,
+    evaluation_api,
+    export_api,
     health,
     literature,
     rdkit_api,
@@ -49,7 +53,8 @@ def create_app() -> FastAPI:
     )
 
     for module in (health, literature, chembl_api, rdkit_api, tdc_api, vina_api,
-                   reinvent_api, workflow_api, settings_api):
+                   reinvent_api, workflow_api, settings_api,
+                   agentic_api, data_api, evaluation_api, export_api):
         app.include_router(module.router)
 
     @app.on_event("startup")
