@@ -32,6 +32,7 @@ export const NAV = [
   { path: '/release', label: 'Release Readiness', icon: 'Gauge', group: 'Submission' },
   { path: '/submission', label: 'Submission Center', icon: 'Package', group: 'Submission' },
   { path: '/proposal-studio', label: 'Proposal Studio', icon: 'FileEdit', group: 'Submission' },
+  { path: '/professional-docs', label: 'Professional Docs', icon: 'FileStack', group: 'Submission' },
   { path: '/reports', label: 'Reports', icon: 'FileText', group: 'Submission' },
   { path: '/presentation', label: 'Presentation Mode', icon: 'Presentation', group: 'Demo' },
   { path: '/settings', label: 'Settings', icon: 'Settings', group: 'System' },
