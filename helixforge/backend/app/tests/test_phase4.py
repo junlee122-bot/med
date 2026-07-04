@@ -73,11 +73,15 @@ def test_submission_artifacts_pass_multilingual_safety_lint():
 # ---- Source-type governance ----
 @pytest.mark.unit
 def test_source_type_audit_flags_missing_source_type():
+    from app.models.schemas import utcnow
     pid = f"proj-gov-{uuid.uuid4().hex[:6]}"
+    before = gov.audit()["counts"]["missing_source_type_records"]
     db.insert("molecule_candidates", {"id": f"mol-nost-{uuid.uuid4().hex[:6]}", "project_id": pid,
-                                      "created_at": "2026-01-01T00:00:00Z", "smiles": "CCO", "valid": True})
+                                      "created_at": utcnow(), "smiles": "CCO", "valid": True})
     res = gov.audit()
     assert res["status"] in ("REVIEW_REQUIRED", "BLOCKED")
+    # Full count must rise; the bounded sample also carries the new record.
+    assert res["counts"]["missing_source_type_records"] == before + 1
     assert any("mol-nost" in x for x in res["missing_source_type_records"])
 
 

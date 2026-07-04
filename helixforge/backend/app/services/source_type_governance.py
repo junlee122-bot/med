@@ -78,13 +78,26 @@ def audit() -> dict[str, Any]:
 
     blocking = bool(unknown or real_vs_replay or overclaimed_not_run or heuristic_as_official or baseline_as_validated)
     status = "BLOCKED" if blocking else ("REVIEW_REQUIRED" if missing else "PASS")
+    # Transparency: report FULL counts, never silently drop findings. The list
+    # fields carry a bounded sample; the *_count fields carry the true totals.
+    SAMPLE = 500
     return {
         "status": status, "source_type_counts": counts,
-        "unknown_source_types": unknown[:50], "missing_source_type_records": missing[:50],
-        "real_vs_replay_conflicts": real_vs_replay[:50],
-        "configured_not_run_overclaimed": overclaimed_not_run[:50],
-        "heuristic_as_official": heuristic_as_official[:50],
-        "baseline_as_validated": baseline_as_validated[:50],
+        "unknown_source_types": unknown[:SAMPLE], "missing_source_type_records": missing[:SAMPLE],
+        "real_vs_replay_conflicts": real_vs_replay[:SAMPLE],
+        "configured_not_run_overclaimed": overclaimed_not_run[:SAMPLE],
+        "heuristic_as_official": heuristic_as_official[:SAMPLE],
+        "baseline_as_validated": baseline_as_validated[:SAMPLE],
+        "counts": {
+            "unknown_source_types": len(unknown), "missing_source_type_records": len(missing),
+            "real_vs_replay_conflicts": len(real_vs_replay),
+            "configured_not_run_overclaimed": len(overclaimed_not_run),
+            "heuristic_as_official": len(heuristic_as_official),
+            "baseline_as_validated": len(baseline_as_validated),
+        },
+        "sample_truncated": any(len(x) > SAMPLE for x in
+                                (unknown, missing, real_vs_replay, overclaimed_not_run,
+                                 heuristic_as_official, baseline_as_validated)),
         "unsafe_real_claims": [], "suggested_fixes": fixes, "checked_at": utcnow(),
     }
 
