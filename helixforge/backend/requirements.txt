@@ -1,0 +1,26 @@
+# HelixForge AI backend — core service dependencies
+# NOTE: fastapi/starlette are pinned to a known-good pair. Newer resolutions
+# (e.g. starlette 1.x) break APIRouter inclusion, so keep these bounds.
+fastapi==0.115.6
+starlette>=0.40,<0.42
+uvicorn[standard]==0.32.1
+httpx>=0.27,<1.0
+pydantic>=2.7,<3.0
+pydantic-settings>=2.3,<3.0
+python-multipart>=0.0.9
+pytest>=8.0
+pytest-asyncio>=0.23
+
+# --- Scientific tools ---
+# RDKit: real cheminformatics. pip wheel works on most platforms; conda is the
+# canonical channel (see environment.yml).
+rdkit>=2023.9.1
+
+# PyTDC: Therapeutics Data Commons datasets/benchmarks (downloads data on first use).
+PyTDC>=0.4.0
+
+# --- Optional heavy tools (NOT installed by default; adapters degrade honestly) ---
+# AutoDock Vina python bindings — install if you want in-process docking:
+#   pip install vina        # requires a working Boost/AutoDock toolchain
+# REINVENT4 — install separately per its repo, then set REINVENT4_PYTHON:
+#   https://github.com/MolecularAI/REINVENT4

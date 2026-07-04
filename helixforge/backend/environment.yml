@@ -1,0 +1,21 @@
+# Conda environment for the HelixForge AI backend.
+# RDKit installs cleanly from conda-forge; this is the recommended path for the
+# scientific stack. Vina/REINVENT4 remain optional (see docs/TOOL_INTEGRATION.md).
+name: helixforge
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - rdkit>=2023.09
+  - pip
+  - pip:
+      - fastapi>=0.111
+      - "uvicorn[standard]>=0.30"
+      - httpx>=0.27
+      - pydantic>=2.7
+      - pydantic-settings>=2.3
+      - python-multipart>=0.0.9
+      - pytest>=8.0
+      - PyTDC>=0.4.0
+      # Optional:
+      # - vina

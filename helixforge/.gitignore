@@ -1,0 +1,29 @@
+# Python
+**/.venv/
+**/venv/
+**/__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Backend runtime data (SQLite db, tool cache, runtime settings, job outputs)
+backend/data/
+backend/**/data/
+*.db
+*.sqlite3
+
+# Node / frontend
+**/node_modules/
+**/dist/
+**/dist-ssr/
+.vite/
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+
+# Logs & OS
+*.log
+.DS_Store

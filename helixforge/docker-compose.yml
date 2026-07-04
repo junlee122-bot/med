@@ -1,0 +1,39 @@
+# HelixForge AI — full-stack local orchestration.
+#   docker compose up --build
+# Frontend on http://localhost:8080 (nginx proxies /api → backend).
+# Backend on http://localhost:8000 (FastAPI + Swagger at /docs).
+services:
+  backend:
+    build: ./backend
+    container_name: helixforge-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - HELIXFORGE_DATA_DIR=/data
+      - NCBI_API_KEY=${NCBI_API_KEY:-}
+      - NCBI_EMAIL=${NCBI_EMAIL:-}
+      - VINA_BIN=${VINA_BIN:-vina}
+      - REINVENT4_PYTHON=${REINVENT4_PYTHON:-}
+      - REINVENT4_BIN=${REINVENT4_BIN:-}
+      - CHUNK_SIZE=${CHUNK_SIZE:-50}
+      - TIMEOUT_SECONDS=${TIMEOUT_SECONDS:-30}
+      - CORS_ORIGINS=http://localhost:8080,http://localhost:5174
+    volumes:
+      - helixforge-data:/data
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Empty API base → same-origin; nginx proxies /api to backend.
+        VITE_API_BASE: ""
+    container_name: helixforge-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  helixforge-data:
