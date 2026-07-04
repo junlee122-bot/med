@@ -110,7 +110,11 @@ class FakeLLMClient:
         self.tokens_out = tokens_out
         self.calls: list[dict[str, Any]] = []
 
-    def _payload(self) -> Any:
+    def _payload(self, system: str = "") -> Any:
+        # Template-aware routing: an internal safe-rewrite call must return a rewrite
+        # even when the outer call is configured for a different response.
+        if "Rewrite the provided claim text" in (system or ""):
+            return json.dumps(SAFE_REWRITE)
         p = {"plan": VALID_PLAN, "hypotheses": VALID_HYPOTHESES,
              "fake_evidence": FAKE_EVIDENCE_HYPOTHESES, "overclaim": OVERCLAIM_HYPOTHESES,
              "critic": CRITIC_ITEMS, "rewrite": SAFE_REWRITE}.get(self.response, VALID_PLAN)
@@ -131,6 +135,6 @@ class FakeLLMClient:
             raise LLMClientError("simulated API 500")
         if self.safety_refuse:
             raise LLMSafetyRefusal("I can't help with that request.")
-        text = "this is not json {broken" if self.invalid_json else self._payload()
+        text = "this is not json {broken" if self.invalid_json else self._payload(system)
         return {"text": text, "tokens_in": self.tokens_in, "tokens_out": self.tokens_out,
                 "stop_reason": "end_turn", "model": model}

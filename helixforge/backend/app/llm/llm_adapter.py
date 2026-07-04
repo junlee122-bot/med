@@ -158,8 +158,9 @@ def call_llm(
     actual_cost = cost_estimator.estimate_cost(model, tokens_in or 0, tokens_out or 0) if (
         tokens_in is not None) else est["estimated_cost_usd"]
 
-    # Output safety screen.
-    screen = safety.screen_output_text(text)
+    # Output safety screen (coarse hard-hazard net; overclaims handled per-field
+    # downstream by the reasoner services with a safe-rewrite path).
+    screen = safety.screen_output_hard(text)
     if not screen["safe"]:
         model_router.record_spend(actual_cost, run_id, model, purpose)
         res = _fallback(purpose, prompt_template_id, tmpl_hash, in_hash, in_summary,

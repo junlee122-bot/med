@@ -52,8 +52,21 @@ def is_refusal(text: str, stop_reason: str | None = None) -> bool:
     return any(rx.search(t) for rx in _REFUSAL_MARKERS)
 
 
+def screen_output_hard(text: str) -> dict[str, Any]:
+    """Coarse safety net for raw LLM output: block ONLY genuinely hazardous content
+    (synthesis routes, reagents, reaction conditions, dosage, toxicity enhancement,
+    etc.). Overclaim/language handling is done per-field by the reasoner services
+    (with a safe-rewrite path), so structured JSON that merely *names* forbidden
+    terms in an avoid-list is not falsely blocked here."""
+    from app.services.safety_lint import _forbidden_hits
+    hits = _forbidden_hits(text or "")
+    return {"safe": not hits, "findings": hits,
+            "reason": (hits[0]["detail"] if hits else "")}
+
+
 def screen_output_text(text: str) -> dict[str, Any]:
-    """Run LLM output text through the deterministic safety + language linters."""
+    """Full screen (hazards + overclaims). Used where overclaim language must also
+    be blocked (not the coarse LLM net)."""
     from app.services.safety_lint import lint_report
     from app.services.scientific_language_linter import check as lang_check
     safety = lint_report(text or "", require_disclaimer=False)
