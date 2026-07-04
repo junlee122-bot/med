@@ -47,6 +47,22 @@ ENTITIES = [
     "run_configs",
     "regulatory_docs",
     "submission_artifacts",
+    # --- Phase 5: professional scientific validation layer ---
+    "evidence_claims",
+    "target_biology_reviews",
+    "activity_normalizations",
+    "medchem_reviews",
+    "applicability_results",
+    "admet_validation_jobs",
+    "docking_protocols",
+    "pareto_analyses",
+    "professional_evaluations",
+    "translational_assessments",
+    "clinical_precedent_reviews",
+    "professional_documents",
+    "expert_review_items",
+    "identity_normalizations",
+    "whitepapers",
 ]
 
 
