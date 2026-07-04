@@ -7,6 +7,11 @@ import { Overview } from '@/pages/Overview'
 import { ToolRegistry } from '@/pages/ToolRegistry'
 import { Cockpit } from '@/pages/Cockpit'
 import { DemoLab } from '@/pages/DemoLab'
+import { Snapshots } from '@/pages/Snapshots'
+import { ScenarioMatrix } from '@/pages/ScenarioMatrix'
+import { AILedger } from '@/pages/AILedger'
+import { Release } from '@/pages/Release'
+import { Submission } from '@/pages/Submission'
 import { EvidenceExplorer } from '@/pages/EvidenceExplorer'
 import { Targets } from '@/pages/Targets'
 import { Hypotheses } from '@/pages/Hypotheses'
@@ -32,6 +37,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/tools" element={<ToolRegistry />} />
           <Route path="/cockpit" element={<Cockpit />} />
           <Route path="/demo-lab" element={<DemoLab />} />
+          <Route path="/snapshots" element={<Snapshots />} />
+          <Route path="/scenarios" element={<ScenarioMatrix />} />
+          <Route path="/ai-ledger" element={<AILedger />} />
+          <Route path="/release" element={<Release />} />
+          <Route path="/submission" element={<Submission />} />
           <Route path="/evidence" element={<EvidenceExplorer />} />
           <Route path="/targets" element={<Targets />} />
           <Route path="/hypotheses" element={<Hypotheses />} />

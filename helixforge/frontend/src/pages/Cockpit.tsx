@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api, HUMAN_RESPONSIBILITY } from '@/lib/api'
 import type { AgenticRunResult, ErrorInjections } from '@/lib/api'
 import { Icon } from '@/components/Icon'
@@ -19,15 +19,34 @@ export function Cockpit() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [inj, setInj] = useState<ErrorInjections>({})
+  const [mode, setMode] = useState<'live' | 'replay'>('live')
+  const [snaps, setSnaps] = useState<any[]>([])
+  const [snapId, setSnapId] = useState('')
+  const [replayInfo, setReplayInfo] = useState<{ warning: string; original: string } | null>(null)
+
+  useEffect(() => {
+    api.listSnapshots().then((r) => {
+      setSnaps(r.snapshots)
+      const b = r.snapshots.find((s: any) => s.is_builtin) || r.snapshots[0]
+      if (b) setSnapId(b.id)
+    }).catch(() => {})
+  }, [])
 
   async function exec() {
-    setLoading(true); setError(''); setRun(null)
+    setLoading(true); setError(''); setRun(null); setReplayInfo(null)
     try {
-      const r = await api.runAgenticPipeline({
-        condition: 'non-small cell lung cancer', target_query: 'EGFR', max_results: 6,
-        create_reinvent_config: true, error_injections: inj,
-      })
-      setRun(r)
+      if (mode === 'replay') {
+        if (!snapId) throw new Error('No snapshot selected. Capture one on the Snapshots page.')
+        const r = await api.replaySnapshot(snapId)
+        setRun(r as AgenticRunResult)
+        setReplayInfo({ warning: r.warning, original: r.original_run_id })
+      } else {
+        const r = await api.runAgenticPipeline({
+          condition: 'non-small cell lung cancer', target_query: 'EGFR', max_results: 6,
+          create_reinvent_config: true, error_injections: inj,
+        })
+        setRun(r)
+      }
     } catch (e: any) { setError(e.message) } finally { setLoading(false) }
   }
 
@@ -41,11 +60,29 @@ export function Cockpit() {
         title="Agent Cockpit"
         subtitle="Run the real multi-agent pipeline: 17 agents call live tools, the Critic detects and corrects injected errors, and every step is observable — plan, tool calls, validation, confidence, revisions."
         actions={
-          <button className="btn-primary" disabled={loading} onClick={exec}>
-            <Icon name="Play" size={15} /> Run agentic pipeline
-          </button>
+          <>
+            <div className="flex overflow-hidden rounded-lg border border-line text-xs">
+              <button onClick={() => setMode('live')} className={`px-3 py-2 ${mode === 'live' ? 'bg-brand-500/20 text-brand-300' : 'text-slate-400 hover:bg-bg-hover'}`}>Live tools</button>
+              <button onClick={() => setMode('replay')} className={`px-3 py-2 ${mode === 'replay' ? 'bg-helix-cyan/20 text-helix-cyan' : 'text-slate-400 hover:bg-bg-hover'}`}>Recorded replay</button>
+            </div>
+            {mode === 'replay' && (
+              <select className="input !w-auto text-xs" value={snapId} onChange={(e) => setSnapId(e.target.value)}>
+                {snaps.length === 0 && <option value="">no snapshot</option>}
+                {snaps.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            )}
+            <button className="btn-primary" disabled={loading} onClick={exec}>
+              <Icon name="Play" size={15} /> {mode === 'replay' ? 'Replay snapshot' : 'Run agentic pipeline'}
+            </button>
+          </>
         }
       />
+      {mode === 'replay' && (
+        <div className="mb-4 rounded-lg border border-helix-cyan/40 bg-helix-cyan/10 px-3 py-2 text-xs text-helix-cyan">
+          <Icon name="Info" size={13} className="mr-1 inline" />
+          Recorded replay mode: outputs are labeled RECORDED_REAL_TOOL_OUTPUT. No live external API call is made — the demo-safe path for flaky networks.
+        </div>
+      )}
 
       <Panel className="mb-4">
         <div className="mb-2 flex items-center justify-between">

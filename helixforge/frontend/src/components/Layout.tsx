@@ -8,6 +8,7 @@ export const NAV = [
   { path: '/tools', label: 'Tool Registry', icon: 'Plug', group: 'Main' },
   { path: '/cockpit', label: 'Agent Cockpit', icon: 'Cpu', group: 'Run' },
   { path: '/demo-lab', label: 'Demo Lab', icon: 'Wand2', group: 'Run' },
+  { path: '/snapshots', label: 'Snapshots', icon: 'DatabaseZap', group: 'Run' },
   { path: '/evidence', label: 'Evidence Explorer', icon: 'BookOpen', group: 'Run' },
   { path: '/targets', label: 'Targets', icon: 'Crosshair', group: 'Run' },
   { path: '/hypotheses', label: 'Hypotheses', icon: 'Lightbulb', group: 'Run' },
@@ -18,14 +19,18 @@ export const NAV = [
   { path: '/clinical', label: 'Clinical & Regulatory', icon: 'Stethoscope', group: 'Run' },
   { path: '/safety', label: 'Safety Gate', icon: 'ShieldCheck', group: 'Governance' },
   { path: '/evaluation', label: 'Evaluation Bench', icon: 'BarChart3', group: 'Analysis' },
+  { path: '/scenarios', label: 'Scenario Matrix', icon: 'Grid3x3', group: 'Analysis' },
+  { path: '/ai-ledger', label: 'AI Ledger', icon: 'ScrollText', group: 'Analysis' },
   { path: '/impact', label: 'Impact', icon: 'TrendingUp', group: 'Analysis' },
   { path: '/rubric', label: 'Rubric Alignment', icon: 'Award', group: 'Analysis' },
-  { path: '/reports', label: 'Reports', icon: 'FileText', group: 'Analysis' },
+  { path: '/release', label: 'Release Readiness', icon: 'Gauge', group: 'Submission' },
+  { path: '/submission', label: 'Submission Center', icon: 'Package', group: 'Submission' },
+  { path: '/reports', label: 'Reports', icon: 'FileText', group: 'Submission' },
   { path: '/presentation', label: 'Presentation Mode', icon: 'Presentation', group: 'Demo' },
   { path: '/settings', label: 'Settings', icon: 'Settings', group: 'System' },
 ]
 
-const GROUPS = ['Main', 'Run', 'Governance', 'Analysis', 'Demo', 'System']
+const GROUPS = ['Main', 'Run', 'Governance', 'Analysis', 'Submission', 'Demo', 'System']
 
 const SOURCE_LEGEND = [
   { label: 'Real', tone: 'bg-brand-400' },

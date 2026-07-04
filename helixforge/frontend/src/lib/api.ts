@@ -6,10 +6,15 @@ export const API_BASE =
 
 export type SourceType =
   | 'REAL_TOOL_OUTPUT'
+  | 'RECORDED_REAL_TOOL_OUTPUT'
   | 'DEMO_FALLBACK'
   | 'CONFIGURED_BUT_NOT_RUN'
   | 'TOOL_ERROR'
   | 'HUMAN_INPUT'
+  | 'BASELINE_MODEL_OUTPUT'
+  | 'HEURISTIC_ANALYSIS'
+  | 'ASSUMPTION'
+  | 'SAFETY_REDACTED'
 
 export type HealthStatus =
   | 'AVAILABLE'
@@ -166,6 +171,39 @@ export const api = {
   listHypotheses: (project_id?: string) => get<{ hypotheses: any[] }>(`/api/hypotheses${project_id ? `?project_id=${project_id}` : ''}`),
   listEvidence: (project_id?: string) => get<{ evidence: any[] }>(`/api/evidence${project_id ? `?project_id=${project_id}` : ''}`),
   listMoleculesData: (project_id?: string) => get<{ molecules: any[]; count: number }>(`/api/molecules${project_id ? `?project_id=${project_id}` : ''}`),
+  // --- Phase 3 ---
+  listSnapshots: () => get<{ snapshots: any[] }>('/api/snapshots'),
+  createSnapshot: (run_id: string, name: string, description = '') =>
+    post<any>(`/api/snapshots/create-from-run/${run_id}`, { name, description }),
+  replaySnapshot: (id: string) => post<any>(`/api/snapshots/${id}/replay`, {}),
+  snapshotManifest: (id: string) => get<any>(`/api/snapshots/${id}/manifest`),
+  exportSnapshot: (id: string) => get<any>(`/api/snapshots/${id}/export`),
+  deleteSnapshot: (id: string) => req<{ deleted: string }>(`/api/snapshots/${id}`, { method: 'DELETE' }),
+  runTrace: (run_id: string) => get<any>(`/api/workflow/runs/${run_id}/trace`),
+
+  releaseReadiness: () => get<any>('/api/release-readiness'),
+  submissionGenerate: (artifact_type: string) => post<any>('/api/submission/generate', { artifact_type }),
+  submissionArtifacts: () => get<{ artifacts: any[]; types: string[] }>('/api/submission/artifacts'),
+  submissionBundle: () => get<any>('/api/submission/bundle'),
+  submissionCheck: () => post<any>('/api/submission/check', {}),
+
+  aiLedger: (run_id?: string) => get<{ interactions: any[] }>(`/api/ai-ledger${run_id ? `?run_id=${run_id}` : ''}`),
+  aiLedgerRun: (run_id: string) => get<{ summary: any; interactions: any[] }>(`/api/ai-ledger/runs/${run_id}`),
+
+  evidenceLint: (body: { run_id?: string; report_id?: string; markdown?: string }) =>
+    post<any>('/api/evidence/lint-report', body),
+  evidenceLintLatest: () => get<any>('/api/evidence/lint/latest'),
+
+  listScenarios: () => get<{ scenarios: any[]; count: number }>('/api/scenarios'),
+  runScenarioMatrix: (scenario_ids: string[]) => post<any>('/api/scenarios/run-matrix', { scenario_ids }),
+  scenarioRuns: () => get<{ runs: any[] }>('/api/scenarios/runs'),
+
+  assaySummary: (target_chembl_id: string, max_results = 50) =>
+    get<any>(`/api/chembl/assay-summary?target_chembl_id=${target_chembl_id}&max_results=${max_results}`),
+  analyzeDiversity: (body: { smiles?: string[]; run_id?: string; project_id?: string }) =>
+    post<any>('/api/molecules/analyze-diversity', body),
+  activitySummary: (run_id?: string) => get<any>(`/api/molecules/activity-summary${run_id ? `?run_id=${run_id}` : ''}`),
+
   verifyEvidence: (body: { source_name: string; identifier: string; identifier_type: string; url?: string }) =>
     post<{ verification_status: string; verification_reason: string }>('/api/evidence/verify', body),
 
@@ -221,12 +259,17 @@ export const REASON_META: Record<string, { label: string; tone: string }> = {
   safety_block: { label: 'Safety block', tone: 'violet' },
 }
 
-export const SOURCE_META: Record<SourceType, { label: string; tone: string }> = {
+export const SOURCE_META: Record<string, { label: string; tone: string }> = {
   REAL_TOOL_OUTPUT: { label: 'Real Tool Output', tone: 'green' },
+  RECORDED_REAL_TOOL_OUTPUT: { label: 'Recorded Real Output', tone: 'cyan' },
   DEMO_FALLBACK: { label: 'Demo Fallback', tone: 'cyan' },
   CONFIGURED_BUT_NOT_RUN: { label: 'Configured · Not Run', tone: 'amber' },
   TOOL_ERROR: { label: 'Tool Error', tone: 'red' },
   HUMAN_INPUT: { label: 'Human Input', tone: 'violet' },
+  BASELINE_MODEL_OUTPUT: { label: 'Baseline Model', tone: 'violet' },
+  HEURISTIC_ANALYSIS: { label: 'Heuristic Analysis', tone: 'slate' },
+  ASSUMPTION: { label: 'Assumption', tone: 'slate' },
+  SAFETY_REDACTED: { label: 'Safety Redacted', tone: 'red' },
 }
 
 export const HEALTH_META: Record<HealthStatus, { label: string; tone: string }> = {
