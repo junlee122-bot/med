@@ -142,6 +142,7 @@ def list_records(
         q += " LIMIT ?"
         params.append(limit)
     with _LOCK:
+        _ensure_schema()
         conn = _connect()
         rows = conn.execute(q, params).fetchall()
     return [json.loads(r["payload"]) for r in rows]
