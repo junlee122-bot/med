@@ -19,6 +19,7 @@ from app.api import (
     governance_api,
     health,
     literature,
+    phase4_api,
     proposal_api,
     rdkit_api,
     reinvent_api,
@@ -63,7 +64,7 @@ def create_app() -> FastAPI:
                    reinvent_api, workflow_api, settings_api,
                    agentic_api, data_api, evaluation_api, export_api,
                    snapshots_api, submission_api, scenarios_api, analysis_api, security_api,
-                   governance_api, proposal_api):
+                   governance_api, proposal_api, phase4_api):
         app.include_router(module.router)
 
     @app.on_event("startup")
