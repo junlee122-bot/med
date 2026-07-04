@@ -37,6 +37,55 @@ completes end-to-end with partial-failure tolerance.
 
 ---
 
+## Agentic layer (Phase 2)
+
+On top of the real adapters sits an explicit, observable **multi-agent runtime**
+(deterministic; no LLM key required to run). It shows judges autonomy,
+tool-grounded reasoning, and **visible self-correction** — not a chatbot.
+
+- **17 agents** (Orchestrator + 16 specialists) run a 16-stage DAG; each emits
+  observable trace only (plan, tool calls, validation, confidence, next action),
+  never hidden chain-of-thought. Persisted as `AgentRun` / `AgentPlan`.
+- **Self-correction:** a Critic detects invalid SMILES, fabricated citations,
+  tool failures, safety hazards, overclaims, and contradictions, and records a
+  before/after `RevisionEvent`. Six one-click injection demos prove it.
+- **Transparent scoring:** Target Opportunity + Molecule Composite scores with a
+  per-input breakdown; conservative defaults + warnings; invalid → 0, blocked →
+  do-not-advance.
+- **Evaluation Bench:** tool-integration, evidence-integrity, molecule-validity,
+  agent-autonomy, resource-efficiency, and EGFR/NSCLC retrospective-rediscovery
+  metrics — all computed from observed run state.
+- **Reports:** Korean judge report + English technical report, safety-linted
+  before export; JSON audit + export bundle + run manifest.
+
+Run it:
+
+```bash
+curl -X POST http://localhost:8000/api/workflow/run-agentic-pipeline \
+  -H 'Content-Type: application/json' \
+  -d '{"condition":"non-small cell lung cancer","target_query":"EGFR","max_results":6,
+       "error_injections":{"invalid_smiles":true,"fake_citation":true,"overclaim":true}}'
+```
+
+Or in the UI: **Agent Cockpit** (toggle injections → Run) · **Demo Lab**
+(self-correction scenarios) · **Evaluation Bench** · **Presentation Mode**.
+
+**Frontend pages:** Overview, Tool Registry, Agent Cockpit, Demo Lab, Evidence
+Explorer, Targets, Hypotheses, Molecule Lab, TDC Bench, Docking Lab, REINVENT4
+Studio, Clinical & Regulatory, Safety Gate, Evaluation Bench, Impact, Rubric
+Alignment, Reports, Presentation Mode, Settings.
+
+See **[docs/AGENTIC_WORKFLOW.md](docs/AGENTIC_WORKFLOW.md)** and
+**[docs/EVALUATION_BENCH.md](docs/EVALUATION_BENCH.md)**. Competition materials:
+**[proposal (KO)](docs/COMPETITION_PROPOSAL_DRAFT_KO.md)** ·
+**[presentation script (KO)](docs/FINAL_PRESENTATION_SCRIPT_KO.md)** ·
+**[rubric (KO)](docs/RUBRIC_ALIGNMENT_KO.md)** ·
+**[demo runbook (KO)](docs/DEMO_RUNBOOK_KO.md)** ·
+**[limitations & roadmap](docs/LIMITATIONS_AND_ROADMAP.md)** ·
+**[third-party tools](docs/THIRD_PARTY_TOOLS.md)**.
+
+---
+
 ## Repository layout
 
 ```
