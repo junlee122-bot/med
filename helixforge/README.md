@@ -86,6 +86,39 @@ See **[docs/AGENTIC_WORKFLOW.md](docs/AGENTIC_WORKFLOW.md)** and
 
 ---
 
+## Submission-grade hardening (Phase 3)
+
+Makes the system survive demo-day networks, peer review, and final packaging —
+without weakening any real integration.
+
+- **Record / replay** — capture a real run, replay it offline with no live calls,
+  labeled `RECORDED_REAL_TOOL_OUTPUT`; reports disclose original + replay
+  timestamps. A small built-in EGFR/NSCLC snapshot ships for out-of-the-box
+  offline demo. Cockpit has a **live / recorded-replay** toggle. Page: **Snapshots**.
+- **Evidence QA linter** — blocks failed-citation-as-verified, missing
+  provenance, invalid-molecule recommendations before export.
+- **AI Interaction Ledger** — logs every agent step (deterministic by default,
+  no LLM), redacts secrets, never stores chain-of-thought. Page: **AI Ledger**.
+- **Release Readiness** — 0–100 score + checklist mapped to the rubric.
+- **Submission Center** — one-click Korean proposal / technical appendix / ethics
+  appendix / peer-review (KO) / demo script / judge README + JSON bundle.
+- **Scientific depth** — ChEMBL assay-quality analysis, RDKit molecule
+  diversity/scaffolds, activity-aware scoring, and an 8-scenario robustness matrix.
+- **Security self-audit** — verifies secret redaction and `.env` hygiene.
+
+New source labels: `RECORDED_REAL_TOOL_OUTPUT`, `BASELINE_MODEL_OUTPUT`,
+`HEURISTIC_ANALYSIS`, `ASSUMPTION`, `SAFETY_REDACTED`.
+
+See **[docs/PHASE3_CHANGELOG.md](docs/PHASE3_CHANGELOG.md)** and
+**[docs/RECORD_REPLAY_MODE.md](docs/RECORD_REPLAY_MODE.md)**.
+
+### Offline-safe judge demo
+If the network is flaky, open **Snapshots → Replay** (or Cockpit → Recorded
+replay) to reconstruct a real run with zero live calls — everything is labeled
+`RECORDED_REAL_TOOL_OUTPUT`.
+
+---
+
 ## Repository layout
 
 ```
