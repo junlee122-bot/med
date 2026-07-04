@@ -148,6 +148,77 @@ export const api = {
   getSettings: () => get<{ editable_keys: string[]; values: Record<string, any> }>('/api/settings'),
   updateSettings: (values: Record<string, any>) =>
     post<{ applied_keys: string[]; values: Record<string, any> }>('/api/settings', values),
+
+  // --- Phase 2: agentic layer ---
+  toolsHealthLive: (live: boolean, timeout_seconds = 5) =>
+    get<{ checked_at: string; live: boolean; summary: Record<string, number>; tools: ToolHealth[] }>(
+      `/api/tools/health?live=${live}&timeout_seconds=${timeout_seconds}`),
+  listAgents: () => get<{ agents: AgentDef[]; count: number }>('/api/agents'),
+  runAgenticPipeline: (body: AgenticRequest) => post<AgenticRunResult>('/api/workflow/run-agentic-pipeline', body),
+  runErrorInjectionDemo: (scenario: string, condition = 'non-small cell lung cancer', target_query = 'EGFR') =>
+    post<ErrorInjectionResult>('/api/workflow/run-error-injection-demo', { scenario, condition, target_query }),
+  runAgents: (run_id: string) => get<{ run_id: string; agent_runs: AgentRun[] }>(`/api/workflow/runs/${run_id}/agents`),
+  runRevisions: (run_id: string) => get<{ run_id: string; revision_events: RevisionEvent[] }>(`/api/workflow/runs/${run_id}/revisions`),
+  runManifest: (run_id: string) => get<any>(`/api/workflow/runs/${run_id}/manifest`),
+
+  listTargets: (project_id?: string) => get<{ targets: any[]; count: number }>(`/api/targets${project_id ? `?project_id=${project_id}` : ''}`),
+  getTarget: (id: string) => get<any>(`/api/targets/${id}`),
+  listHypotheses: (project_id?: string) => get<{ hypotheses: any[] }>(`/api/hypotheses${project_id ? `?project_id=${project_id}` : ''}`),
+  listEvidence: (project_id?: string) => get<{ evidence: any[] }>(`/api/evidence${project_id ? `?project_id=${project_id}` : ''}`),
+  listMoleculesData: (project_id?: string) => get<{ molecules: any[]; count: number }>(`/api/molecules${project_id ? `?project_id=${project_id}` : ''}`),
+  verifyEvidence: (body: { source_name: string; identifier: string; identifier_type: string; url?: string }) =>
+    post<{ verification_status: string; verification_reason: string }>('/api/evidence/verify', body),
+
+  evaluationSummary: (project_id?: string) => get<EvaluationSummary>(`/api/evaluation/summary${project_id ? `?project_id=${project_id}` : ''}`),
+  evaluationRun: (run_id: string) => get<{ run_id: string; metrics_flat: any[]; metrics: any }>(`/api/evaluation/runs/${run_id}`),
+  runRetrospective: (body: AgenticRequest) => post<any>('/api/evaluation/run-retrospective', body),
+
+  exportRun: (run_id: string) => get<any>(`/api/export/run/${run_id}`),
+  safetyLintReport: (body: { markdown?: string; report_id?: string }) =>
+    post<{ status: string; export_safe: boolean; findings: any[] }>('/api/safety/lint-report', body),
+}
+
+export interface AgentDef { name: string; role: string; stage: string; stage_index: number; allowed_tools: string[] }
+export interface AgentRun {
+  id: string; agent_name: string; agent_role: string; stage: string; stage_index: number; status: string
+  output_summary: string; rationale: string; assumptions: string[]; uncertainty_notes: string; next_action: string
+  confidence: number; validation_status: string; validation_checks: { check: string; ok: boolean; detail: string }[]
+  source_types: SourceType[]; warnings: string[]; errors: string[]; evidence_ids: string[]; molecule_ids: string[]; target_ids: string[]
+}
+export interface RevisionEvent {
+  id: string; reason_category: string; issue_summary: string; action_taken: string
+  before_summary: string; after_summary: string; confidence_delta: number
+}
+export interface ErrorInjections {
+  invalid_smiles?: boolean; fake_citation?: boolean; tool_failure?: boolean
+  safety_flag?: boolean; overclaim?: boolean; contradictory_evidence?: boolean
+}
+export interface AgenticRequest {
+  condition?: string; target_query?: string; max_results?: number
+  create_reinvent_config?: boolean; run_vina_fixture?: boolean; error_injections?: ErrorInjections
+}
+export interface AgenticRunResult {
+  run_id: string; project_id: string; status: string; agent_runs: AgentRun[]
+  plan: { objective: string; stages: { index: number; agent: string; stage: string }[] }
+  steps: any[]; revision_events: RevisionEvent[]; counts: Record<string, number>
+  metrics: Record<string, any>; report_id?: string; ko_report_id?: string; disclaimer: string
+}
+export interface ErrorInjectionResult {
+  scenario: string; workflow_run_id: string; corrected: boolean; before: string; after: string
+  agent_runs: AgentRun[]; revision_events: RevisionEvent[]; metric_summary: Record<string, any>; report_id?: string
+}
+export interface EvaluationSummary {
+  modules: Record<string, { metric: string; value: any; status: string }[]>
+  module_count: number; metric_count: number; latest_run?: string; latest_metrics: Record<string, any>
+}
+
+export const REASON_META: Record<string, { label: string; tone: string }> = {
+  invalid_structure: { label: 'Invalid SMILES', tone: 'red' },
+  fake_citation: { label: 'Fake citation', tone: 'red' },
+  overclaim: { label: 'Overclaim', tone: 'amber' },
+  contradictory_evidence: { label: 'Contradictory evidence', tone: 'amber' },
+  tool_failure: { label: 'Tool failure', tone: 'amber' },
+  safety_block: { label: 'Safety block', tone: 'violet' },
 }
 
 export const SOURCE_META: Record<SourceType, { label: string; tone: string }> = {

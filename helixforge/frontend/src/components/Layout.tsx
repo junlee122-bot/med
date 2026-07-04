@@ -7,17 +7,31 @@ export const NAV = [
   { path: '/', label: 'Overview', icon: 'LayoutDashboard', group: 'Main' },
   { path: '/tools', label: 'Tool Registry', icon: 'Plug', group: 'Main' },
   { path: '/cockpit', label: 'Agent Cockpit', icon: 'Cpu', group: 'Run' },
+  { path: '/demo-lab', label: 'Demo Lab', icon: 'Wand2', group: 'Run' },
   { path: '/evidence', label: 'Evidence Explorer', icon: 'BookOpen', group: 'Run' },
+  { path: '/targets', label: 'Targets', icon: 'Crosshair', group: 'Run' },
+  { path: '/hypotheses', label: 'Hypotheses', icon: 'Lightbulb', group: 'Run' },
   { path: '/molecules', label: 'Molecule Lab', icon: 'Atom', group: 'Run' },
-  { path: '/tdc', label: 'TDC Evaluation Bench', icon: 'Gauge', group: 'Run' },
+  { path: '/tdc', label: 'TDC Bench', icon: 'Gauge', group: 'Run' },
   { path: '/docking', label: 'Docking Lab', icon: 'Magnet', group: 'Run' },
   { path: '/reinvent', label: 'REINVENT4 Studio', icon: 'FlaskConical', group: 'Run' },
+  { path: '/clinical', label: 'Clinical & Regulatory', icon: 'Stethoscope', group: 'Run' },
   { path: '/safety', label: 'Safety Gate', icon: 'ShieldCheck', group: 'Governance' },
-  { path: '/reports', label: 'Reports', icon: 'FileText', group: 'Governance' },
+  { path: '/evaluation', label: 'Evaluation Bench', icon: 'BarChart3', group: 'Analysis' },
+  { path: '/impact', label: 'Impact', icon: 'TrendingUp', group: 'Analysis' },
+  { path: '/rubric', label: 'Rubric Alignment', icon: 'Award', group: 'Analysis' },
+  { path: '/reports', label: 'Reports', icon: 'FileText', group: 'Analysis' },
+  { path: '/presentation', label: 'Presentation Mode', icon: 'Presentation', group: 'Demo' },
   { path: '/settings', label: 'Settings', icon: 'Settings', group: 'System' },
 ]
 
-const GROUPS = ['Main', 'Run', 'Governance', 'System']
+const GROUPS = ['Main', 'Run', 'Governance', 'Analysis', 'Demo', 'System']
+
+const SOURCE_LEGEND = [
+  { label: 'Real', tone: 'bg-brand-400' },
+  { label: 'Config·NotRun', tone: 'bg-helix-amber' },
+  { label: 'Error', tone: 'bg-helix-red' },
+]
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [online, setOnline] = useState<boolean | null>(null)
@@ -31,6 +45,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
       .catch(() => { if (alive) setOnline(false) })
     return () => { alive = false }
   }, [loc.pathname])
+
+  // Presentation Mode renders full-screen without the app chrome.
+  if (loc.pathname === '/presentation') {
+    return <div className="min-h-screen">{children}</div>
+  }
 
   return (
     <div className="flex min-h-screen">
@@ -65,6 +84,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
         <div className="border-t border-line px-4 py-3 text-[11px] text-slate-500">
+          <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+            {SOURCE_LEGEND.map((s) => (
+              <span key={s.label} className="inline-flex items-center gap-1">
+                <span className={`h-2 w-2 rounded-full ${s.tone}`} />{s.label}
+              </span>
+            ))}
+          </div>
           <div className="flex items-center gap-2">
             <span className={`h-2 w-2 rounded-full ${online === null ? 'bg-slate-500' : online ? 'bg-brand-400' : 'bg-helix-red'}`} />
             {online === null ? 'checking backend…' : online ? `backend online · v${version}` : 'backend offline'}
