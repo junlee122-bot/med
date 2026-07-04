@@ -62,3 +62,18 @@ Added a deterministic professional-review layer. What is real vs. limited:
   study runner with bootstrap confidence intervals; a global Judge/Expert UI
   toggle (expert depth is currently exposed via dedicated pages); live external
   knowledge adapters (UniProt/PubChem/PDB/Open Targets) beyond the existing stubs.
+
+## Phase 7 — hybrid Fable layer (status)
+
+- **Optional & fallback-safe:** the Fable 5 layer (dynamic planner, evidence-grounded
+  hypothesis reasoner, semantic critic) is optional. With no API key or `USE_LLM=false`
+  every reasoning step uses a deterministic fallback and is labeled `DETERMINISTIC_FALLBACK`.
+- **What is real vs limited:** live Fable/Sonnet calls are CONFIGURED_BUT_NOT_RUN by
+  default in this environment (no key); the behavior is fully exercised offline via a
+  deterministic FakeLLMClient, and a gated `/api/llm/live-smoke` allows one tiny real call.
+- **True rediscovery** is retrospective chemotype recovery, not de novo discovery.
+- **Optimization loop** is in-silico prioritization (selection + local heuristic analogs);
+  REINVENT4 is never faked; no synthesis/reaction/dosing content is produced.
+- **Roadmap:** wire a live REINVENT4 runtime for real generation; expand the comparator
+  library; add trained ADMET predictors into the optimization objective; broaden the
+  live-Fable evaluation once a key is provisioned.

@@ -267,3 +267,29 @@ regulatory & AI/ML reviewers). Highlights:
 Expert UI: `/evidence-grading`, `/molecule-qa`, `/professional-review`,
 `/expert-review`, `/professional-docs`. See **docs/PHASE5_PROFESSIONALISM_AUDIT.md**
 and **docs/PHASE5_CHANGELOG.md**.
+
+---
+
+## Phase 7 — Fable 5 hybrid agentic layer (optional)
+
+HelixForge is a **deterministic scientific validation backbone** with an **optional
+Fable 5 reasoning layer**. The app runs fully **without an API key** — every
+reasoning step degrades to a deterministic fallback and says so.
+
+- **Where Fable 5 is used:** dynamic planning, evidence-grounded hypothesis
+  reasoning, and semantic critique. Scientific facts still come only from
+  PubMed / ChEMBL / ClinicalTrials.gov / RDKit / TDC, and every Fable output is
+  validated by citation verification, evidence grading, source-type governance,
+  safety + scientific-language lint, and human/expert review.
+- **Modes** (`HELIXFORGE_LLM_MODE`): `DETERMINISTIC_ONLY` (default),
+  `HYBRID_LLM_DEV` (Sonnet 5), `HYBRID_FABLE_FINAL` (Fable 5 for reasoning only),
+  `RECORDED_HYBRID_REPLAY` (no live calls).
+- **Cost guard + transparency:** per-run/day budgets, a model router (Fable reserved
+  for high-value steps), and an AI ledger that records model/settings/cost/fallback
+  without storing full prompts or chain-of-thought.
+- **True rediscovery** (retrospective chemotype recovery — not de novo discovery)
+  and a **safe optimization loop** (in-silico only; no synthesis routes).
+
+UI: `/llm`, `/hybrid`, `/rediscovery`, `/optimization-loop`. See
+**docs/HYBRID_FABLE5_AGENTIC_LAYER.md**, **docs/PHASE7_CHANGELOG.md**, and the
+Fable usage runbooks.

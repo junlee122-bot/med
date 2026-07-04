@@ -6,6 +6,10 @@ import { Layout } from '@/components/Layout'
 import { Overview } from '@/pages/Overview'
 import { ToolRegistry } from '@/pages/ToolRegistry'
 import { NewRun } from '@/pages/NewRun'
+import { Hybrid } from '@/pages/Hybrid'
+import { LLMRouter } from '@/pages/LLMRouter'
+import { Rediscovery } from '@/pages/Rediscovery'
+import { OptimizationLoop } from '@/pages/OptimizationLoop'
 import { Cockpit } from '@/pages/Cockpit'
 import { PeerReview } from '@/pages/PeerReview'
 import { ProposalStudio } from '@/pages/ProposalStudio'
@@ -44,6 +48,10 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/" element={<Overview />} />
           <Route path="/tools" element={<ToolRegistry />} />
           <Route path="/new-run" element={<NewRun />} />
+          <Route path="/hybrid" element={<Hybrid />} />
+          <Route path="/llm" element={<LLMRouter />} />
+          <Route path="/rediscovery" element={<Rediscovery />} />
+          <Route path="/optimization-loop" element={<OptimizationLoop />} />
           <Route path="/cockpit" element={<Cockpit />} />
           <Route path="/peer-review" element={<PeerReview />} />
           <Route path="/proposal-studio" element={<ProposalStudio />} />
