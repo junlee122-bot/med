@@ -42,3 +42,23 @@
    cost reduction.
 7. **Scale-out** — Postgres swap (storage layer is already narrow), task queue
    for long Vina/REINVENT jobs.
+
+## Phase 5 — professional validation layer (status)
+
+Added a deterministic professional-review layer. What is real vs. limited:
+
+- **Implemented & tested:** evidence grading, ChEMBL activity normalization,
+  medicinal-chemistry review (RDKit + PAINS), applicability domain, scientific
+  language linter, target biology review, translational readiness (capped at
+  TRL_4), clinical precedent review, Pareto optimization, docking protocol
+  governance, leakage-aware ADMET baseline (scikit-learn optional), identity
+  normalization, expert review board, 16-category professional release scorecard,
+  scientific red-team 2.0, professional documentation pack, and a KO/EN whitepaper.
+- **Intentional limitations:** all outputs remain in-silico — no wet-lab, clinical,
+  or regulatory validation is claimed; Vina/REINVENT4 stay `CONFIGURED_BUT_NOT_RUN`
+  unless installed; the ADMET baseline is a `BASELINE_MODEL_OUTPUT`, not a safety
+  determination; regulatory content is heuristic, not compliance advice.
+- **Partially implemented / roadmapped:** a dedicated professional-evaluation
+  study runner with bootstrap confidence intervals; a global Judge/Expert UI
+  toggle (expert depth is currently exposed via dedicated pages); live external
+  knowledge adapters (UniProt/PubChem/PDB/Open Targets) beyond the existing stubs.

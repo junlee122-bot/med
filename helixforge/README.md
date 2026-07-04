@@ -242,3 +242,28 @@ Enforced in code (`app/adapters/safety_adapter.py`) and documented in
 protocols, synthesis routes, reagent/condition lists, dosage, and any
 toxicity-enhancement request; it screens outputs, quarantines hazardous content,
 and attaches the human-responsibility statement to every report.
+
+---
+
+## Phase 5 — Professional scientific validation layer
+
+A deterministic, testable review layer for expert reviewers (computational /
+medicinal chemists, bioinformaticians, translational & clinical reviewers,
+regulatory & AI/ML reviewers). Highlights:
+
+- **Evidence grading** — 9-level evidence hierarchy → A–F claim grades (assay ≠
+  efficacy; precedent ≠ proof; failed citation → E; contradiction → F).
+- **Chemistry rigor** — ChEMBL activity normalization (conservative units,
+  endpoint comparability, assay-confidence reliability), medicinal-chemistry
+  review (Lipinski/Veber/lead-likeness + PAINS), and applicability domain.
+- **Model / docking rigor** — leakage-aware ADMET baseline protocol (real metrics
+  or honest skip), governed docking protocol records (never binding proof).
+- **Translational & clinical** — TRL readiness capped at TRL_4 (no wet-lab);
+  clinical precedent as precedent, not efficacy.
+- **Governance & docs** — 16-category professional release scorecard, role-based
+  expert review board, model/data/risk/validation/traceability docs, a 25-section
+  KO/EN scientific whitepaper, and a "What We Do NOT Claim" sheet.
+
+Expert UI: `/evidence-grading`, `/molecule-qa`, `/professional-review`,
+`/expert-review`, `/professional-docs`. See **docs/PHASE5_PROFESSIONALISM_AUDIT.md**
+and **docs/PHASE5_CHANGELOG.md**.
