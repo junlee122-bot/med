@@ -60,5 +60,29 @@ Live Fable/Sonnet calls: **CONFIGURED_BUT_NOT_RUN** by default (no key in this
 environment) — exercised via a deterministic FakeLLMClient in tests; a gated
 `/api/llm/live-smoke` endpoint allows a tiny real call when a key + opt-in env are set.
 
-## Final validation
-See `PHASE7_CHANGELOG.md` for the final test/build/compose results.
+## Tests added
+- `test_llm_adapter.py` (20) — no-key fallback, budget/safety/schema/tool-error paths,
+  router, cost guard, replay, redaction, config masking, live-smoke off.
+- `test_hybrid_reasoning.py` (17) — planner validation/replan, evidence-ID rejection,
+  overclaim rewrite, critic revision events, no chain-of-thought.
+- `test_hybrid_pipeline.py` (8) — deterministic hybrid pipeline, hybrid snapshot/replay
+  (no live calls, no secrets).
+- `test_rediscovery.py` (9), `test_optimization_loop.py` (7) — deterministic packages.
+- `test_hybrid_release.py` (5), `test_hybrid_docs.py` (7) — readiness + doc wording.
+- `live_llm`-marked tests are opt-in, excluded from default CI.
+
+## Final validation result
+- Backend: `pytest app/tests -q` → **259 passed, 1 skipped** (the skipped one is the
+  opt-in live LLM smoke).
+- Frontend: `tsc --noEmit` clean; `vite build` passes.
+- `docker compose config` → OK; `python scripts/check_repo_hygiene.py` → PASS.
+- Live Fable/Sonnet calls remain **CONFIGURED_BUT_NOT_RUN** (no key in this env);
+  behavior is fully exercised offline via the FakeLLMClient.
+
+## Remaining limitations (INTENTIONAL_LIMITATION unless noted)
+- Live Fable/Sonnet not exercised here (no key) — FALLBACK_ONLY in this environment.
+- REINVENT4 real generation not run (CONFIGURED_BUT_NOT_RUN); optimization uses
+  selection + local heuristic analogs.
+- `check_api_contract.py`, `final_demo_acceptance.py`, `cold_start_smoke.py`, and
+  `npm run check:routes` referenced in the brief do not exist in this repo (NEEDS_REVIEW
+  only if they are later added).
