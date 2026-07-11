@@ -31,6 +31,19 @@ class SourceType(str, Enum):
     HEURISTIC_ANALYSIS = "HEURISTIC_ANALYSIS"        # rule-based, not a tool/DB result
     ASSUMPTION = "ASSUMPTION"                        # explicitly-labeled assumption
     SAFETY_REDACTED = "SAFETY_REDACTED"              # content withheld by policy
+    # --- Phase 8: compute / model output source types ---
+    REAL_CPU_MODEL_OUTPUT = "REAL_CPU_MODEL_OUTPUT"          # a CPU model that actually trained + predicted
+    BASELINE_CPU_MODEL_OUTPUT = "BASELINE_CPU_MODEL_OUTPUT"  # a CPU baseline model output
+    RECORDED_CPU_MODEL_OUTPUT = "RECORDED_CPU_MODEL_OUTPUT"  # replayed CPU model output
+    REAL_REMOTE_GPU_OUTPUT = "REAL_REMOTE_GPU_OUTPUT"        # a remote GPU job that actually ran + validated
+    RECORDED_GPU_OUTPUT = "RECORDED_GPU_OUTPUT"              # replayed captured GPU output
+    GPU_CONFIGURED_NOT_RUN = "GPU_CONFIGURED_NOT_RUN"        # GPU tool configured/spec'd but not executed
+    GPU_JOB_ERROR = "GPU_JOB_ERROR"                          # GPU job failed
+    GPU_BUDGET_BLOCKED = "GPU_BUDGET_BLOCKED"                # GPU job blocked by budget guard
+    GPU_SAFETY_BLOCKED = "GPU_SAFETY_BLOCKED"                # GPU job blocked by safety gate
+    GPU_ARTIFACT_UNVERIFIED = "GPU_ARTIFACT_UNVERIFIED"      # GPU ran but artifacts failed validation
+    COMPUTE_FALLBACK_OUTPUT = "COMPUTE_FALLBACK_OUTPUT"      # CPU substitute used in place of GPU
+    LOCAL_HEURISTIC_GENERATED = "LOCAL_HEURISTIC_GENERATED"  # in-silico heuristic-generated structure
 
 
 class ValidationStatus(str, Enum):

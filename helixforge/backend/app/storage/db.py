@@ -70,6 +70,20 @@ ENTITIES = [
     "semantic_critiques",
     "rediscovery_runs",
     "optimization_loop_runs",
+    # --- Phase 8: CPU-first + external-GPU-ready compute layer ---
+    "compute_jobs",
+    "compute_job_attempts",
+    "compute_artifacts",
+    "compute_cost_events",
+    "compute_decisions",
+    "compute_providers",
+    "compute_snapshots",
+    "dataset_versions",
+    "dataset_curations",
+    "cpu_models",
+    "model_checkpoints",
+    "ligand_screens",
+    "active_learning_runs",
 ]
 
 

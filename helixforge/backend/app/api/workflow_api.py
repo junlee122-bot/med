@@ -22,6 +22,13 @@ def run_real_pipeline(req: PipelineRequest):
     return pipeline.run_pipeline(req.model_dump())
 
 
+@router.get("/workflow/runs/{run_id}/compute-decisions")
+def workflow_compute_decisions(run_id: str):
+    """Phase 8: compute backend decisions (CPU substitute / GPU spec / replay) for a run."""
+    from app.services import compute_aware_planner
+    return {"run_id": run_id, "compute_decisions": compute_aware_planner.get_decisions(run_id)}
+
+
 @router.post("/workflow/run-target-discovery", response_model=WorkflowRunResponse)
 def run_target_discovery(req: PipelineRequest):
     payload = req.model_dump()
