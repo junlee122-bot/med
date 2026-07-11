@@ -5,6 +5,9 @@ import './index.css'
 import { Layout } from '@/components/Layout'
 import { Overview } from '@/pages/Overview'
 import { ToolRegistry } from '@/pages/ToolRegistry'
+import { ComputeCenter } from '@/pages/ComputeCenter'
+import { ModelLab } from '@/pages/ModelLab'
+import { ActiveLearning } from '@/pages/ActiveLearning'
 import { NewRun } from '@/pages/NewRun'
 import { Hybrid } from '@/pages/Hybrid'
 import { LLMRouter } from '@/pages/LLMRouter'
@@ -47,6 +50,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <Routes>
           <Route path="/" element={<Overview />} />
           <Route path="/tools" element={<ToolRegistry />} />
+          <Route path="/compute" element={<ComputeCenter />} />
+          <Route path="/model-lab" element={<ModelLab />} />
+          <Route path="/active-learning" element={<ActiveLearning />} />
           <Route path="/new-run" element={<NewRun />} />
           <Route path="/hybrid" element={<Hybrid />} />
           <Route path="/llm" element={<LLMRouter />} />

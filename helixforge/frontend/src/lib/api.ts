@@ -286,6 +286,37 @@ export const api = {
   professionalDocsBundle: () => get<any>('/api/professional-docs/bundle'),
   whitepaperGenerate: (lang: string) => post<any>('/api/whitepaper/generate', { lang }),
   whitepaperLatest: () => get<any>('/api/whitepaper/latest'),
+
+  // ---- Phase 8: compute + model lab ----
+  computeCapabilities: (mode: 'local' | 'deep' | 'remote' = 'local') =>
+    get<any>(`/api/compute/capabilities?mode=${mode}`),
+  computeConfig: () => get<any>('/api/compute/config'),
+  computePlan: (body: any) => post<any>('/api/compute/plan', body),
+  computeJobs: () => get<any>('/api/compute/jobs'),
+  computeJobDryRun: (spec: any) => post<any>('/api/compute/jobs/dry-run', { spec }),
+  computeJobCreate: (spec: any) => post<any>('/api/compute/jobs', { spec }),
+  computeJobApprove: (id: string) => post<any>(`/api/compute/jobs/${id}/approve`, {}),
+  computeJobCancel: (id: string) => post<any>(`/api/compute/jobs/${id}/cancel`, {}),
+  computeProviders: () => get<any>('/api/compute/providers'),
+  computeCosts: () => get<any>('/api/compute/costs'),
+  computePricingProfiles: () => get<any>('/api/compute/pricing-profiles'),
+  computeSecurityAudit: () => post<any>('/api/compute/security/audit', {}),
+  computeSecurityPolicies: () => get<any>('/api/compute/security/policies'),
+  computeArtifacts: () => get<any>('/api/compute/artifacts'),
+  computeWorkerContracts: () => get<any>('/api/compute/worker-contracts'),
+  cpuScientificDemo: (target = 'EGFR') => post<any>('/api/demo/run-cpu-scientific-demo', { target }),
+  gpuReadinessDryRun: (target = 'EGFR') => post<any>('/api/demo/run-gpu-readiness-dry-run', { target }),
+  // model lab
+  datasetsList: () => get<any>('/api/datasets'),
+  datasetCurate: (body: any) => post<any>('/api/datasets/curate', body),
+  datasetCard: (id: string) => get<any>(`/api/datasets/${id}/card`),
+  cpuModelsList: () => get<any>('/api/cpu-models'),
+  cpuModelTrain: (body: any) => post<any>('/api/cpu-models/train', body),
+  cpuModelCard: (id: string) => get<any>(`/api/cpu-models/${id}/card`),
+  cpuModelPredict: (id: string, smiles: string[]) => post<any>(`/api/cpu-models/${id}/predict`, { smiles }),
+  ligandScreen: (body: any) => post<any>('/api/ligand-screen/run', body),
+  activeLearningRun: (body: any) => post<any>('/api/active-learning/run', body),
+  activeLearningList: () => get<any>('/api/active-learning/runs'),
 }
 
 export interface AgentDef { name: string; role: string; stage: string; stage_index: number; allowed_tools: string[] }
@@ -342,6 +373,19 @@ export const SOURCE_META: Record<string, { label: string; tone: string }> = {
   HEURISTIC_ANALYSIS: { label: 'Heuristic Analysis', tone: 'slate' },
   ASSUMPTION: { label: 'Assumption', tone: 'slate' },
   SAFETY_REDACTED: { label: 'Safety Redacted', tone: 'red' },
+  // Phase 8 — compute / model output source types
+  REAL_CPU_MODEL_OUTPUT: { label: 'Real CPU Model', tone: 'green' },
+  BASELINE_CPU_MODEL_OUTPUT: { label: 'CPU Baseline Model', tone: 'violet' },
+  RECORDED_CPU_MODEL_OUTPUT: { label: 'Recorded CPU Model', tone: 'cyan' },
+  REAL_REMOTE_GPU_OUTPUT: { label: 'Real Remote GPU', tone: 'green' },
+  RECORDED_GPU_OUTPUT: { label: 'Recorded GPU Output', tone: 'cyan' },
+  GPU_CONFIGURED_NOT_RUN: { label: 'GPU · Configured · Not Run', tone: 'amber' },
+  GPU_JOB_ERROR: { label: 'GPU Job Error', tone: 'red' },
+  GPU_BUDGET_BLOCKED: { label: 'GPU Budget Blocked', tone: 'amber' },
+  GPU_SAFETY_BLOCKED: { label: 'GPU Safety Blocked', tone: 'red' },
+  GPU_ARTIFACT_UNVERIFIED: { label: 'GPU Artifact Unverified', tone: 'red' },
+  COMPUTE_FALLBACK_OUTPUT: { label: 'CPU Fallback', tone: 'violet' },
+  LOCAL_HEURISTIC_GENERATED: { label: 'Local Heuristic Gen', tone: 'slate' },
 }
 
 export const HEALTH_META: Record<HealthStatus, { label: string; tone: string }> = {
