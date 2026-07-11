@@ -14,6 +14,7 @@ from app.api import (
     analysis_api,
     chembl_api,
     compute_api,
+    compute_demo_api,
     data_api,
     evaluation_api,
     evidence_grading_api,
@@ -77,7 +78,7 @@ def create_app() -> FastAPI:
                    governance_api, proposal_api, phase4_api, evidence_grading_api,
                    professional_science_api, translational_api, professional_ops_api,
                    professional_docs_api, llm_api, hybrid_api, hybrid_pipeline_api,
-                   compute_api, model_lab_api):
+                   compute_api, model_lab_api, compute_demo_api):
         app.include_router(module.router)
 
     @app.on_event("startup")
