@@ -77,3 +77,21 @@ Added a deterministic professional-review layer. What is real vs. limited:
 - **Roadmap:** wire a live REINVENT4 runtime for real generation; expand the comparator
   library; add trained ADMET predictors into the optimization objective; broaden the
   live-Fable evaluation once a key is provisioned.
+
+## Phase 8 — CPU-first compute + external-GPU readiness
+- **CPU-only is complete**: dataset curation, CPU QSAR baselines, ligand-based screening,
+  applicability domain, active-learning simulation, and multi-objective search run with
+  no GPU. scikit-learn is an optional dependency; absent → honest `CONFIGURED_BUT_NOT_RUN`.
+- **CPU baselines are not clinical/safety validation** and are never called production-grade.
+  Ligand similarity is a screening signal, not binding proof.
+- **External GPU is optional and configured-not-run**: Chemprop, REINVENT4, GNINA,
+  Vina-GPU, Boltz-2, Chai-1, OpenMM, ESM have schemas, validators, security, job specs,
+  and dry-run/record-replay paths, but no live GPU job was run. Live runs are gated behind
+  `HELIXFORGE_REMOTE_GPU_ENABLED` + `HELIXFORGE_ENABLE_LIVE_GPU_TEST`.
+- **Safety/cost:** GPU work is an allowlisted spec (no shell/image override); per-run and
+  per-day budget guards; human approval before any paid job; artifacts validated by
+  checksum/type/size/path or marked `GPU_ARTIFACT_UNVERIFIED`.
+- **Roadmap (compute):** stand up a generic-REST GPU control plane running only the
+  allowlisted worker images; add trained CPU/GPU ADMET predictors; wire recorded-GPU
+  replay fixtures for offline demos; connect a real provider following
+  `docs/EXTERNAL_GPU_ARCHITECTURE.md`.

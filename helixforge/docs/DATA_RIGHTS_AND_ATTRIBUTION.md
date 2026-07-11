@@ -38,3 +38,15 @@ Recorded snapshots (`RECORDED_REAL_TOOL_OUTPUT`) exist so the demo runs offline 
 - **FastAPI / React / Vite / Tailwind** — MIT/BSD
 
 _Programmatically generated from `app/services/data_rights.py`; endpoint: `GET /api/data-rights`._
+
+## Phase 8 — built-in CPU demo reference set
+
+The one-click CPU scientific demo (`services/cpu_demo.py`) uses a small **built-in EGFR
+reference set** — canonical SMILES for a couple of public, approved-drug structural
+identities (gefitinib-/erlotinib-like). Structural identity is public information and is
+**not** a synthesis route, reaction condition, or dosage. It is used only to compute
+2D similarity for ligand-based screening in the demo. No third-party dataset rows are
+redistributed. Verify upstream terms before publishing any expanded reference library.
+
+Recorded GPU artifacts (if ever added) are labeled `RECORDED_GPU_OUTPUT` with their
+original capture timestamp; compute snapshots exclude credentials, binaries, and logs.

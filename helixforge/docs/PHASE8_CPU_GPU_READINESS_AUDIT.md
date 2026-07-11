@@ -81,4 +81,10 @@ Priority 5: docs, tests, commit — **IMPLEMENTED**.
 - scikit-learn is an OPTIONAL_DEPENDENCY: CPU QSAR degrades honestly to `CONFIGURED_BUT_NOT_RUN`/unavailable if absent (no fabricated metrics).
 
 ## Final validation result
-See PHASE8_CHANGELOG.md and the end-of-phase validation block (updated at commit).
+- Backend: **325 passed, 1 skipped** (was 264; +61 offline Phase 8 tests; the skip is
+  the opt-in live-LLM smoke). No regressions.
+- Frontend: `tsc --noEmit` clean; `vite build` passes (pre-existing chunk-size advisory only).
+- `docker compose config`: valid.
+- `scripts/check_repo_hygiene.py`: PASS (0 warnings) — no db/secrets/large artifacts committed.
+- No live paid GPU or LLM calls; 0 provider submissions; every GPU worker configured-not-run.
+See PHASE8_CHANGELOG.md for the per-priority breakdown.
