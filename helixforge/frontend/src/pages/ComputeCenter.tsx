@@ -23,6 +23,9 @@ export function ComputeCenter() {
   const [security, setSecurity] = useState<any>(null)
   const [demo, setDemo] = useState<any>(null)
   const [dryRun, setDryRun] = useState<any>(null)
+  const [readiness, setReadiness] = useState<any>(null)
+  const [artifact, setArtifact] = useState<any>(null)
+  const [artifactTypes, setArtifactTypes] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState('')
   const [err, setErr] = useState('')
@@ -30,14 +33,21 @@ export function ComputeCenter() {
   async function load(mode: 'local' | 'deep' = 'local') {
     setLoading(true); setErr('')
     try {
-      const [c, p, co, wc, se] = await Promise.all([
+      const [c, p, co, wc, se, rr, at] = await Promise.all([
         api.computeCapabilities(mode), api.computeProviders(), api.computeCosts(),
         api.computeWorkerContracts(), api.computeSecurityAudit(),
+        api.computeReleaseReadiness(), api.computeArtifactTypes(),
       ])
       setCap(c); setProviders(p); setCosts(co); setContracts(wc); setSecurity(se)
+      setReadiness(rr); setArtifactTypes(at.types || [])
     } catch (e: any) { setErr(e.message) } finally { setLoading(false) }
   }
   useEffect(() => { load() }, [])
+
+  async function genArtifact(kind: string) {
+    setBusy('art'); setErr('')
+    try { setArtifact(await api.computeArtifactGenerate(kind)) } catch (e: any) { setErr(e.message) } finally { setBusy('') }
+  }
 
   async function runDemo() {
     setBusy('demo'); setErr('')
@@ -186,6 +196,48 @@ export function ComputeCenter() {
                 </div>
               ))}
             </div>
+          </Panel>
+
+          {/* Compute release readiness */}
+          {readiness && (
+            <Panel>
+              <div className="mb-2 flex items-center gap-2">
+                <div className="section-title">Compute Release Readiness</div>
+                <Badge tone={readiness.status === 'SUBMISSION_READY' ? 'green' : readiness.status === 'NOT_READY' ? 'red' : 'amber'}>{readiness.status}</Badge>
+                <span className="text-slate-500 text-xs">score {readiness.overall_score}/100 · blocking {readiness.blocking_count}</span>
+              </div>
+              <div className="grid gap-1.5 sm:grid-cols-3">
+                {(readiness.categories || []).map((c: any) => (
+                  <div key={c.key} className="flex items-center gap-2 rounded border border-white/5 px-2 py-1 text-xs">
+                    <span className="flex-1 text-slate-300">{c.label}</span>
+                    {!c.blocks_submission && <span className="text-[10px] text-slate-500" title="does not block CPU-only submission">non-blocking</span>}
+                    <Badge tone={c.status === 'READY' ? 'green' : c.status === 'NOT_READY' ? 'red' : 'amber'}>{c.score}</Badge>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-2 text-[11px] text-slate-500">{readiness.cpu_only_note}</div>
+            </Panel>
+          )}
+
+          {/* Compute submission artifacts */}
+          <Panel>
+            <div className="mb-2 section-title">Compute Submission Artifacts</div>
+            <div className="flex flex-wrap gap-2">
+              {artifactTypes.map((t) => (
+                <button key={t} className="btn-secondary text-xs" onClick={() => genArtifact(t)} disabled={busy !== ''}>
+                  <Icon name="FileText" size={12} /> {t.replace(/_/g, ' ')}
+                </button>
+              ))}
+            </div>
+            {artifact && (
+              <div className="mt-2 rounded-lg border border-white/8 p-2">
+                <div className="mb-1 flex items-center gap-2 text-xs">
+                  <span className="text-slate-200 font-medium">{artifact.title}</span>
+                  <Badge tone={artifact.export_safe ? 'green' : 'red'}>{artifact.safety_lint?.status}</Badge>
+                </div>
+                <pre className="max-h-72 overflow-auto whitespace-pre-wrap text-[11px] text-slate-400">{artifact.markdown}</pre>
+              </div>
+            )}
           </Panel>
 
           <Disclaimer text={HUMAN_RESPONSIBILITY} />

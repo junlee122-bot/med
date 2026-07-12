@@ -317,6 +317,11 @@ export const api = {
   ligandScreen: (body: any) => post<any>('/api/ligand-screen/run', body),
   activeLearningRun: (body: any) => post<any>('/api/active-learning/run', body),
   activeLearningList: () => get<any>('/api/active-learning/runs'),
+  // compute evaluation + release + submission artifacts
+  computeEvalSummary: () => get<any>('/api/evaluation/compute-summary'),
+  computeReleaseReadiness: () => get<any>('/api/release-readiness/compute'),
+  computeArtifactTypes: () => get<any>('/api/compute/artifacts/types'),
+  computeArtifactGenerate: (kind: string) => post<any>('/api/compute/artifacts/generate', { kind }),
 }
 
 export interface AgentDef { name: string; role: string; stage: string; stage_index: number; allowed_tools: string[] }
