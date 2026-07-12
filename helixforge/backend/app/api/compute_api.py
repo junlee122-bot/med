@@ -194,6 +194,33 @@ def security_policies():
     return security.security_policies()
 
 
+# ---- Compute-planner agent (Section 25) ----
+class PlanAgentRequest(BaseModel):
+    workflow_run_id: str
+    project_id: str | None = None
+    condition: str = "non-small cell lung cancer"
+    target_query: str = "EGFR"
+
+
+@router.post("/plan-agent")
+def plan_agent(req: PlanAgentRequest):
+    from app.agents.base import AgentContext
+    from app.agents.compute_planner_agent import ComputePlannerAgent
+    ctx = AgentContext(project_id=req.project_id or req.workflow_run_id,
+                       workflow_run_id=req.workflow_run_id,
+                       condition=req.condition, target_query=req.target_query)
+    out = ComputePlannerAgent().run(ctx)
+    return {
+        "agent": "ComputePlannerAgent", "workflow_run_id": req.workflow_run_id,
+        "compute_profile": ctx.shared.get("compute_profile"),
+        "output_summary": out.output_summary, "rationale": out.rationale,
+        "assumptions": out.assumptions, "uncertainty_notes": out.uncertainty_notes,
+        "next_action": out.next_action, "confidence": out.confidence,
+        "validation_checks": out.validation_checks, "source_types": out.source_types,
+        "compute_decisions": ctx.shared.get("compute_decisions", []),
+    }
+
+
 # ---- Compute decisions for a run ----
 @router.get("/runs/{run_id}/decisions")
 def run_decisions(run_id: str):

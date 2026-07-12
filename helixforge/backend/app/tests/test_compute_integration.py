@@ -73,3 +73,29 @@ def test_generate_compute_artifact_endpoint():
     assert r.json()["export_safe"] is True
     all_r = client.post("/api/compute/artifacts/generate", json={"kind": "all"})
     assert len(all_r.json()["artifacts"]) == len(compute_reports.ARTIFACT_TYPES)
+
+
+# ---- Compute-planner agent (Section 25) ----
+@pytest.mark.integration
+def test_compute_planner_agent_records_decisions_observable_only():
+    r = client.post("/api/compute/plan-agent", json={"workflow_run_id": "agent-run-1"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["compute_profile"]
+    assert len(body["compute_decisions"]) > 0
+    # observable trace only — no hidden chain-of-thought
+    blob = str(body).lower()
+    assert "<thinking>" not in blob and "chain-of-thought" not in blob
+    # no GPU present ⇒ CPU substitutes, no shell
+    assert "rm -rf" not in blob and "step-by-step synthesis" not in blob
+    assert any(c["ok"] for c in body["validation_checks"] if c["check"] == "no_shell_or_synthesis_steps")
+
+
+@pytest.mark.unit
+def test_compute_planner_agent_no_gpu_uses_cpu_substitute():
+    from app.agents.base import AgentContext
+    from app.agents.compute_planner_agent import ComputePlannerAgent
+    ctx = AgentContext(project_id="p", workflow_run_id="wr")
+    out = ComputePlannerAgent().run(ctx)
+    assert out.source_types == ["HEURISTIC_ANALYSIS"]
+    assert all(d["selected_backend"] in ("LOCAL_CPU", "CONFIG_ONLY") for d in ctx.shared["compute_decisions"])
