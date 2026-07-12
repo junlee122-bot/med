@@ -57,10 +57,25 @@ remain a separate namespace.
   **Active Learning** (`/active-learning`) + a "Compute & Models" nav group. 12 new
   compute/GPU source badges. `tsc` clean, `vite build` passes.
 
+## Integration (Sections 25, 27, 28, 32)
+- `compute_evaluation`: compute-summary (CPU model quality, ligand screen, active
+  learning, optimization, efficiency, reproducibility, GPU readiness) + release-readiness
+  compute categories. **CPU-only is never blocked by missing GPU** — GPU readiness stays
+  `CONFIGURED_NOT_RUN`/PARTIAL, non-blocking.
+- `compute_reports`: 7 export-safe judge-facing submission artifacts (CPU capability,
+  external GPU readiness, cost/budget plan, CPU/GPU comparison, security appendix, what
+  works without GPU, what GPU would add) — safety-linted, disclaimer-embedded.
+- `ComputePlannerAgent` (Section 25): the compute-aware planner as a first-class agent
+  (observable trace only; no chain-of-thought; no shell/synthesis).
+- Endpoints: `/api/evaluation/compute-summary[/{run_id}]`, `/api/release-readiness/compute`,
+  `/api/compute/artifacts/generate` + `/types`, `/api/compute/plan-agent`.
+- Frontend: Compute Center surfaces the compute release scorecard + one-click artifact generation.
+- `docker-compose.remote-gpu.example.yml`: optional, credential-free control-plane overlay.
+
 ## Tests
-+61 offline Phase 8 tests (no GPU/network/key): `test_compute_layer` (35),
-`test_cpu_science` (16), `test_compute_gpu_readiness` (10). Full suite **325 passed,
-1 skipped** (opt-in live-LLM smoke), up from 264 — no regressions.
++70 offline Phase 8 tests (no GPU/network/key): `test_compute_layer` (35),
+`test_cpu_science` (16), `test_compute_gpu_readiness` (10), `test_compute_integration` (9).
+Full suite **334 passed, 1 skipped** (opt-in live-LLM smoke), up from 264 — no regressions.
 
 ## Remaining configured-not-run (intentional)
 Live Chemprop/REINVENT4/GNINA/Vina-GPU/Boltz-2/Chai-1/OpenMM execution. Their schemas,
