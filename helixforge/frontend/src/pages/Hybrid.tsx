@@ -134,6 +134,26 @@ export function Hybrid() {
                 )}
               </Panel>
 
+              {result.compute_decisions && result.compute_decisions.length > 0 && (
+                <Panel>
+                  <div className="mb-2 flex items-center gap-2">
+                    <div className="section-title">Compute Decisions ({result.compute_decisions.length})</div>
+                    <Badge tone="cyan">{result.compute_profile}</Badge>
+                  </div>
+                  <div className="space-y-1.5">
+                    {result.compute_decisions.map((d: any) => (
+                      <div key={d.id} className="flex items-center gap-2 rounded border border-white/5 px-2 py-1 text-xs">
+                        <span className="w-56 truncate text-slate-300">{d.requested_capability}</span>
+                        <Badge tone={d.selected_backend === 'LOCAL_CPU' ? 'green' : 'amber'}>{d.selected_backend}</Badge>
+                        {d.human_approval_required && <Badge tone="amber">approval</Badge>}
+                        <span className="flex-1 truncate text-slate-500" title={d.selected_method}>{d.selected_method}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-1 text-[11px] text-slate-500">No GPU present → CPU substitutes (prioritization signals, not GPU-grade results). No fabricated GPU output.</div>
+                </Panel>
+              )}
+
               <Panel>
                 <div className="mb-2 section-title">Hypotheses ({hyps.length})</div>
                 {!hyps.length ? <Empty>No hypotheses generated.</Empty> : (
