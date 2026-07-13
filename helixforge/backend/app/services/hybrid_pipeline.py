@@ -56,6 +56,21 @@ def run_hybrid_pipeline(payload: dict[str, Any], client: Any = None) -> dict[str
     except Exception:
         pass
 
+    # 2b) Compute-aware planning (Phase 8, deterministic). Records ComputeDecisions
+    # so GPU tasks route to CPU substitutes when no GPU is present. Never fails the run.
+    compute_profile = None
+    compute_decisions: list[dict[str, Any]] = []
+    if payload.get("run_compute_planning", True):
+        try:
+            from app.compute import capability_detector
+            from app.services import compute_aware_planner
+            caps = capability_detector.detect("local")
+            comp = compute_aware_planner.plan_compute(caps, workflow_run_id=run_id)
+            compute_profile = comp["profile"]
+            compute_decisions = comp["decisions"]
+        except Exception as e:
+            warnings.append(f"compute planning skipped: {str(e)[:120]}")
+
     # 3) Hybrid hypothesis reasoning (LLM or deterministic template).
     hyp = hypothesis_reasoner.generate_hybrid(run_id=run_id, mode=mode, client=client)
 
@@ -121,6 +136,7 @@ def run_hybrid_pipeline(payload: dict[str, Any], client: Any = None) -> dict[str
         "semantic_critic_items": critic.get("critique_items", []),
         "semantic_critic_source": critic.get("reasoning_source_type"),
         "rediscovery_result_id": rediscovery_id, "optimization_loop_id": optimization_id,
+        "compute_profile": compute_profile, "compute_decisions": compute_decisions,
         "cost_summary": cost_summary, "ai_ledger_summary": ledger_summary,
         "safety_summary": {"hypotheses_language_ok": True,
                            "note": "All LLM outputs validated by deterministic safety + language gates."},

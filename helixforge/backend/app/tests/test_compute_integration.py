@@ -99,3 +99,21 @@ def test_compute_planner_agent_no_gpu_uses_cpu_substitute():
     out = ComputePlannerAgent().run(ctx)
     assert out.source_types == ["HEURISTIC_ANALYSIS"]
     assert all(d["selected_backend"] in ("LOCAL_CPU", "CONFIG_ONLY") for d in ctx.shared["compute_decisions"])
+
+
+# ---- Hybrid pipeline records compute decisions ----
+@pytest.mark.integration
+def test_hybrid_pipeline_records_compute_decisions():
+    from app.services import compute_aware_planner, hybrid_pipeline
+    out = hybrid_pipeline.run_hybrid_pipeline({
+        "condition": "NSCLC", "target_query": "EGFR", "mode": "DETERMINISTIC_ONLY",
+        "max_pubmed_results": 2, "run_true_rediscovery": False, "run_optimization_loop": False,
+        "run_semantic_critic": False,
+    })
+    assert out["compute_profile"]
+    assert len(out["compute_decisions"]) > 0
+    # decisions are persisted against the run and retrievable
+    persisted = compute_aware_planner.get_decisions(out["workflow_run_id"])
+    assert len(persisted) == len(out["compute_decisions"])
+    # no GPU present ⇒ CPU substitutes only; no fabricated GPU result
+    assert all(d["selected_backend"] in ("LOCAL_CPU", "CONFIG_ONLY") for d in out["compute_decisions"])
