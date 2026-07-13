@@ -4,6 +4,43 @@
 export const API_BASE =
   (import.meta as any).env?.VITE_API_BASE?.replace(/\/$/, '') || ''
 
+export const AUTH_TOKEN_STORAGE_KEY = 'hf_auth_token'
+export const LAST_RUN_STORAGE_KEY = 'hf_last_run'
+
+export function getSessionAuthToken(): string {
+  try {
+    return sessionStorage.getItem(AUTH_TOKEN_STORAGE_KEY)?.trim() || ''
+  } catch {
+    return ''
+  }
+}
+
+export function setSessionAuthToken(token: string): boolean {
+  try {
+    if (token.trim()) sessionStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token.trim())
+    else sessionStorage.removeItem(AUTH_TOKEN_STORAGE_KEY)
+    return getSessionAuthToken() === token.trim()
+  } catch {
+    return false
+  }
+}
+
+export function rememberRunId(runId: string): void {
+  try {
+    localStorage.setItem(LAST_RUN_STORAGE_KEY, runId)
+  } catch {
+    // The URL remains the source of truth when local storage is unavailable.
+  }
+}
+
+export function getRememberedRunId(): string {
+  try {
+    return localStorage.getItem(LAST_RUN_STORAGE_KEY)?.trim() || ''
+  } catch {
+    return ''
+  }
+}
+
 export type SourceType =
   | 'REAL_TOOL_OUTPUT'
   | 'RECORDED_REAL_TOOL_OUTPUT'
@@ -81,9 +118,17 @@ export interface AuditEvent {
 }
 
 async function req<T>(path: string, options?: RequestInit): Promise<T> {
+  const headers = new Headers(options?.headers)
+  if (options?.body != null && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json')
+  }
+  const token = getSessionAuthToken()
+  if (token && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`)
+  }
   const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
     ...options,
+    headers,
   })
   if (!res.ok) {
     let detail = res.statusText
@@ -93,6 +138,7 @@ async function req<T>(path: string, options?: RequestInit): Promise<T> {
     } catch {}
     throw new Error(`HTTP ${res.status}: ${detail}`)
   }
+  if (res.status === 204) return undefined as T
   return res.json() as Promise<T>
 }
 
@@ -147,8 +193,12 @@ export const api = {
     post<{ report_id: string; title: string; markdown: string; json_audit: any }>('/api/report/generate', body),
   getReport: (id: string) =>
     get<{ report_id: string; title: string; markdown: string; json_audit: any }>(`/api/report/${id}`),
-  listReports: (project_id?: string) =>
-    get<{ reports: any[] }>(`/api/reports${project_id ? `?project_id=${project_id}` : ''}`),
+  listReports: (project_id?: string, run_id?: string) => {
+    const query = new URLSearchParams()
+    if (project_id) query.set('project_id', project_id)
+    if (run_id) query.set('run_id', run_id)
+    return get<{ reports: any[] }>(`/api/reports${query.size ? `?${query}` : ''}`)
+  },
 
   getSettings: () => get<{ editable_keys: string[]; values: Record<string, any> }>('/api/settings'),
   updateSettings: (values: Record<string, any>) =>
@@ -166,11 +216,19 @@ export const api = {
   runRevisions: (run_id: string) => get<{ run_id: string; revision_events: RevisionEvent[] }>(`/api/workflow/runs/${run_id}/revisions`),
   runManifest: (run_id: string) => get<any>(`/api/workflow/runs/${run_id}/manifest`),
 
-  listTargets: (project_id?: string) => get<{ targets: any[]; count: number }>(`/api/targets${project_id ? `?project_id=${project_id}` : ''}`),
+  listTargets: (project_id?: string, run_id?: string) => {
+    const query = new URLSearchParams()
+    if (project_id) query.set('project_id', project_id)
+    if (run_id) query.set('run_id', run_id)
+    return get<{ targets: any[]; count: number }>(`/api/targets${query.size ? `?${query}` : ''}`)
+  },
   getTarget: (id: string) => get<any>(`/api/targets/${id}`),
-  listHypotheses: (project_id?: string) => get<{ hypotheses: any[] }>(`/api/hypotheses${project_id ? `?project_id=${project_id}` : ''}`),
-  listEvidence: (project_id?: string) => get<{ evidence: any[] }>(`/api/evidence${project_id ? `?project_id=${project_id}` : ''}`),
-  listMoleculesData: (project_id?: string) => get<{ molecules: any[]; count: number }>(`/api/molecules${project_id ? `?project_id=${project_id}` : ''}`),
+  listHypotheses: (project_id?: string, run_id?: string) =>
+    get<{ hypotheses: any[] }>(`/api/hypotheses${run_id ? `?run_id=${encodeURIComponent(run_id)}` : project_id ? `?project_id=${encodeURIComponent(project_id)}` : ''}`),
+  listEvidence: (project_id?: string, run_id?: string) =>
+    get<{ evidence: any[] }>(`/api/evidence${run_id ? `?run_id=${encodeURIComponent(run_id)}` : project_id ? `?project_id=${encodeURIComponent(project_id)}` : ''}`),
+  listMoleculesData: (project_id?: string, run_id?: string) =>
+    get<{ molecules: any[]; count: number }>(`/api/molecules${run_id ? `?run_id=${encodeURIComponent(run_id)}` : project_id ? `?project_id=${encodeURIComponent(project_id)}` : ''}`),
   // --- Phase 3 ---
   listSnapshots: () => get<{ snapshots: any[] }>('/api/snapshots'),
   createSnapshot: (run_id: string, name: string, description = '') =>
@@ -181,11 +239,16 @@ export const api = {
   deleteSnapshot: (id: string) => req<{ deleted: string }>(`/api/snapshots/${id}`, { method: 'DELETE' }),
   runTrace: (run_id: string) => get<any>(`/api/workflow/runs/${run_id}/trace`),
 
-  releaseReadiness: () => get<any>('/api/release-readiness'),
-  submissionGenerate: (artifact_type: string) => post<any>('/api/submission/generate', { artifact_type }),
-  submissionArtifacts: () => get<{ artifacts: any[]; types: string[] }>('/api/submission/artifacts'),
-  submissionBundle: () => get<any>('/api/submission/bundle'),
-  submissionCheck: () => post<any>('/api/submission/check', {}),
+  releaseReadiness: (run_id?: string) =>
+    get<any>(`/api/release-readiness${run_id ? `?run_id=${encodeURIComponent(run_id)}` : ''}`),
+  submissionGenerate: (artifact_type: string, run_id?: string) =>
+    post<any>('/api/submission/generate', { artifact_type, run_id }),
+  submissionArtifacts: (run_id?: string) =>
+    get<{ artifacts: any[]; types: string[] }>(`/api/submission/artifacts${run_id ? `?run_id=${encodeURIComponent(run_id)}` : ''}`),
+  submissionBundle: (run_id?: string) =>
+    get<any>(`/api/submission/bundle${run_id ? `?run_id=${encodeURIComponent(run_id)}` : ''}`),
+  submissionCheck: (run_id?: string) =>
+    post<any>(`/api/submission/check${run_id ? `?run_id=${encodeURIComponent(run_id)}` : ''}`, {}),
 
   aiLedger: (run_id?: string) => get<{ interactions: any[] }>(`/api/ai-ledger${run_id ? `?run_id=${run_id}` : ''}`),
   aiLedgerRun: (run_id: string) => get<{ summary: any; interactions: any[] }>(`/api/ai-ledger/runs/${run_id}`),
@@ -207,7 +270,12 @@ export const api = {
   verifyEvidence: (body: { source_name: string; identifier: string; identifier_type: string; url?: string }) =>
     post<{ verification_status: string; verification_reason: string }>('/api/evidence/verify', body),
 
-  evaluationSummary: (project_id?: string) => get<EvaluationSummary>(`/api/evaluation/summary${project_id ? `?project_id=${project_id}` : ''}`),
+  evaluationSummary: (project_id?: string, run_id?: string) => {
+    const query = new URLSearchParams()
+    if (project_id) query.set('project_id', project_id)
+    if (run_id) query.set('run_id', run_id)
+    return get<EvaluationSummary>(`/api/evaluation/summary${query.size ? `?${query}` : ''}`)
+  },
   evaluationRun: (run_id: string) => get<{ run_id: string; metrics_flat: any[]; metrics: any }>(`/api/evaluation/runs/${run_id}`),
   runRetrospective: (body: AgenticRequest) => post<any>('/api/evaluation/run-retrospective', body),
 
@@ -218,14 +286,18 @@ export const api = {
   // ---- Phase 4 ----
   toolsHealthTier: (mode: 'local' | 'live' | 'deep' = 'local', timeout_seconds = 6) =>
     get<any>(`/api/tools/health?mode=${mode}&timeout_seconds=${timeout_seconds}`),
-  sourceTypeAudit: () => get<any>('/api/source-types/audit'),
+  sourceTypeAudit: (run_id?: string) =>
+    get<any>(`/api/source-types/audit${run_id ? `?run_id=${encodeURIComponent(run_id)}` : ''}`),
   dataRights: () => get<any>('/api/data-rights'),
   dataRightsCheck: () => post<any>('/api/data-rights/check-submission', {}),
-  proposalGenerate: (kind: string) => post<any>('/api/proposal/generate', { kind }),
-  proposalLatest: () => get<any>('/api/proposal/latest'),
+  proposalGenerate: (kind: string, run_id?: string) =>
+    post<any>('/api/proposal/generate', { kind, run_id }),
+  proposalLatest: (run_id?: string) =>
+    get<any>(`/api/proposal/latest${run_id ? `?run_id=${encodeURIComponent(run_id)}` : ''}`),
   rubricScorecard: () => get<any>('/api/rubric/scorecard'),
   plausibilityCheck: (run_id?: string) => get<any>(`/api/plausibility/check${run_id ? `?run_id=${run_id}` : ''}`),
-  hwpxHandoff: () => get<any>('/api/hwpx/handoff'),
+  hwpxHandoff: (run_id?: string) =>
+    get<any>(`/api/hwpx/handoff${run_id ? `?run_id=${encodeURIComponent(run_id)}` : ''}`),
   redTeamRun: () => get<any>('/api/red-team/run'),
   runConfigs: () => get<any>('/api/run-configs'),
   runConfigValidate: (body: any) => post<any>('/api/run-configs/validate', body),
@@ -258,7 +330,8 @@ export const api = {
   // ---- Phase 5: professional scientific validation ----
   evidenceGradesRun: (run_id?: string) => post<any>(`/api/evidence-grades/compute${run_id ? `?run_id=${run_id}` : ''}`, {}),
   evidenceGradeLint: (markdown: string) => post<any>('/api/evidence-grades/lint-report', { markdown }),
-  activitiesNormalizeRun: () => post<any>('/api/activities/normalize', { records: [] }),
+  activitiesNormalizeRun: (run_id?: string) =>
+    post<any>(`/api/activities/normalize${run_id ? `?run_id=${encodeURIComponent(run_id)}` : ''}`, { records: [] }),
   activitiesRecompute: (run_id?: string) => post<any>(`/api/activities/recompute-candidate-scores${run_id ? `?run_id=${run_id}` : ''}`, {}),
   medchemReviewRun: (run_id?: string) => post<any>(`/api/medchem/review-run${run_id ? `?run_id=${run_id}` : ''}`, {}),
   medchemMolecule: (smiles: string, label?: string) => post<any>('/api/medchem/review-molecule', { smiles, label }),
@@ -271,21 +344,33 @@ export const api = {
   translationalRun: (run_id?: string) => post<any>(`/api/translational/readiness/run${run_id ? `?run_id=${run_id}` : ''}`, {}),
   clinicalPrecedentRun: (run_id?: string) => post<any>(`/api/clinical/precedent-review${run_id ? `?run_id=${run_id}` : ''}`, {}),
   paretoRun: (run_id?: string) => post<any>(`/api/optimization/pareto/run${run_id ? `?run_id=${run_id}` : ''}`, {}),
-  dockingProtocolRun: (run_id?: string) => get<any>(`/api/docking/protocol/run/${run_id || 'latest'}`),
+  dockingProtocolRun: (run_id: string) =>
+    post<any>(`/api/docking/protocol/run/${encodeURIComponent(run_id)}`, {}),
   admetValidationRun: () => post<any>('/api/admet/validation/train', {}),
-  professionalReleaseLatest: () => get<any>('/api/release-readiness/professional/latest'),
-  professionalEvaluationRun: (run_id?: string) => post<any>(`/api/pro-evaluation/run${run_id ? `?run_id=${run_id}` : ''}`, {}),
-  agentPerformanceRun: (run_id?: string) => post<any>(`/api/agent-performance/evaluate-run${run_id ? `?run_id=${run_id}` : ''}`, {}),
+  professionalReleaseLatest: (run_id?: string) =>
+    get<any>(`/api/release-readiness/professional/latest${run_id ? `?run_id=${encodeURIComponent(run_id)}` : ''}`),
+  professionalReleaseCompute: (run_id?: string) =>
+    post<any>(`/api/release-readiness/professional${run_id ? `?run_id=${encodeURIComponent(run_id)}` : ''}`, {}),
   redTeamProfessional: () => post<any>('/api/red-team/professional/run', {}),
   identityNormalizeRun: (run_id?: string) => post<any>(`/api/identity/normalize-run${run_id ? `?run_id=${run_id}` : ''}`, {}),
   expertReviewGenerate: (run_id?: string) => post<any>(`/api/expert-review/generate-from-run${run_id ? `?run_id=${run_id}` : ''}`, {}),
-  expertReviewItems: () => get<any>('/api/expert-review/items'),
-  expertReviewDecision: (id: string, body: any) => post<any>(`/api/expert-review/items/${id}/decision`, body),
-  professionalDocsGenerate: (doc_type: string) => post<any>('/api/professional-docs/generate', { doc_type }),
-  professionalDocsList: () => get<any>('/api/professional-docs'),
-  professionalDocsBundle: () => get<any>('/api/professional-docs/bundle'),
-  whitepaperGenerate: (lang: string) => post<any>('/api/whitepaper/generate', { lang }),
-  whitepaperLatest: () => get<any>('/api/whitepaper/latest'),
+  expertReviewItems: (run_id?: string) =>
+    get<any>(`/api/expert-review/items${run_id ? `?run_id=${encodeURIComponent(run_id)}` : ''}`),
+  expertReviewDecision: (id: string, body: { decision: string; comment?: string }) =>
+    post<any>(`/api/expert-review/items/${id}/decision`, body),
+  professionalDocsGenerate: (doc_type: string, run_id?: string) =>
+    post<any>('/api/professional-docs/generate', { doc_type, run_id }),
+  professionalDocsList: (run_id?: string) =>
+    get<any>(`/api/professional-docs${run_id ? `?run_id=${encodeURIComponent(run_id)}` : ''}`),
+  professionalDocsBundle: (run_id?: string) =>
+    get<any>(`/api/professional-docs/bundle${run_id ? `?run_id=${encodeURIComponent(run_id)}` : ''}`),
+  whitepaperGenerate: (lang: string, run_id?: string) =>
+    post<any>('/api/whitepaper/generate', { lang, run_id }),
+  whitepaperLatest: (lang = 'en', run_id?: string) => {
+    const query = new URLSearchParams({ lang })
+    if (run_id) query.set('run_id', run_id)
+    return get<any>(`/api/whitepaper/latest?${query}`)
+  },
 
   // ---- Phase 8: compute + model lab ----
   computeCapabilities: (mode: 'local' | 'deep' | 'remote' = 'local') =>
@@ -307,21 +392,23 @@ export const api = {
   cpuScientificDemo: (target = 'EGFR') => post<any>('/api/demo/run-cpu-scientific-demo', { target }),
   gpuReadinessDryRun: (target = 'EGFR') => post<any>('/api/demo/run-gpu-readiness-dry-run', { target }),
   // model lab
-  datasetsList: () => get<any>('/api/datasets'),
+  datasetsList: (run_id?: string) => get<any>(`/api/datasets${run_id ? `?run_id=${encodeURIComponent(run_id)}` : ''}`),
   datasetCurate: (body: any) => post<any>('/api/datasets/curate', body),
   datasetCard: (id: string) => get<any>(`/api/datasets/${id}/card`),
-  cpuModelsList: () => get<any>('/api/cpu-models'),
+  cpuModelsList: (run_id?: string) => get<any>(`/api/cpu-models${run_id ? `?run_id=${encodeURIComponent(run_id)}` : ''}`),
   cpuModelTrain: (body: any) => post<any>('/api/cpu-models/train', body),
   cpuModelCard: (id: string) => get<any>(`/api/cpu-models/${id}/card`),
   cpuModelPredict: (id: string, smiles: string[]) => post<any>(`/api/cpu-models/${id}/predict`, { smiles }),
   ligandScreen: (body: any) => post<any>('/api/ligand-screen/run', body),
   activeLearningRun: (body: any) => post<any>('/api/active-learning/run', body),
-  activeLearningList: () => get<any>('/api/active-learning/runs'),
+  activeLearningList: (run_id?: string) => get<any>(`/api/active-learning/runs${run_id ? `?run_id=${encodeURIComponent(run_id)}` : ''}`),
   // compute evaluation + release + submission artifacts
-  computeEvalSummary: () => get<any>('/api/evaluation/compute-summary'),
-  computeReleaseReadiness: () => get<any>('/api/release-readiness/compute'),
+  computeEvalSummary: (run_id?: string) => get<any>(run_id
+    ? `/api/evaluation/compute-summary/${encodeURIComponent(run_id)}`
+    : '/api/evaluation/compute-summary'),
+  computeReleaseReadiness: (run_id?: string) => get<any>(`/api/release-readiness/compute${run_id ? `?run_id=${encodeURIComponent(run_id)}` : ''}`),
   computeArtifactTypes: () => get<any>('/api/compute/artifacts/types'),
-  computeArtifactGenerate: (kind: string) => post<any>('/api/compute/artifacts/generate', { kind }),
+  computeArtifactGenerate: (kind: string, run_id?: string) => post<any>('/api/compute/artifacts/generate', { kind, run_id }),
 }
 
 export interface AgentDef { name: string; role: string; stage: string; stage_index: number; allowed_tools: string[] }

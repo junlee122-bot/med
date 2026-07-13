@@ -7,7 +7,7 @@ high-risk items. Observable trace only — no hidden reasoning.
 """
 from __future__ import annotations
 
-import uuid
+import hashlib
 from typing import Any
 
 from app.models.schemas import utcnow
@@ -30,24 +30,29 @@ DECISIONS = ["APPROVE_FOR_PROPOSAL", "APPROVE_FOR_DEMO_ONLY", "NEEDS_MORE_EVIDEN
 
 
 def _item(run_id, item_type, item_id, title, summary, role, required_roles, risk, source_type, grade=None):
+    identity = f"{run_id}|{item_type}|{item_id}|{role}"
+    review_id = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:12]
     return {
-        "id": f"eri-{uuid.uuid4().hex[:8]}", "run_id": run_id, "item_type": item_type,
+        "id": f"eri-{review_id}", "run_id": run_id, "item_type": item_type,
         "item_id": item_id, "title": title, "summary": summary,
         "recommended_role": role, "required_roles": required_roles, "risk_level": risk,
         "source_type": source_type, "evidence_grade": grade, "review_status": "PENDING",
         "reviewer_name": None, "reviewer_role": None, "reviewer_comment": None,
-        "decision": None, "created_at": utcnow(), "reviewed_at": None,
+        "decision": None, "signoff_valid": False,
+        "created_at": utcnow(), "reviewed_at": None,
     }
 
 
 def generate_from_run(run_id: str | None = None) -> dict[str, Any]:
     runs = db.list_records("workflow_runs", limit=200)
     run = db.get("workflow_runs", run_id) if run_id else (runs[0] if runs else {})
+    if run_id and not run:
+        raise ValueError("workflow run not found")
     rid = run.get("id") if run else None
     pid = run.get("project_id") if run else None
     items: list[dict] = []
 
-    targets = db.list_records("target_candidates", project_id=pid, limit=20) if pid else []
+    targets = db.list_records("target_candidates", project_id=pid, workflow_run_id=rid, limit=20) if pid and rid else []
     if targets:
         t = targets[0]
         items.append(_item(rid, "target", t.get("id"),
@@ -56,7 +61,7 @@ def generate_from_run(run_id: str | None = None) -> dict[str, Any]:
                            ExpertRole.BIOLOGY_TARGET_EXPERT,
                            [ExpertRole.BIOLOGY_TARGET_EXPERT], "medium", t.get("source_type")))
 
-    mols = db.list_records("molecule_candidates", project_id=pid, limit=200) if pid else []
+    mols = db.list_records("molecule_candidates", project_id=pid, workflow_run_id=rid, limit=200) if pid and rid else []
     for m in mols[:5]:
         risk = "high" if str(m.get("safety_status")).upper() != "PASS" else "medium"
         items.append(_item(rid, "molecule", m.get("id"),
@@ -66,7 +71,7 @@ def generate_from_run(run_id: str | None = None) -> dict[str, Any]:
                            [ExpertRole.MEDICINAL_CHEMISTRY, ExpertRole.COMPUTATIONAL_CHEMISTRY], risk,
                            m.get("source_type")))
 
-    hyps = db.list_records("hypotheses", project_id=pid, limit=10) if pid else []
+    hyps = db.list_records("hypotheses", project_id=pid, workflow_run_id=rid, limit=10) if pid and rid else []
     for h in hyps[:3]:
         items.append(_item(rid, "hypothesis", h.get("id"),
                            f"Hypothesis: {(h.get('statement') or '')[:60]}",
@@ -85,11 +90,25 @@ def generate_from_run(run_id: str | None = None) -> dict[str, Any]:
                        "Confirm no forbidden content, overclaims removed, disclaimers present.",
                        ExpertRole.SAFETY_ETHICS_REVIEWER, [ExpertRole.SAFETY_ETHICS_REVIEWER], "high", None))
     items.append(_item(rid, "report", "report", "Final report / submission bundle",
-                       "Confirm claims are graded and language is conservative.",
+                       "Confirm claims are graded and language is conservative from a safety perspective.",
+                       ExpertRole.SAFETY_ETHICS_REVIEWER,
+                       [ExpertRole.SAFETY_ETHICS_REVIEWER], "high", None))
+    items.append(_item(rid, "report", "report-ai", "Final report / submission bundle (AI review)",
+                       "Confirm AI-generated claims are traceable, graded, and conservative.",
                        ExpertRole.AI_ML_REVIEWER,
-                       [ExpertRole.SAFETY_ETHICS_REVIEWER, ExpertRole.AI_ML_REVIEWER], "high", None))
+                       [ExpertRole.AI_ML_REVIEWER], "high", None))
 
     for it in items:
+        it["project_id"] = pid
+        it["workflow_run_id"] = rid
+        existing = db.get("expert_review_items", it["id"])
+        if existing and existing.get("workflow_run_id") == rid:
+            for key in (
+                "review_status", "reviewer_name", "reviewer_role", "reviewer_comment",
+                "decision", "signoff_valid", "reviewed_at", "authorization_basis",
+            ):
+                if existing.get(key) is not None:
+                    it[key] = existing[key]
         try:
             db.insert("expert_review_items", it)
         except Exception:
@@ -105,26 +124,44 @@ def _by_role(items: list[dict]) -> dict[str, int]:
     return out
 
 
-def list_items(role: str | None = None, status: str | None = None) -> dict[str, Any]:
-    items = db.list_records("expert_review_items", limit=1000)
+def list_items(role: str | None = None, status: str | None = None,
+               run_id: str | None = None) -> dict[str, Any]:
+    if run_id is None:
+        runs = db.list_records("workflow_runs", limit=1)
+        run_id = runs[0].get("id") if runs else None
+    items = (db.list_records("expert_review_items", workflow_run_id=run_id, limit=1000)
+             if run_id else [])
     if role:
         items = [i for i in items if i.get("recommended_role") == role or role in (i.get("required_roles") or [])]
     if status:
         items = [i for i in items if i.get("review_status") == status]
-    return {"items": items, "count": len(items), "roles": sorted({i["recommended_role"] for i in items})}
+    return {"run_id": run_id, "items": items, "count": len(items),
+            "roles": sorted({i["recommended_role"] for i in items})}
 
 
-def record_decision(item_id: str, decision: str, reviewer_name: str = "", reviewer_role: str = "",
+def record_decision(item_id: str, decision: str, reviewer_name: str = "",
                     comment: str = "") -> dict[str, Any]:
     it = db.get("expert_review_items", item_id)
     if not it:
-        return {"error": "item not found"}
+        raise ValueError("review item not found")
     if decision not in DECISIONS:
-        return {"error": f"decision must be one of {DECISIONS}"}
+        raise ValueError(f"decision must be one of {DECISIONS}")
+    # The review role is part of the server-created queue item.  Never trust a
+    # caller-supplied role to grant a sign-off.
+    required_roles = it.get("required_roles") or []
+    if not required_roles:
+        raise ValueError("review item has no valid server-assigned reviewer role")
     it["decision"] = decision
     it["review_status"] = "REVIEWED"
-    it["reviewer_name"] = reviewer_name
-    it["reviewer_role"] = reviewer_role
+    it["reviewer_name"] = reviewer_name or "authenticated-api-user"
+    # The current auth model proves possession of the administrator bearer,
+    # not a medical specialty. Record that truthfully instead of forging the
+    # requested expert role from request data.
+    it["reviewer_role"] = "API_ADMINISTRATOR"
+    it["authorization_basis"] = "administrator bearer token (or local development operator)"
+    # Administrator authentication authorizes the write, but does not prove
+    # any of the specialist roles required by the review item.
+    it["signoff_valid"] = False
     it["reviewer_comment"] = comment
     it["reviewed_at"] = utcnow()
     db.insert("expert_review_items", it)
@@ -132,16 +169,31 @@ def record_decision(item_id: str, decision: str, reviewer_name: str = "", review
 
 
 def summary_for_run(run_id: str) -> dict[str, Any]:
-    items = [i for i in db.list_records("expert_review_items", limit=1000) if i.get("run_id") == run_id]
+    items = db.list_records("expert_review_items", workflow_run_id=run_id, limit=1000)
     high_risk = [i for i in items if i.get("risk_level") == "high"]
+    signed_off_high = [
+        i for i in high_risk
+        if i.get("decision") == "APPROVE_FOR_PROPOSAL"
+        and bool(i.get("signoff_valid"))
+        and i.get("reviewer_role") in (i.get("required_roles") or [])
+    ]
+    signed_off_ids = {i.get("id") for i in signed_off_high}
+    unresolved_high = [i for i in high_risk if i.get("id") not in signed_off_ids]
+    invalid_role_approvals = [
+        i for i in high_risk
+        if i.get("decision") == "APPROVE_FOR_PROPOSAL" and i.get("id") not in signed_off_ids
+    ]
     pending_high = [i for i in high_risk if i.get("review_status") == "PENDING"]
     reviewed = [i for i in items if i.get("review_status") == "REVIEWED"]
     rejected = [i for i in reviewed if i.get("decision") == "REJECT"]
     return {
         "run_id": run_id, "total": len(items), "reviewed": len(reviewed),
         "pending": len(items) - len(reviewed), "high_risk": len(high_risk),
-        "pending_high_risk": len(pending_high), "rejected": len(rejected),
-        "all_high_risk_signed_off": len(pending_high) == 0 and len(high_risk) > 0,
-        "blocks_final_ready": len(pending_high) > 0 or len(rejected) > 0,
+        "pending_high_risk": len(pending_high),
+        "unresolved_high_risk": len(unresolved_high),
+        "signed_off_high_risk": len(signed_off_high), "rejected": len(rejected),
+        "invalid_role_approvals": len(invalid_role_approvals),
+        "all_high_risk_signed_off": bool(high_risk) and not unresolved_high,
+        "blocks_final_ready": not high_risk or bool(unresolved_high),
         "checked_at": utcnow(),
     }

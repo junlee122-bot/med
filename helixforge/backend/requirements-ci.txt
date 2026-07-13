@@ -1,0 +1,11 @@
+# Exact lightweight dependency set used by GitHub Actions. Scientific wheels
+# remain covered by the local/full environment described in requirements.txt.
+fastapi==0.115.6
+starlette==0.41.3
+uvicorn[standard]==0.32.1
+httpx==0.28.1
+pydantic==2.10.6
+pydantic-settings==2.7.1
+python-multipart==0.0.20
+pytest==8.3.4
+pytest-asyncio==0.25.3

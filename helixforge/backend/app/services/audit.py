@@ -11,11 +11,24 @@ import uuid
 from typing import Any, Optional
 
 from app.models.schemas import SourceType, ValidationStatus, utcnow
+from app.services.provenance import redact_secrets
 from app.storage import db
 
 
 def new_id(prefix: str) -> str:
     return f"{prefix}-{uuid.uuid4().hex[:12]}"
+
+
+def _safe_record(record: dict[str, Any]) -> dict[str, Any]:
+    """Redact observable content while preserving database identity/scope."""
+    safe = redact_secrets(record)
+    safe = dict(safe) if isinstance(safe, dict) else {}
+    # Scope keys must stay stable even if a malformed identifier happens to
+    # resemble a key-bearing URL. All observable content remains redacted.
+    for key in ("id", "project_id", "workflow_run_id", "created_at", "timestamp"):
+        if key in record:
+            safe[key] = record[key]
+    return safe
 
 
 def record_tool_run(
@@ -40,8 +53,7 @@ def record_tool_run(
     tool_run_id = new_id("tr")
     audit_id = new_id("ae")
 
-    db.insert(
-        "tool_runs",
+    tool_record = _safe_record(
         {
             "id": tool_run_id,
             "project_id": project_id,
@@ -58,11 +70,11 @@ def record_tool_run(
             "errors": errors or [],
             "warnings": warnings or [],
             "audit_event_id": audit_id,
-        },
+        }
     )
+    db.insert("tool_runs", tool_record)
 
-    db.insert(
-        "audit_events",
+    audit_record = _safe_record(
         {
             "id": audit_id,
             "project_id": project_id,
@@ -79,8 +91,9 @@ def record_tool_run(
             "confidence": confidence,
             "warnings": warnings or [],
             "errors": errors or [],
-        },
+        }
     )
+    db.insert("audit_events", audit_record)
     return audit_id
 
 
@@ -101,8 +114,7 @@ def record_event(
 ) -> str:
     ts = utcnow()
     audit_id = new_id("ae")
-    db.insert(
-        "audit_events",
+    audit_record = _safe_record(
         {
             "id": audit_id,
             "project_id": project_id,
@@ -119,8 +131,9 @@ def record_event(
             "confidence": confidence,
             "warnings": warnings or [],
             "errors": errors or [],
-        },
+        }
     )
+    db.insert("audit_events", audit_record)
     return audit_id
 
 

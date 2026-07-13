@@ -52,15 +52,28 @@ class ReportAdapter(ToolAdapter):
     def generate(self, project_id: Optional[str], workflow_run_id: Optional[str] = None,
                  title: Optional[str] = None) -> dict[str, Any]:
         title = title or "HelixForge AI — Integration Report"
-        tool_runs = db.list_records("tool_runs", project_id=project_id, limit=500, order="ASC")
-        events = db.list_records("audit_events", project_id=project_id, limit=500, order="ASC")
-        evidence = db.list_records("evidence_items", project_id=project_id, limit=200)
-        molecules = db.list_records("molecule_candidates", project_id=project_id, limit=200)
-        targets = db.list_records("target_candidates", project_id=project_id, limit=50)
-        docking = db.list_records("docking_jobs", project_id=project_id, limit=50)
-        reinvent = db.list_records("reinvent_jobs", project_id=project_id, limit=50)
-        tdc = db.list_records("tdc_dataset_records", project_id=project_id, limit=50)
-        safety = db.list_records("safety_flags", project_id=project_id, limit=50)
+        if workflow_run_id is not None:
+            run = db.get("workflow_runs", workflow_run_id)
+            if not run:
+                raise ValueError(f"Run {workflow_run_id} not found")
+            if run.get("project_id") != project_id:
+                raise ValueError("workflow run does not belong to the requested project")
+
+        def records(table: str, limit: int, order: str = "DESC") -> list[dict[str, Any]]:
+            return db.list_records(
+                table, project_id=project_id, workflow_run_id=workflow_run_id,
+                limit=limit, order=order,
+            )
+
+        tool_runs = records("tool_runs", 500, "ASC")
+        events = records("audit_events", 500, "ASC")
+        evidence = records("evidence_items", 200)
+        molecules = records("molecule_candidates", 200)
+        targets = records("target_candidates", 50)
+        docking = records("docking_jobs", 50)
+        reinvent = records("reinvent_jobs", 50)
+        tdc = records("tdc_dataset_records", 50)
+        safety = records("safety_flags", 50)
 
         by_source: dict[str, int] = {}
         for tr in tool_runs:
@@ -174,6 +187,7 @@ class ReportAdapter(ToolAdapter):
         report_id = f"rep-{uuid.uuid4().hex[:10]}"
         record = {
             "id": report_id, "project_id": project_id, "created_at": utcnow(),
+            "workflow_run_id": workflow_run_id,
             "title": title, "markdown": markdown, "json_audit": json_audit,
         }
         db.insert("reports", record)

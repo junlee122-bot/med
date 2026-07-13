@@ -100,9 +100,20 @@ _BUNDLE_SET: list[str] = [
 
 
 # ---------------------------------------------------------------------------
-# Best-effort state gathering (never raises)
+# Best-effort state gathering (invalid explicit run IDs fail closed)
 # ---------------------------------------------------------------------------
-def _gather_state() -> dict[str, Any]:
+def _resolve_run(run_id: str | None = None) -> dict[str, Any]:
+    if run_id is not None:
+        run = db.get("workflow_runs", run_id)
+        if not run:
+            raise ValueError("workflow run not found")
+        return run
+    runs = [run for run in db.list_records("workflow_runs", limit=50)
+            if run.get("kind") in ("agentic", "agentic_replay")]
+    return runs[0] if runs else {}
+
+
+def _gather_state(run_id: str | None = None) -> dict[str, Any]:
     """Collect a small, honest snapshot of system state.
 
     Every probe is isolated: a missing/empty run or an unavailable dependency
@@ -121,10 +132,14 @@ def _gather_state() -> dict[str, Any]:
         "data_rights": None,
     }
 
-    try:
-        state["run_count"] = len(db.list_records("workflow_runs", limit=50))
-    except Exception:
-        pass
+    run = _resolve_run(run_id)
+    rid = run.get("id")
+    pid = run.get("project_id")
+    state.update({"run_id": rid, "project_id": pid})
+
+    # This document represents exactly one resolved workflow run.  A global
+    # count would leak unrelated projects into an otherwise run-scoped export.
+    state["run_count"] = 1 if rid else 0
 
     try:
         from app.config import get_settings
@@ -136,47 +151,50 @@ def _gather_state() -> dict[str, Any]:
         pass
 
     try:
-        from app.services import evidence_grading
-
-        g = evidence_grading.grade_run(None)
-        state["evidence_claims"] = (
-            f"{g.get('total_claims', 0)} claims graded; "
-            f"distribution={g.get('grade_distribution', {})}"
-        )
+        rows = db.list_records("evidence_claims", workflow_run_id=rid, limit=1) if rid else []
+        if rows:
+            g = rows[0]
+            state["evidence_claims"] = (
+                f"{g.get('total_claims', 0)} claims graded; "
+                f"distribution={g.get('grade_distribution', {})}"
+            )
     except Exception:
         pass
 
     try:
-        from app.services import medchem_review
-
-        m = medchem_review.review_run(None)
-        state["medchem"] = (
-            f"{m.get('count', 0)} molecules reviewed; "
-            f"rdkit_available={m.get('rdkit_available')}"
-        )
+        rows = db.list_records("medchem_reviews", workflow_run_id=rid, limit=1) if rid else []
+        if rows:
+            m = rows[0]
+            state["medchem"] = (
+                f"{m.get('count', 0)} molecules reviewed; "
+                f"rdkit_available={m.get('rdkit_available')}"
+            )
     except Exception:
         pass
 
     try:
-        from app.services import translational_readiness
-
-        t = translational_readiness.assess_run(None)
-        state["translational"] = t.get("readiness_level", "no run yet")
+        rows = db.list_records(
+            "translational_assessments", workflow_run_id=rid, limit=1,
+        ) if rid else []
+        if rows:
+            state["translational"] = rows[0].get("readiness_level", "no run yet")
     except Exception:
         pass
 
     try:
-        from app.services import clinical_precedent_review
-
-        c = clinical_precedent_review.review_run(None)
-        state["clinical"] = c.get("summary") or c.get("status") or "reviewed"
+        rows = db.list_records(
+            "clinical_precedent_reviews", workflow_run_id=rid, limit=1,
+        ) if rid else []
+        if rows:
+            c = rows[0]
+            state["clinical"] = c.get("summary") or c.get("status") or "reviewed"
     except Exception:
         pass
 
     try:
         from app.services import source_type_governance
 
-        a = source_type_governance.audit()
+        a = source_type_governance.audit(project_id=pid, workflow_run_id=rid)
         state["governance"] = a.get("status", "audited")
     except Exception:
         pass
@@ -184,7 +202,7 @@ def _gather_state() -> dict[str, Any]:
     try:
         from app.services import release_readiness
 
-        r = release_readiness.compute()
+        r = release_readiness.compute(rid)
         state["release"] = f"{r.get('status', 'unknown')} (score {r.get('score', 0)})"
     except Exception:
         pass
@@ -636,18 +654,10 @@ _BUILDERS: dict[str, Callable[[dict[str, Any]], tuple[str, str]]] = {
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
-def generate(doc_type: str) -> dict[str, Any]:
-    """Generate one professional document.
-
-    Args:
-        doc_type: one of the :class:`ProfessionalDocType` constants.
-
-    Returns:
-        A dict with ``id``, ``doc_type``, ``title``, ``markdown``,
-        ``source_type`` (always ``HEURISTIC_ANALYSIS``), and ``created_at``.
-        Best-effort persisted to the ``professional_documents`` table.
-    """
-    state = _gather_state()
+def _render_document(
+    doc_type: str, state: dict[str, Any], *, persist: bool = True,
+) -> dict[str, Any]:
+    """Render a document from one already-resolved run state."""
     builder = _BUILDERS.get(doc_type)
     if builder is None:
         title = doc_type.replace("_", " ").title()
@@ -662,28 +672,70 @@ def generate(doc_type: str) -> dict[str, Any]:
     markdown = body + _footer()
     record: dict[str, Any] = {
         "id": f"pdoc-{uuid.uuid4().hex[:8]}",
+        "project_id": state.get("project_id"),
+        "workflow_run_id": state.get("run_id"),
+        "run_id": state.get("run_id"),
         "doc_type": doc_type,
         "title": title,
         "markdown": markdown,
         "source_type": SourceType.HEURISTIC_ANALYSIS.value,
         "created_at": utcnow(),
     }
-    try:
-        db.insert("professional_documents", record)
-    except Exception:
-        pass
+    if persist:
+        try:
+            db.insert("professional_documents", record)
+        except Exception:
+            pass
     return record
 
 
-def list_docs(limit: int = 100) -> list[dict[str, Any]]:
+def generate(doc_type: str, run_id: str | None = None) -> dict[str, Any]:
+    """Generate one professional document.
+
+    Args:
+        doc_type: one of the :class:`ProfessionalDocType` constants.
+
+    Returns:
+        A dict with ``id``, ``doc_type``, ``title``, ``markdown``,
+        ``source_type`` (always ``HEURISTIC_ANALYSIS``), and ``created_at``.
+        Best-effort persisted to the ``professional_documents`` table.
+    """
+    return _render_document(doc_type, _gather_state(run_id))
+
+
+def list_docs(run_id: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
     """Return recently generated professional documents (most recent first)."""
     try:
-        return db.list_records("professional_documents", limit=limit)
+        run = _resolve_run(run_id)
+        rid = run.get("id")
+        if not rid:
+            return []
+        return db.list_records(
+            "professional_documents",
+            project_id=run.get("project_id"),
+            workflow_run_id=rid,
+            limit=limit,
+        )
+    except ValueError:
+        raise
     except Exception:
         return []
 
 
-def bundle() -> dict[str, Any]:
+def get_doc(doc_id: str, run_id: str | None = None) -> dict[str, Any] | None:
+    run = _resolve_run(run_id)
+    doc = db.get("professional_documents", doc_id)
+    if not doc:
+        return None
+    rid = run.get("id")
+    if not rid or (doc.get("workflow_run_id") or doc.get("run_id")) != rid:
+        return None
+    if doc.get("project_id") != run.get("project_id"):
+        return None
+    return doc
+
+
+def bundle(run_id: str | None = None) -> dict[str, Any]:
     """Generate a representative set of documents as one reviewer bundle.
 
     Returns:
@@ -691,10 +743,13 @@ def bundle() -> dict[str, Any]:
         ``disclaimer``, and ``note``. The document set always contains at least
         the eight core governance documents.
     """
+    state = _gather_state(run_id)
     documents: dict[str, str] = {}
     for doc_type in _BUNDLE_SET:
         try:
-            documents[doc_type] = generate(doc_type)["markdown"]
+            documents[doc_type] = _render_document(
+                doc_type, state, persist=False,
+            )["markdown"]
         except Exception:
             documents[doc_type] = (
                 f"# {doc_type}\n\nGeneration failed; no fabricated content emitted.\n"
@@ -702,6 +757,9 @@ def bundle() -> dict[str, Any]:
             )
     return {
         "generated_at": utcnow(),
+        "project_id": state.get("project_id"),
+        "workflow_run_id": state.get("run_id"),
+        "run_id": state.get("run_id"),
         "documents": documents,
         "disclaimer": f"{DISCLAIMER_EN}\n\n{DISCLAIMER_KO}",
         "note": (

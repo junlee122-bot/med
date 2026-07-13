@@ -13,6 +13,10 @@ component is included. No synthesis routes are produced.
 """
 from __future__ import annotations
 
+import json
+import math
+import re
+import shutil
 import subprocess
 import uuid
 from pathlib import Path
@@ -30,6 +34,8 @@ class REINVENT4Adapter(ToolAdapter):
     category = "chemistry"
     required_config = ["REINVENT4_PYTHON or REINVENT4_BIN", "prior/checkpoint model files"]
     mode = "subprocess"
+    _PYTHON_NAME = re.compile(r"^(?:py|python|python3|python\d+(?:\.\d+)?)(?:\.exe)?$", re.I)
+    _REINVENT_NAME = re.compile(r"^reinvent4?(?:\.exe)?$", re.I)
 
     def _jobs_dir(self) -> Path:
         d = Path(get_settings().cache_dir) / "reinvent"
@@ -38,13 +44,29 @@ class REINVENT4Adapter(ToolAdapter):
 
     def _runner(self) -> tuple[str, list[str]] | None:
         s = get_settings()
-        if s.reinvent4_python and Path(s.reinvent4_python).exists():
-            return "python", [s.reinvent4_python, "-m", "reinvent"]
+        python = self._allowlisted_executable(s.reinvent4_python, self._PYTHON_NAME)
+        if python:
+            return "python", [python, "-m", "reinvent"]
         if s.reinvent4_bin:
-            import shutil
-            if shutil.which(s.reinvent4_bin) or Path(s.reinvent4_bin).exists():
-                return "bin", [s.reinvent4_bin]
+            binary = self._allowlisted_executable(s.reinvent4_bin, self._REINVENT_NAME)
+            if binary:
+                return "bin", [binary]
         return None
+
+    @staticmethod
+    def _allowlisted_executable(configured: str, name_pattern: re.Pattern[str]) -> str | None:
+        """Resolve only known REINVENT/Python executable names from immutable env config."""
+        if not configured or any(ord(ch) < 32 or ord(ch) == 127 for ch in configured):
+            return None
+        found = shutil.which(configured)
+        candidate = Path(found or configured)
+        try:
+            resolved = candidate.resolve(strict=True)
+        except (OSError, RuntimeError):
+            return None
+        if not resolved.is_file() or not name_pattern.fullmatch(resolved.name):
+            return None
+        return str(resolved)
 
     def health_check(self) -> ToolHealth:
         runner = self._runner()
@@ -65,17 +87,27 @@ class REINVENT4Adapter(ToolAdapter):
 
     # -- create config ----------------------------------------------------
     def create_config(self, payload: dict[str, Any]) -> dict[str, Any]:
+        try:
+            target = self._validated_target(payload.get("target_name", "EGFR"))
+            max_molecules = int(payload.get("max_molecules", 100))
+            if not 1 <= max_molecules <= 10_000:
+                raise ValueError("max_molecules must be between 1 and 10000")
+            weights = self._validated_weights(payload.get("scoring_weights", {}) or {})
+        except (TypeError, ValueError) as exc:
+            return self._error("invalid REINVENT4 configuration", [str(exc)])
         job_id = f"rv-{uuid.uuid4().hex[:8]}"
         job_dir = self._jobs_dir() / job_id
         job_dir.mkdir(parents=True, exist_ok=True)
-        weights = payload.get("scoring_weights", {}) or {}
-        target = payload.get("target_name", "EGFR")
-        max_molecules = int(payload.get("max_molecules", 100))
         config_path = job_dir / "sampling.toml"
-        config_path.write_text(self._render_toml(target, weights, max_molecules, job_dir))
+        config_path.write_text(
+            self._render_toml(target, weights, max_molecules, job_dir),
+            encoding="utf-8",
+            newline="\n",
+        )
 
         db.insert("reinvent_jobs", {
             "id": job_id, "project_id": payload.get("project_id"), "created_at": utcnow(),
+            "workflow_run_id": payload.get("workflow_run_id"),
             "status": "config_created", "config_path": str(config_path),
             "target": target, "source_type": SourceType.CONFIGURED_BUT_NOT_RUN.value,
         })
@@ -93,6 +125,29 @@ class REINVENT4Adapter(ToolAdapter):
             "errors": [], "warnings": [] if runner else ["Execution requires REINVENT4_PYTHON/BIN — config only."],
         }
 
+    @staticmethod
+    def _validated_target(value: Any) -> str:
+        if not isinstance(value, str):
+            raise ValueError("target_name must be a string")
+        target = value.strip()
+        if not target or len(target) > 128:
+            raise ValueError("target_name must contain 1 to 128 characters")
+        if any(ord(ch) < 32 or ord(ch) == 127 for ch in target):
+            raise ValueError("target_name contains forbidden control characters")
+        return target
+
+    @staticmethod
+    def _validated_weights(values: dict[str, Any]) -> dict[str, float]:
+        if not isinstance(values, dict):
+            raise ValueError("scoring_weights must be an object")
+        result: dict[str, float] = {}
+        for key in ("qed", "rdkit_validity", "admet", "novelty", "safety_penalty"):
+            value = float(values.get(key, 0.2))
+            if not math.isfinite(value) or not 0.0 <= value <= 1.0:
+                raise ValueError(f"scoring weight {key} must be a finite number from 0 to 1")
+            result[key] = value
+        return result
+
     def _render_toml(self, target: str, weights: dict[str, float], max_molecules: int, job_dir: Path) -> str:
         w = {
             "qed": weights.get("qed", 0.2),
@@ -108,11 +163,11 @@ class REINVENT4Adapter(ToolAdapter):
 # is complete and valid; provide the model file to run.
 run_type = "sampling"
 device = "cpu"
-json_out_config = "{job_dir / 'sampling.json'}"
+json_out_config = {json.dumps(str(job_dir / 'sampling.json'))}
 
 [parameters]
 model_file = "priors/reinvent.prior"   # <-- set to your REINVENT4 prior
-output_file = "{out_smi}"
+output_file = {json.dumps(str(out_smi))}
 num_smiles = {max_molecules}
 unique_molecules = true
 randomize_smiles = true
@@ -149,11 +204,16 @@ transform.coef_se = 20.0
 
     # -- run --------------------------------------------------------------
     def run(self, payload: dict[str, Any]) -> dict[str, Any]:
-        config_path = payload.get("config_path", "")
+        config_path = str(payload.get("config_path", "") or "")
         summary = f"config={Path(config_path).name if config_path else '(none)'}"
         runner = self._runner()
-        if not config_path or not Path(config_path).exists():
-            return self._error(summary, [f"Config not found: {config_path}. Call create-config first."])
+        job = self._generated_job_for_config(config_path, payload.get("project_id"))
+        if not job:
+            return self._error(
+                summary,
+                ["Config is not a generated REINVENT4 job owned by this project. Call create-config first."],
+            )
+        config_path = str(Path(job["config_path"]).resolve(strict=True))
         if not runner:
             return {
                 "tool_name": self.name, "source": self.name,
@@ -167,7 +227,14 @@ transform.coef_se = 20.0
             }
         try:
             cmd = runner[1] + [config_path]
-            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=get_settings().timeout_seconds * 20)
+            proc = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=get_settings().timeout_seconds * 20,
+            )
             logs = (proc.stdout + "\n" + proc.stderr).splitlines()[-40:]
             if proc.returncode != 0:
                 return self._error(summary, [f"REINVENT4 exit {proc.returncode}"], logs=logs)
@@ -187,15 +254,49 @@ transform.coef_se = 20.0
         except Exception as exc:
             return self._error(summary, [f"{type(exc).__name__}: {exc}"])
 
+    def _generated_job_for_config(self, config_path: str, project_id: Any) -> dict[str, Any] | None:
+        if not config_path or any(ord(ch) < 32 or ord(ch) == 127 for ch in config_path):
+            return None
+        try:
+            resolved = Path(config_path).resolve(strict=True)
+            root = self._jobs_dir().resolve(strict=True)
+            relative = resolved.relative_to(root)
+        except (OSError, RuntimeError, ValueError):
+            return None
+        if len(relative.parts) != 2 or relative.parts[1] != "sampling.toml":
+            return None
+        job_id = relative.parts[0]
+        if not re.fullmatch(r"rv-[0-9a-f]{8}", job_id):
+            return None
+        job = db.get("reinvent_jobs", job_id)
+        if not job or job.get("project_id") != project_id:
+            return None
+        try:
+            recorded = Path(str(job.get("config_path", ""))).resolve(strict=True)
+        except (OSError, RuntimeError):
+            return None
+        return job if recorded == resolved else None
+
     def _read_output_from_config(self, config_path: str) -> list[str]:
-        text = Path(config_path).read_text()
+        config = Path(config_path).resolve(strict=True)
+        text = config.read_text(encoding="utf-8")
         out_file = None
         for line in text.splitlines():
             if line.strip().startswith("output_file"):
                 out_file = line.split("=", 1)[1].strip().strip('"')
                 break
-        if out_file and Path(out_file).exists():
-            return [ln.split()[0] for ln in Path(out_file).read_text().splitlines() if ln.strip()]
+        if out_file:
+            try:
+                output = Path(out_file).resolve(strict=True)
+            except (OSError, RuntimeError):
+                return []
+            if output.parent != config.parent:
+                return []
+            return [
+                ln.split()[0]
+                for ln in output.read_text(encoding="utf-8", errors="replace").splitlines()
+                if ln.strip()
+            ]
         return []
 
     # -- parse results ----------------------------------------------------
@@ -215,13 +316,17 @@ transform.coef_se = 20.0
         except Exception:
             pass
         return {
-            "tool_name": self.name, "source": self.name,
-            "source_type": SourceType.REAL_TOOL_OUTPUT.value if smiles else SourceType.CONFIGURED_BUT_NOT_RUN.value,
+            "tool_name": self.name, "source": "User-supplied result payload",
+            # This endpoint validates an uploaded list; it does not prove that
+            # REINVENT produced it. Only the guarded run/job path may claim a
+            # real-tool output provenance label.
+            "source_type": SourceType.HUMAN_INPUT.value if smiles else SourceType.CONFIGURED_BUT_NOT_RUN.value,
             "input_summary": f"{len(smiles)} SMILES to parse",
             "output_summary": f"Parsed {len(smiles)} SMILES; {valid} valid by RDKit.",
             "validation_status": ValidationStatus.PASSED.value if smiles else ValidationStatus.SKIPPED.value,
             "generated_smiles": smiles[:200], "valid_count": valid,
-            "errors": [], "warnings": [],
+            "errors": [], "warnings": (["Uploaded SMILES are HUMAN_INPUT; no REINVENT job provenance was verified."]
+                                         if smiles else []),
         }
 
     def get_job(self, job_id: str) -> dict[str, Any] | None:

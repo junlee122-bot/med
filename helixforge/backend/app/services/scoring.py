@@ -91,7 +91,7 @@ def score_molecule(inputs: dict[str, Any]) -> dict[str, Any]:
     """Return {score, recommendation, breakdown, warnings, formula}."""
     warnings: list[str] = []
     valid = bool(inputs.get("rdkit_validity", inputs.get("valid", False)))
-    safety_status = str(inputs.get("safety_status", "PASS")).upper()
+    safety_status = str(inputs.get("safety_status") or "UNKNOWN").upper()
 
     if not valid:
         return {
@@ -135,13 +135,15 @@ def score_molecule(inputs: dict[str, Any]) -> dict[str, Any]:
     pos_max = sum(MOLECULE_WEIGHTS.values())
     base = pos / pos_max * 100
 
-    safety_penalty = {"PASS": 0.0, "REVIEW_REQUIRED": 15.0, "BLOCKED": 100.0}.get(safety_status, 0.0)
+    safety_penalty = {"PASS": 0.0, "REVIEW_REQUIRED": 15.0, "BLOCKED": 100.0}.get(safety_status, 25.0)
+    if safety_status not in {"PASS", "REVIEW_REQUIRED", "BLOCKED"}:
+        warnings.append(f"unverified safety status '{safety_status}' treated conservatively")
     uncertainty_penalty = _clamp01(float(inputs.get("uncertainty", 0.2))) * 12.0
     score = _round(max(0.0, base - safety_penalty - uncertainty_penalty))
 
     if safety_status == "BLOCKED":
         rec = "Do not advance"
-    elif safety_status == "REVIEW_REQUIRED":
+    elif safety_status != "PASS":
         rec = "Review required"
     elif score >= 75:
         rec = "Advance to expert review"

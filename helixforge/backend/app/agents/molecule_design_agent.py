@@ -41,7 +41,12 @@ class MoleculeDesignAgent(BaseAgent):
         # REINVENT4 config (honest source_type — config real, run not executed here).
         rv = None
         if ctx.create_reinvent_config:
-            rv = reg.reinvent.create_config({"target_name": ctx.target_query, "max_molecules": 100, "project_id": ctx.project_id})
+            rv = reg.reinvent.create_config({
+                "target_name": ctx.target_query,
+                "max_molecules": 100,
+                "project_id": ctx.project_id,
+                "workflow_run_id": ctx.workflow_run_id,
+            })
             ctx.bump(rv["source_type"])
             ctx.shared["reinvent"] = rv
             out.source_types.append(rv["source_type"])

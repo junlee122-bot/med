@@ -11,13 +11,14 @@ AnthropicClient only when a key is present and USE_LLM is on.
 from __future__ import annotations
 
 import hashlib
+import math
 import uuid
 from typing import Any, Callable, Optional
 
 from app.llm import cost_estimator, model_router, prompt_cache, prompt_templates, replay_store, safety
 from app.llm.config import get_llm_config
 from app.llm.output_validators import validate_and_extract
-from app.llm.schemas import (BUDGET_OK, SAFETY_BLOCKED, SAFETY_OK, SCHEMA_INVALID,
+from app.llm.schemas import (BUDGET_BLOCKED_RUN, BUDGET_OK, SAFETY_BLOCKED, SAFETY_OK, SCHEMA_INVALID,
                              SCHEMA_NOT_REQUIRED, SCHEMA_REPAIRED, SCHEMA_VALID, LLMClientError,
                              LLMMode, LLMResult, LLMSafetyRefusal, ReasoningSourceType)
 from app.models.schemas import utcnow
@@ -64,6 +65,7 @@ def call_llm(
     required_keys: Optional[list[str]] = None, list_keys: Optional[list[str]] = None,
     run_id: Optional[str] = None, project_id: Optional[str] = None, agent_run_id: Optional[str] = None,
     mode: Optional[str] = None, temperature: float = 0.2, client: Any = None,
+    max_cost_usd: Optional[float] = None,
     record_ledger: bool = True,
 ) -> LLMResult:
     cfg = get_llm_config()
@@ -99,6 +101,13 @@ def call_llm(
         return finalize(_fallback(purpose, prompt_template_id, tmpl_hash, in_hash, in_summary,
                                   "replay mode: no recorded output for this input"))
 
+    # An explicit deterministic mode is a hard no-network boundary. Config may
+    # otherwise say that live LLM use is available, so this check must precede
+    # client resolution.
+    if mode == LLMMode.DETERMINISTIC_ONLY:
+        return finalize(_fallback(purpose, prompt_template_id, tmpl_hash, in_hash, in_summary,
+                                  "deterministic mode: live LLM calls are disabled"))
+
     # --- Availability gate. ---
     available, reason = cfg.llm_available()
     resolved_client, client_kind = _resolve_client(client)
@@ -108,16 +117,19 @@ def call_llm(
         return finalize(_fallback(purpose, prompt_template_id, tmpl_hash, in_hash, in_summary,
                                   "no LLM client available (SDK/key missing)"))
 
-    # --- Cost guard (pre-call estimate). ---
-    est = cost_estimator.estimate_call_cost(model, len(sys_prompt) + len(user_prompt), max_tokens)
-    budget = model_router.check_budget(est["estimated_cost_usd"], run_id)
-    if not budget["allowed"]:
-        res = _fallback(purpose, prompt_template_id, tmpl_hash, in_hash, in_summary, budget["reason"])
-        res.reasoning_source_type = ReasoningSourceType.LLM_BUDGET_BLOCKED
-        res.budget_status = budget["status"]
-        res.estimated_cost_usd = est["estimated_cost_usd"]
-        res.model = model
-        return finalize(res)
+    call_cost_cap: float | None = None
+    if max_cost_usd is not None:
+        try:
+            call_cost_cap = float(max_cost_usd)
+        except (TypeError, ValueError):
+            call_cost_cap = math.nan
+        if not math.isfinite(call_cost_cap) or call_cost_cap < 0:
+            res = _fallback(purpose, prompt_template_id, tmpl_hash, in_hash, in_summary,
+                            "per-call cost cap must be a finite non-negative number")
+            res.reasoning_source_type = ReasoningSourceType.LLM_BUDGET_BLOCKED
+            res.budget_status = BUDGET_BLOCKED_RUN
+            res.model = model
+            return finalize(res)
 
     # --- Prompt cache. ---
     cached = prompt_cache.get(model, in_hash)
@@ -134,11 +146,35 @@ def call_llm(
             schema_validation_status=(SCHEMA_VALID if required_keys else SCHEMA_NOT_REQUIRED))
         return finalize(res)
 
+    # --- Cost guard (atomic pre-call reservation). ---
+    est = cost_estimator.estimate_call_cost(model, len(sys_prompt) + len(user_prompt), max_tokens)
+    if call_cost_cap is not None and est["estimated_cost_usd"] > call_cost_cap:
+        res = _fallback(
+            purpose, prompt_template_id, tmpl_hash, in_hash, in_summary,
+            f"estimated call cost ${est['estimated_cost_usd']:.6f} exceeds "
+            f"the per-call cap ${call_cost_cap:.6f}",
+        )
+        res.reasoning_source_type = ReasoningSourceType.LLM_BUDGET_BLOCKED
+        res.budget_status = BUDGET_BLOCKED_RUN
+        res.estimated_cost_usd = est["estimated_cost_usd"]
+        res.model = model
+        return finalize(res)
+    budget = model_router.reserve_budget(est["estimated_cost_usd"], run_id)
+    if not budget["allowed"]:
+        res = _fallback(purpose, prompt_template_id, tmpl_hash, in_hash, in_summary, budget["reason"])
+        res.reasoning_source_type = ReasoningSourceType.LLM_BUDGET_BLOCKED
+        res.budget_status = budget["status"]
+        res.estimated_cost_usd = est["estimated_cost_usd"]
+        res.model = model
+        return finalize(res)
+    reservation_id = budget["reservation_id"]
+
     # --- Real call. ---
     try:
         raw = resolved_client.complete(model=model, system=sys_prompt, prompt=user_prompt,
                                        max_tokens=max_tokens, temperature=temperature)
     except LLMSafetyRefusal as e:
+        model_router.release_reservation(reservation_id)
         res = _fallback(purpose, prompt_template_id, tmpl_hash, in_hash, in_summary,
                         f"safety refusal: {e}")
         res.reasoning_source_type = ReasoningSourceType.LLM_SAFETY_BLOCKED
@@ -146,6 +182,7 @@ def call_llm(
         res.model = model
         return finalize(res)
     except (LLMClientError, Exception) as e:  # noqa: BLE001 - never let an LLM error kill a run
+        model_router.release_reservation(reservation_id)
         res = _fallback(purpose, prompt_template_id, tmpl_hash, in_hash, in_summary,
                         f"LLM tool error: {str(e)[:160]}")
         res.reasoning_source_type = ReasoningSourceType.LLM_TOOL_ERROR
@@ -162,7 +199,8 @@ def call_llm(
     # downstream by the reasoner services with a safe-rewrite path).
     screen = safety.screen_output_hard(text)
     if not screen["safe"]:
-        model_router.record_spend(actual_cost, run_id, model, purpose)
+        model_router.settle_reservation(reservation_id, actual_cost, model, purpose)
+        reservation_id = None
         res = _fallback(purpose, prompt_template_id, tmpl_hash, in_hash, in_summary,
                         "LLM output failed safety/language lint")
         res.reasoning_source_type = ReasoningSourceType.LLM_SAFETY_BLOCKED
@@ -176,8 +214,13 @@ def call_llm(
     if required_keys:
         ok, data, why = validate_and_extract(text, required_keys, list_keys)
         if not ok and cfg.max_retries >= 1:
-            repair_budget = model_router.check_budget(est["estimated_cost_usd"], run_id)
+            # Settle the first call before reserving the one permitted repair;
+            # the second budget check therefore includes its actual cost.
+            model_router.settle_reservation(reservation_id, actual_cost, model, purpose)
+            reservation_id = None
+            repair_budget = model_router.reserve_budget(est["estimated_cost_usd"], run_id)
             if repair_budget["allowed"]:
+                repair_reservation_id = repair_budget["reservation_id"]
                 try:
                     repair_prompt = (f"Your previous output was invalid ({why}). "
                                      f"Return ONLY valid minified JSON with keys {required_keys}. "
@@ -186,13 +229,30 @@ def call_llm(
                                                     max_tokens=max_tokens, temperature=0.0)
                     text2 = safety.strip_chain_of_thought(raw2.get("text", ""))
                     ti2, to2 = raw2.get("tokens_in"), raw2.get("tokens_out")
-                    actual_cost += cost_estimator.estimate_cost(model, ti2 or 0, to2 or 0) if ti2 is not None else est["estimated_cost_usd"]
+                    repair_actual_cost = cost_estimator.estimate_cost(
+                        model, ti2 or 0, to2 or 0
+                    ) if ti2 is not None else est["estimated_cost_usd"]
+                    actual_cost += repair_actual_cost
+                    model_router.settle_reservation(
+                        repair_reservation_id, repair_actual_cost, model, purpose
+                    )
+                    repair_reservation_id = None
+                    repair_screen = safety.screen_output_hard(text2)
+                    if not repair_screen["safe"]:
+                        res = _fallback(purpose, prompt_template_id, tmpl_hash, in_hash, in_summary,
+                                        "Repaired LLM output failed safety/language lint")
+                        res.reasoning_source_type = ReasoningSourceType.LLM_SAFETY_BLOCKED
+                        res.safety_status = SAFETY_BLOCKED
+                        res.model = model
+                        res.actual_cost_usd = actual_cost
+                        return finalize(res)
                     ok2, data2, _ = validate_and_extract(text2, required_keys, list_keys)
                     if ok2:
                         data, text, ok, schema_status = data2, text2, True, SCHEMA_REPAIRED
                     else:
                         schema_status = SCHEMA_INVALID
                 except Exception:
+                    model_router.release_reservation(repair_reservation_id)
                     schema_status = SCHEMA_INVALID
             else:
                 schema_status = SCHEMA_INVALID
@@ -202,7 +262,9 @@ def call_llm(
             schema_status = SCHEMA_INVALID
 
         if not ok:
-            model_router.record_spend(actual_cost, run_id, model, purpose)
+            if reservation_id:
+                model_router.settle_reservation(reservation_id, actual_cost, model, purpose)
+                reservation_id = None
             res = _fallback(purpose, prompt_template_id, tmpl_hash, in_hash, in_summary,
                             "LLM output did not satisfy schema after repair")
             res.reasoning_source_type = ReasoningSourceType.LLM_OUTPUT_INVALID
@@ -211,7 +273,8 @@ def call_llm(
             res.schema_validation_status = SCHEMA_INVALID
             return finalize(res)
 
-    model_router.record_spend(actual_cost, run_id, model, purpose)
+    if reservation_id:
+        model_router.settle_reservation(reservation_id, actual_cost, model, purpose)
     out_summary = _summ(text)
     result = LLMResult(
         llm_call_id=f"llm-{uuid.uuid4().hex[:12]}", ok=True,

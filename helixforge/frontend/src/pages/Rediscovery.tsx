@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { api } from '@/lib/api'
+import { api, getRememberedRunId } from '@/lib/api'
 import { Icon } from '@/components/Icon'
 import { Badge, Disclaimer, Empty, ErrorNote, PageHeader, Panel, Spinner, StatCard } from '@/components/ui'
 import { HUMAN_RESPONSIBILITY } from '@/lib/api'
@@ -50,7 +50,13 @@ export function Rediscovery() {
 
   async function run() {
     setBusy('run'); setErr(''); setReport('')
-    try { setResult(await api.rediscoveryRun({ scenario_id: scenarioId })) }
+    try {
+      const runId = getRememberedRunId()
+      setResult(await api.rediscoveryRun({
+        scenario_id: scenarioId,
+        run_id: runId || undefined,
+      }))
+    }
     catch (e: any) { setErr(e.message) } finally { setBusy('') }
   }
 
@@ -88,7 +94,7 @@ export function Rediscovery() {
             {!scenarioList.length ? <Empty>No rediscovery scenarios available.</Empty> : (
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {scenarioList.map((s: any) => (
-                  <button key={s.id} onClick={() => pickScenario(s.id)}
+                  <button key={s.id} onClick={() => pickScenario(s.id)} aria-pressed={scenarioId === s.id}
                     className={`rounded-lg border px-3 py-2 text-left text-xs transition ${scenarioId === s.id ? 'border-brand-400 bg-brand-400/10' : 'border-white/8 hover:border-white/20'}`}>
                     <div className="font-medium text-slate-200">{s.id}</div>
                     <div className="mt-0.5 text-slate-500">{s.target} · {s.condition}</div>
@@ -105,7 +111,7 @@ export function Rediscovery() {
           {/* Tabs */}
           <div className="flex flex-wrap gap-2">
             {tabs.map(([t, label]) => (
-              <button key={t} className={`btn-secondary ${tab === t ? 'ring-1 ring-brand-400' : ''}`} onClick={() => selectTab(t)}>{label}</button>
+              <button key={t} aria-pressed={tab === t} className={`btn-secondary ${tab === t ? 'ring-1 ring-brand-400' : ''}`} onClick={() => selectTab(t)}>{label}</button>
             ))}
           </div>
 

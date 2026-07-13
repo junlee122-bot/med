@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { api } from '@/lib/api'
+import { api, getRememberedRunId } from '@/lib/api'
 import { Icon } from '@/components/Icon'
 import { Badge, Disclaimer, Empty, ErrorNote, PageHeader, Panel, Spinner } from '@/components/ui'
 import { HUMAN_RESPONSIBILITY } from '@/lib/api'
@@ -11,6 +11,7 @@ const KINDS = [
 ]
 
 export function ProposalStudio() {
+  const [runId] = useState(getRememberedRunId)
   const [kind, setKind] = useState('full_proposal_ko')
   const [artifact, setArtifact] = useState<any | null>(null)
   const [handoff, setHandoff] = useState<any | null>(null)
@@ -19,11 +20,11 @@ export function ProposalStudio() {
 
   async function generate() {
     setLoading(true); setErr(''); setHandoff(null)
-    try { setArtifact(await api.proposalGenerate(kind)) } catch (e: any) { setErr(e.message) } finally { setLoading(false) }
+    try { setArtifact(await api.proposalGenerate(kind, runId || undefined)) } catch (e: any) { setErr(e.message) } finally { setLoading(false) }
   }
   async function loadHandoff() {
     setLoading(true); setErr(''); setArtifact(null)
-    try { setHandoff(await api.hwpxHandoff()) } catch (e: any) { setErr(e.message) } finally { setLoading(false) }
+    try { setHandoff(await api.hwpxHandoff(runId || undefined)) } catch (e: any) { setErr(e.message) } finally { setLoading(false) }
   }
   function copy(text: string) { navigator.clipboard?.writeText(text) }
 

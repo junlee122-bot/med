@@ -4,7 +4,6 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.services import data_rights, proposal_writer
-from app.storage import db
 
 router = APIRouter(prefix="/api", tags=["proposal"])
 
@@ -13,27 +12,37 @@ PROPOSAL_KINDS = ["full_proposal_ko", "peer_one_pager_ko", "qa_defense_ko"]
 
 class GenerateRequest(BaseModel):
     kind: str = "full_proposal_ko"
+    run_id: str | None = None
 
 
 @router.post("/proposal/generate")
 def proposal_generate(req: GenerateRequest):
-    if req.kind == "all":
-        return {"artifacts": proposal_writer.generate_all()}
     if req.kind not in PROPOSAL_KINDS:
-        raise HTTPException(status_code=400, detail=f"kind must be one of {PROPOSAL_KINDS + ['all']}")
-    return proposal_writer.generate(req.kind)
+        if req.kind != "all":
+            raise HTTPException(status_code=400, detail=f"kind must be one of {PROPOSAL_KINDS + ['all']}")
+    try:
+        if req.kind == "all":
+            return {"artifacts": proposal_writer.generate_all(req.run_id)}
+        return proposal_writer.generate(req.kind, req.run_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.get("/proposal/latest")
-def proposal_latest():
-    arts = [a for a in db.list_records("submission_artifacts", limit=200)
-            if a.get("kind") in PROPOSAL_KINDS]
-    return {"artifacts": arts[:10]}
+def proposal_latest(run_id: str | None = None):
+    try:
+        return {"artifacts": proposal_writer.list_artifacts(run_id)}
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.get("/proposal/export")
-def proposal_export():
-    return {"artifacts": proposal_writer.generate_all()}
+def proposal_export(run_id: str | None = None):
+    """Export already-generated artifacts without mutating state on GET."""
+    try:
+        return {"artifacts": proposal_writer.list_artifacts(run_id)}
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 # ---- Data rights ----

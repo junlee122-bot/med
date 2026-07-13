@@ -23,8 +23,12 @@ from app.storage import db
 def _run_and_evidence(run_id: Optional[str]):
     runs = db.list_records("workflow_runs", limit=200)
     run = db.get("workflow_runs", run_id) if run_id else (runs[0] if runs else {})
+    if run_id and not run:
+        raise ValueError("workflow run not found")
     pid = run.get("project_id") if run else None
-    ev = db.list_records("evidence_items", project_id=pid, limit=500) if pid else []
+    rid = run.get("id") if run else None
+    ev = (db.list_records("evidence_items", project_id=pid, workflow_run_id=rid, limit=500)
+          if pid and rid else [])
     return run, pid, ev
 
 
@@ -97,7 +101,9 @@ def _sanitize_hypothesis(h: dict, all_ids: set[str], verified_ids: set[str],
     # 3) evidence grade (deterministic).
     claim = {"claim_text": h["statement"], "claim_type": evidence_grading.ClaimType.DISEASE_TARGET_ASSOCIATION,
              "linked_evidence_ids": sup}
-    ev_records = db.list_records("evidence_items", limit=500)
+    ev_records = db.list_records(
+        "evidence_items", project_id=project_id, workflow_run_id=run_id, limit=500
+    )
     graded = evidence_grading.grade_claim(claim, ev_records)
     h["evidence_grade"] = graded["evidence_grade"].split("_")[0]  # A/B/.. letter
     h["deterministic_grade"] = graded["evidence_grade"]
@@ -184,6 +190,6 @@ def generate_hybrid(run_id: Optional[str] = None, mode: Optional[str] = None,
 
 
 def get_hybrid(run_id: str) -> dict[str, Any]:
-    hyps = [h for h in db.list_records("hypotheses", limit=1000)
-            if h.get("workflow_run_id") == run_id and h.get("hybrid")]
+    hyps = [h for h in db.list_records("hypotheses", workflow_run_id=run_id, limit=1000)
+            if h.get("hybrid")]
     return {"run_id": run_id, "hypotheses": hyps, "count": len(hyps)}

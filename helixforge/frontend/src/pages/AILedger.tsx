@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { api } from '@/lib/api'
+import { api, getRememberedRunId } from '@/lib/api'
 import { Icon } from '@/components/Icon'
 import { Badge, Empty, ErrorNote, PageHeader, Panel, Spinner } from '@/components/ui'
 import { MetricTile } from '@/components/agentic'
@@ -9,15 +9,17 @@ const TYPE_TONE: Record<string, string> = {
 }
 
 export function AILedger() {
+  const [runId] = useState(getRememberedRunId)
   const [rows, setRows] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
 
   async function load() {
     setLoading(true)
-    try { setRows((await api.aiLedger()).interactions) } catch (e: any) { setErr(e.message) } finally { setLoading(false) }
+    setErr('')
+    try { setRows((await api.aiLedger(runId || undefined)).interactions) } catch (e: any) { setRows([]); setErr(e.message) } finally { setLoading(false) }
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [runId])
 
   const byType: Record<string, number> = {}
   rows.forEach((r) => { byType[r.interaction_type] = (byType[r.interaction_type] || 0) + 1 })

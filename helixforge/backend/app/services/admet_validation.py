@@ -241,6 +241,7 @@ def run_validation(
     smiles: Optional[list[str]] = None,
     labels: Optional[list[float]] = None,
     split_strategy: str = "scaffold",
+    persist: bool = True,
 ) -> dict[str, Any]:
     """Run (or configure) a leakage-aware ADMET baseline validation protocol.
 
@@ -293,7 +294,8 @@ def run_validation(
             "evaluation/training substrate.",
             f"Missing optional dependencies: {', '.join(missing)}.",
         ]
-        _persist(protocol)
+        if persist:
+            _persist(protocol)
         return protocol
 
     # --- Active path: deps present, train a real baseline --------------------
@@ -408,7 +410,8 @@ def run_validation(
                 "source_type": SourceType.BASELINE_MODEL_OUTPUT.value,
             }
         )
-        _persist(protocol)
+        if persist:
+            _persist(protocol)
         return protocol
 
     except Exception as exc:  # pragma: no cover - defensive, keeps API honest
@@ -419,7 +422,8 @@ def run_validation(
             _SAFETY_LIMITATION,
             f"Validation run failed: {type(exc).__name__}: {exc}",
         ]
-        _persist(protocol)
+        if persist:
+            _persist(protocol)
         return protocol
 
 

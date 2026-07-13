@@ -56,17 +56,27 @@ def snapshots_create_hybrid(run_id: str):
 
 @router.post("/snapshots/{snapshot_id}/replay-hybrid")
 def snapshots_replay_hybrid(snapshot_id: str):
-    return hybrid_snapshot.replay_hybrid(snapshot_id)
+    try:
+        return hybrid_snapshot.replay_hybrid(snapshot_id)
+    except ValueError as exc:
+        status = 409 if "checksum" in str(exc) else 404
+        raise HTTPException(status_code=status, detail=str(exc)) from exc
 
 
 @router.get("/snapshots/{snapshot_id}/llm-ledger")
 def snapshots_llm_ledger(snapshot_id: str):
-    return hybrid_snapshot.llm_ledger(snapshot_id)
+    try:
+        return hybrid_snapshot.llm_ledger(snapshot_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @router.get("/snapshots/{snapshot_id}/cost-summary")
 def snapshots_cost_summary(snapshot_id: str):
-    return hybrid_snapshot.cost_summary(snapshot_id)
+    try:
+        return hybrid_snapshot.cost_summary(snapshot_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 # ---- True rediscovery (§9) ----
@@ -78,7 +88,10 @@ class RediscoveryRequest(BaseModel):
 @router.post("/rediscovery/run")
 def rediscovery_run(req: RediscoveryRequest):
     from app.services import rediscovery
-    return rediscovery.run(scenario_id=req.scenario_id, run_id=req.run_id)
+    try:
+        return rediscovery.run(scenario_id=req.scenario_id, run_id=req.run_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.get("/rediscovery/run/{result_id}")
@@ -119,8 +132,11 @@ class OptimizationRequest(BaseModel):
 @router.post("/optimization-loop/run")
 def optimization_loop_run(req: OptimizationRequest):
     from app.services import optimization_loop
-    return optimization_loop.run(run_id=req.run_id, target_id=req.target_id,
-                                 mode=req.mode, generations=req.generations)
+    try:
+        return optimization_loop.run(run_id=req.run_id, target_id=req.target_id,
+                                     mode=req.mode, generations=req.generations)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.get("/optimization-loop/run/{loop_id}")

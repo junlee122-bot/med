@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { api } from '@/lib/api'
+import { api, getRememberedRunId } from '@/lib/api'
 import { Icon } from '@/components/Icon'
 import { Badge, Disclaimer, Empty, ErrorNote, PageHeader, Panel, Spinner, StatCard } from '@/components/ui'
 import { HUMAN_RESPONSIBILITY } from '@/lib/api'
@@ -11,6 +11,18 @@ const GRADE_TONE: Record<string, string> = {
 const GRADE_LABEL: Record<string, string> = {
   A_STRONG: 'A · Strong', B_MODERATE: 'B · Moderate', C_PRELIMINARY: 'C · Preliminary',
   D_WEAK: 'D · Weak', E_UNVERIFIED: 'E · Unverified', F_CONTRADICTED: 'F · Contradicted',
+}
+
+const pendingGradeRequests = new Map<string, Promise<any>>()
+
+function requestEvidenceGrades(runId: string): Promise<any> {
+  const key = runId || '__latest__'
+  const existing = pendingGradeRequests.get(key)
+  if (existing) return existing
+  const request = api.evidenceGradesRun(runId || undefined)
+    .finally(() => pendingGradeRequests.delete(key))
+  pendingGradeRequests.set(key, request)
+  return request
 }
 
 function ClaimTable({ claims }: { claims: any[] }) {
@@ -51,19 +63,34 @@ function ClaimTable({ claims }: { claims: any[] }) {
 }
 
 export function EvidenceGrading() {
+  const [runId] = useState(getRememberedRunId)
   const [data, setData] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
   const [lintText, setLintText] = useState('Our system proved the molecule is clinically validated and cures the disease.')
   const [lint, setLint] = useState<any | null>(null)
+  const [linting, setLinting] = useState(false)
 
   async function load() {
     setLoading(true); setErr('')
-    try { setData(await api.evidenceGradesRun()) } catch (e: any) { setErr(e.message) } finally { setLoading(false) }
+    try { setData(await requestEvidenceGrades(runId)) }
+    catch (e: unknown) { setErr(e instanceof Error ? e.message : 'Evidence grading failed.') }
+    finally { setLoading(false) }
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    let active = true
+    setData(null); setErr(''); setLoading(true)
+    requestEvidenceGrades(runId)
+      .then((result) => { if (active) setData(result) })
+      .catch((reason: unknown) => { if (active) setErr(reason instanceof Error ? reason.message : 'Evidence grading failed.') })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [runId])
   async function runLint() {
-    try { setLint(await api.evidenceGradeLint(lintText)) } catch (e: any) { setErr(e.message) }
+    setLinting(true); setErr('')
+    try { setLint(await api.evidenceGradeLint(lintText)) }
+    catch (e: unknown) { setErr(e instanceof Error ? e.message : 'Evidence lint failed.') }
+    finally { setLinting(false) }
   }
 
   const dist = data?.grade_distribution || {}
@@ -92,7 +119,7 @@ export function EvidenceGrading() {
             <div className="mb-2 section-title">Unsupported strong-claim linter</div>
             <textarea className="input min-h-[80px] font-mono text-xs" value={lintText} onChange={(e) => setLintText(e.target.value)} />
             <div className="mt-2 flex items-center gap-2">
-              <button className="btn-primary" onClick={runLint}><Icon name="Search" size={14} /> Lint claim language</button>
+              <button className="btn-primary" onClick={runLint} disabled={linting}><Icon name="Search" size={14} /> {linting ? 'Linting…' : 'Lint claim language'}</button>
               {lint && <Badge tone={lint.status === 'BLOCKED' ? 'red' : lint.status === 'REVIEW_REQUIRED' ? 'amber' : 'green'}>{lint.status}</Badge>}
             </div>
             {lint && lint.findings?.length > 0 && (

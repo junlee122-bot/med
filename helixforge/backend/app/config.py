@@ -21,13 +21,12 @@ DATA_DIR = Path(os.getenv("HELIXFORGE_DATA_DIR", BASE_DIR / "data"))
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 RUNTIME_OVERRIDE_PATH = DATA_DIR / "runtime_settings.json"
 
-# Keys that may be edited at runtime through the Settings UI.
+# Keys that may be edited at runtime through the Settings UI.  Executable paths
+# are deliberately excluded: allowing an HTTP request to change a subprocess
+# executable turns a settings endpoint into a command-execution primitive.
 RUNTIME_EDITABLE = {
     "ncbi_api_key",
     "ncbi_email",
-    "reinvent4_bin",
-    "reinvent4_python",
-    "vina_bin",
     "chunk_size",
     "timeout_seconds",
 }
@@ -46,6 +45,7 @@ class Settings(BaseSettings):
     app_name: str = "HelixForge AI Backend"
     app_version: str = "1.0.0"
     environment: str = Field(default="development")
+    helixforge_api_token: str = Field(default="")
     cors_origins: str = Field(default="http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173")
     http_user_agent: str = Field(default="HelixForgeAI/1.0 (research decision support; contact via NCBI_EMAIL)")
 
@@ -67,11 +67,34 @@ class Settings(BaseSettings):
     def cors_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
 
+    def auth_required(self) -> bool:
+        return bool(self.helixforge_api_token) or self.environment.strip().lower() in {
+            "production", "prod"
+        }
+
+    def validate_security_config(self) -> None:
+        token = self.helixforge_api_token
+        if token and (
+            token != token.strip()
+            or any(ord(ch) < 32 or ord(ch) == 127 for ch in token)
+        ):
+            raise RuntimeError(
+                "HELIXFORGE_API_TOKEN must not contain surrounding whitespace or control characters"
+            )
+        if self.environment.strip().lower() in {"production", "prod"} and not token:
+            raise RuntimeError(
+                "HELIXFORGE_API_TOKEN must be set when ENVIRONMENT=production"
+            )
+        if self.environment.strip().lower() in {"production", "prod"} and len(token) < 32:
+            raise RuntimeError(
+                "HELIXFORGE_API_TOKEN must be at least 32 characters in production"
+            )
+
 
 def _load_runtime_overrides() -> dict[str, Any]:
     if RUNTIME_OVERRIDE_PATH.exists():
         try:
-            return json.loads(RUNTIME_OVERRIDE_PATH.read_text())
+            return json.loads(RUNTIME_OVERRIDE_PATH.read_text(encoding="utf-8"))
         except Exception:
             return {}
     return {}
@@ -99,12 +122,29 @@ def set_runtime_overrides(values: dict[str, Any]) -> dict[str, Any]:
     for k, v in values.items():
         if k not in RUNTIME_EDITABLE:
             continue
+        if k == "chunk_size" and v not in (None, ""):
+            v = int(v)
+            if not 1 <= v <= 10_000:
+                raise ValueError("chunk_size must be between 1 and 10000")
+        if k == "timeout_seconds" and v not in (None, ""):
+            v = int(v)
+            if not 1 <= v <= 3_600:
+                raise ValueError("timeout_seconds must be between 1 and 3600")
+        if k in {"ncbi_api_key", "ncbi_email"} and v not in (None, ""):
+            if not isinstance(v, str):
+                raise ValueError(f"{k} must be a string")
+            if any(ord(ch) < 32 or ord(ch) == 127 for ch in v):
+                raise ValueError(f"{k} contains control characters")
+            if len(v) > 512:
+                raise ValueError(f"{k} is too long")
         if v is None or v == "":
             current.pop(k, None)
         else:
             current[k] = v
         applied[k] = v
-    RUNTIME_OVERRIDE_PATH.write_text(json.dumps(current, indent=2))
+    temp_path = RUNTIME_OVERRIDE_PATH.with_suffix(".json.tmp")
+    temp_path.write_text(json.dumps(current, indent=2), encoding="utf-8")
+    temp_path.replace(RUNTIME_OVERRIDE_PATH)
     return applied
 
 

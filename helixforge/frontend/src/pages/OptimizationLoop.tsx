@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { api } from '@/lib/api'
+import { api, getRememberedRunId } from '@/lib/api'
 import { Icon } from '@/components/Icon'
 import { Badge, Disclaimer, Empty, ErrorNote, PageHeader, Panel, Spinner, StatCard } from '@/components/ui'
 import { HUMAN_RESPONSIBILITY } from '@/lib/api'
@@ -22,7 +22,11 @@ export function OptimizationLoop() {
 
   async function run() {
     setRunning(true); setErr(''); setResult(null); setTrace(null); setReport('')
-    try { const r = await api.optimizationRun({}); setResult(r); setTab('setup') }
+    try {
+      const runId = getRememberedRunId()
+      const r = await api.optimizationRun({ run_id: runId || undefined })
+      setResult(r); setTab('setup')
+    }
     catch (e: any) { setErr(e.message) } finally { setRunning(false) }
   }
 
@@ -72,7 +76,7 @@ export function OptimizationLoop() {
 
           <div className="flex flex-wrap gap-2">
             {tabs.map(([t, label]) => (
-              <button key={t} className={`btn-secondary ${tab === t ? 'ring-1 ring-brand-400' : ''}`} onClick={() => selectTab(t)}>{label}</button>
+              <button key={t} aria-pressed={tab === t} className={`btn-secondary ${tab === t ? 'ring-1 ring-brand-400' : ''}`} onClick={() => selectTab(t)}>{label}</button>
             ))}
           </div>
 

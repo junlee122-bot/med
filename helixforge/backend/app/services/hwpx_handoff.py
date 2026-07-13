@@ -59,8 +59,9 @@ def _plain(text: str) -> str:
     return text.strip()
 
 
-def build_handoff() -> dict[str, Any]:
-    md = proposal_writer.build_full_proposal_ko()
+def build_handoff(run_id: str | None = None) -> dict[str, Any]:
+    run = proposal_writer._resolve_run(run_id)
+    md = proposal_writer.build_full_proposal_ko(run)
     sections = _split_sections(md)
     blocks: list[dict[str, Any]] = []
     for spec in SECTION_MAP:
@@ -81,6 +82,9 @@ def build_handoff() -> dict[str, Any]:
     all_safe = all(b["export_safe"] for b in blocks)
     return {
         "format": "paste-ready text blocks for HWP/HWPX (no binary file emitted)",
+        "project_id": run.get("project_id"),
+        "workflow_run_id": run.get("id"),
+        "run_id": run.get("id"),
         "instructions": ("각 블록을 공식 HWPX 템플릿의 해당 섹션에 붙여넣으세요. 서식/표지는 사람이 최종 확인합니다. "
                          "Paste each block into the matching section of the official HWPX template; a human finalizes formatting."),
         "blocks": blocks, "block_count": len(blocks), "all_blocks_export_safe": all_safe,

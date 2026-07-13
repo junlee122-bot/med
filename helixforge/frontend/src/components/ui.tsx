@@ -56,8 +56,8 @@ export function PageHeader({ icon, title, subtitle, actions }: { icon?: React.Re
 
 export function Spinner({ label = 'Loading…' }: { label?: string }) {
   return (
-    <div className="flex items-center gap-2 text-sm text-slate-400">
-      <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-helix-cyan/30 border-t-helix-cyan" />
+    <div className="flex items-center gap-2 text-sm text-slate-400" role="status" aria-live="polite">
+      <span aria-hidden="true" className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-helix-cyan/30 border-t-helix-cyan" />
       {label}
     </div>
   )
@@ -65,7 +65,7 @@ export function Spinner({ label = 'Loading…' }: { label?: string }) {
 
 export function ErrorNote({ error }: { error: string }) {
   return (
-    <div className="rounded-lg border border-helix-red/40 bg-helix-red/10 px-3 py-2 text-sm text-helix-red">
+    <div className="rounded-lg border border-helix-red/40 bg-helix-red/10 px-3 py-2 text-sm text-helix-red" role="alert">
       {error}
     </div>
   )
@@ -77,10 +77,10 @@ export function Empty({ children }: { children: React.ReactNode }) {
 
 export function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div>
-      <label className="label">{label}</label>
+    <label className="block">
+      <span className="label">{label}</span>
       {children}
-    </div>
+    </label>
   )
 }
 

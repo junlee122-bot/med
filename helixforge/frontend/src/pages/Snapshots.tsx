@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { api } from '@/lib/api'
+import { Link } from 'react-router-dom'
+import { api, rememberRunId } from '@/lib/api'
 import { Icon } from '@/components/Icon'
 import { Badge, Empty, ErrorNote, Field, PageHeader, Panel, Spinner } from '@/components/ui'
 import { AgentRunCard, MetricTile } from '@/components/agentic'
@@ -23,12 +24,17 @@ export function Snapshots() {
     try {
       const run = await api.runAgenticPipeline({ target_query: 'EGFR', max_results: 4, create_reinvent_config: false, error_injections: {} })
       await api.createSnapshot(run.run_id, name)
+      rememberRunId(run.run_id)
       await load()
     } catch (e: any) { setErr(e.message) } finally { setBusy('') }
   }
   async function doReplay(id: string) {
     setBusy(id); setErr(''); setReplay(null)
-    try { setReplay(await api.replaySnapshot(id)) } catch (e: any) { setErr(e.message) } finally { setBusy('') }
+    try {
+      const result = await api.replaySnapshot(id)
+      setReplay(result)
+      rememberRunId(result.run_id)
+    } catch (e: any) { setErr(e.message) } finally { setBusy('') }
   }
   async function doExport(id: string) {
     setBusy(id)
@@ -40,7 +46,9 @@ export function Snapshots() {
     } catch (e: any) { setErr(e.message) } finally { setBusy('') }
   }
   async function doDelete(id: string) {
-    setBusy(id)
+    const snapshot = snaps.find((item) => item.id === id)
+    if (!window.confirm(`Delete snapshot "${snapshot?.name || id}"? This cannot be undone.`)) return
+    setBusy(id); setErr('')
     try { await api.deleteSnapshot(id); await load() } catch (e: any) { setErr(e.message) } finally { setBusy('') }
   }
 
@@ -84,7 +92,7 @@ export function Snapshots() {
                       <div className="flex flex-shrink-0 flex-col gap-1">
                         <button className="btn-primary !px-2 !py-1 text-xs" onClick={() => doReplay(s.id)} disabled={!!busy}><Icon name="Play" size={12} /> Replay</button>
                         <button className="btn-secondary !px-2 !py-1 text-xs" onClick={() => doExport(s.id)} disabled={!!busy}><Icon name="Download" size={12} /> Export</button>
-                        {!s.is_builtin && <button className="btn-ghost !px-2 !py-1 text-xs" onClick={() => doDelete(s.id)} disabled={!!busy}><Icon name="Trash2" size={12} /></button>}
+                        {!s.is_builtin && <button className="btn-ghost !px-2 !py-1 text-xs" aria-label={`Delete snapshot ${s.name}`} onClick={() => doDelete(s.id)} disabled={!!busy}><Icon name="Trash2" size={12} /></button>}
                       </div>
                     </div>
                   </div>
@@ -108,6 +116,9 @@ export function Snapshots() {
                   <MetricTile label="Original run" value={<span className="text-xs">{replay.original_run_id?.slice(0, 14)}</span>} />
                   <MetricTile label="Retrieved" value={<span className="text-[10px]">{replay.original_retrieved_at ? new Date(replay.original_retrieved_at).toLocaleDateString() : '—'}</span>} />
                 </div>
+                <Link className="btn-secondary mb-3 inline-flex" to={`/cockpit?run=${encodeURIComponent(replay.run_id)}`}>
+                  <Icon name="ExternalLink" size={13} /> Open replay in Cockpit
+                </Link>
                 <div className="max-h-[420px] space-y-2 overflow-auto pr-1">
                   {(replay.agent_runs || []).slice(0, 8).map((a: any) => <AgentRunCard key={a.id} run={a} />)}
                 </div>

@@ -56,27 +56,33 @@ def _local_health(adapter) -> dict:
 def _network_probe(adapter, timeout_s: float, mode: str) -> dict:
     """Run health_check() (may touch the network) with a hard timeout."""
     t0 = _t.time()
-    with ThreadPoolExecutor(max_workers=1) as ex:
-        fut = ex.submit(adapter.health)
-        try:
-            h: ToolHealth = fut.result(timeout=timeout_s)
-            d = h.model_dump()
-            d.update(latency_ms=round((_t.time() - t0) * 1000, 1), last_error="",
-                     network_used=getattr(adapter, "id", "") in NETWORK_TOOL_IDS, probe_mode=mode)
-            return d
-        except FTimeout:
-            return {"tool_id": getattr(adapter, "id", "?"), "name": getattr(adapter, "name", "?"),
-                    "category": getattr(adapter, "category", ""), "status": HealthStatus.DEGRADED.value,
-                    "mode": "real", "detail": f"health check exceeded {timeout_s}s (partial result)",
-                    "required_config": [], "checked_at": utcnow(),
-                    "latency_ms": round((_t.time() - t0) * 1000, 1), "last_error": "timeout",
-                    "network_used": True, "probe_mode": mode}
-        except Exception as exc:
-            return {"tool_id": getattr(adapter, "id", "?"), "name": getattr(adapter, "name", "?"),
-                    "category": getattr(adapter, "category", ""), "status": HealthStatus.ERROR.value,
-                    "mode": "real", "detail": "health check raised", "required_config": [],
-                    "checked_at": utcnow(), "latency_ms": round((_t.time() - t0) * 1000, 1),
-                    "last_error": str(exc)[:200], "network_used": False, "probe_mode": mode}
+    ex = ThreadPoolExecutor(max_workers=1)
+    fut = ex.submit(adapter.health)
+    try:
+        h: ToolHealth = fut.result(timeout=timeout_s)
+        d = h.model_dump()
+        d.update(latency_ms=round((_t.time() - t0) * 1000, 1), last_error="",
+                 network_used=getattr(adapter, "id", "") in NETWORK_TOOL_IDS, probe_mode=mode)
+        return d
+    except FTimeout:
+        fut.cancel()
+        return {"tool_id": getattr(adapter, "id", "?"), "name": getattr(adapter, "name", "?"),
+                "category": getattr(adapter, "category", ""), "status": HealthStatus.DEGRADED.value,
+                "mode": "real", "detail": f"health check exceeded {timeout_s}s (partial result)",
+                "required_config": [], "checked_at": utcnow(),
+                "latency_ms": round((_t.time() - t0) * 1000, 1), "last_error": "timeout",
+                "network_used": True, "probe_mode": mode}
+    except Exception as exc:
+        return {"tool_id": getattr(adapter, "id", "?"), "name": getattr(adapter, "name", "?"),
+                "category": getattr(adapter, "category", ""), "status": HealthStatus.ERROR.value,
+                "mode": "real", "detail": "health check raised", "required_config": [],
+                "checked_at": utcnow(), "latency_ms": round((_t.time() - t0) * 1000, 1),
+                "last_error": str(exc)[:200], "network_used": False, "probe_mode": mode}
+    finally:
+        # Context-manager shutdown waits for a stuck worker and defeats the
+        # deadline. Cancel queued work and let an already-running probe finish
+        # in the background without holding up the health response.
+        ex.shutdown(wait=False, cancel_futures=True)
 
 
 @router.get("/tools/health")

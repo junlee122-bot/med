@@ -236,6 +236,7 @@ def _review_trials(
     return {
         "id": f"cpr-{uuid.uuid4().hex[:8]}",
         "run_id": run_id,
+        "workflow_run_id": run_id,
         "project_id": project_id,
         "condition": condition or "",
         "target_query": target_query or "",
@@ -266,13 +267,16 @@ def review_run(run_id: str | None = None) -> dict[str, Any]:
     """
     runs = db.list_records("workflow_runs", limit=200)
     run = db.get("workflow_runs", run_id) if run_id else (runs[0] if runs else {})
+    if run_id and not run:
+        raise ValueError("workflow run not found")
     run = run or {}
     pid = run.get("project_id")
+    rid = run.get("id")
 
     trials: list[dict[str, Any]] = []
     if pid:
         trials = [
-            e for e in db.list_records("evidence_items", project_id=pid, limit=1000)
+            e for e in db.list_records("evidence_items", project_id=pid, workflow_run_id=rid, limit=1000)
             if "clinicaltrials" in (e.get("source_name") or "").lower()
             or e.get("identifier_type") == "NCT"
         ]
@@ -282,7 +286,7 @@ def review_run(run_id: str | None = None) -> dict[str, Any]:
         condition=run.get("condition") or "",
         target_query=run.get("target_query") or "",
         trials=trials,
-        run_id=run.get("id"),
+        run_id=rid,
         project_id=pid,
         tool_error=tool_error,
     )

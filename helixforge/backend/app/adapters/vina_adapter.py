@@ -32,6 +32,22 @@ except Exception:
     _VINA_PY = False
 
 
+def _resolve_fixture_path(value: Any, default: str) -> Path:
+    """Resolve a caller-selected fixture while enforcing the fixture boundary."""
+    raw = default if value is None else value
+    if not isinstance(raw, str) or not raw.strip():
+        raise ValueError("fixture name must be a non-empty string")
+    try:
+        root = FIXTURE_DIR.resolve()
+        candidate = (FIXTURE_DIR / raw).resolve()
+        candidate.relative_to(root)
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise ValueError("fixture path must stay inside the Vina fixture directory") from exc
+    if candidate.suffix.lower() != ".pdbqt":
+        raise ValueError("fixture must be a .pdbqt file")
+    return candidate
+
+
 class VinaAdapter(ToolAdapter):
     id = "vina"
     name = "AutoDock Vina"
@@ -60,8 +76,17 @@ class VinaAdapter(ToolAdapter):
 
     def run(self, payload: dict[str, Any]) -> dict[str, Any]:
         job_id = f"vina-{uuid.uuid4().hex[:8]}"
-        receptor = FIXTURE_DIR / payload.get("receptor_fixture", "sample_receptor.pdbqt")
-        ligand = FIXTURE_DIR / payload.get("ligand_fixture", "sample_ligand.pdbqt")
+        try:
+            receptor = _resolve_fixture_path(payload.get("receptor_fixture"), "sample_receptor.pdbqt")
+            ligand = _resolve_fixture_path(payload.get("ligand_fixture"), "sample_ligand.pdbqt")
+        except ValueError as exc:
+            summary = "invalid Vina fixture selection"
+            self._persist_job(job_id, "error", summary, [], SourceType.TOOL_ERROR, payload)
+            return self._envelope(
+                job_id, "error", SourceType.TOOL_ERROR, summary,
+                out="Vina fixture selection rejected; no docking performed.",
+                errors=[str(exc)], validation=ValidationStatus.FAILED,
+            )
         center = payload.get("center", [0, 0, 0])
         box = payload.get("box_size", [20, 20, 20])
         exhaustiveness = int(payload.get("exhaustiveness", 8))
@@ -127,7 +152,10 @@ class VinaAdapter(ToolAdapter):
             "--size_x", str(box[0]), "--size_y", str(box[1]), "--size_z", str(box[2]),
             "--exhaustiveness", str(exh), "--out", str(out_path),
         ]
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=s.timeout_seconds * 4)
+        proc = subprocess.run(
+            cmd, capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=s.timeout_seconds * 4,
+        )
         logs = (proc.stdout + "\n" + proc.stderr).splitlines()
         scores = []
         for line in proc.stdout.splitlines():
@@ -145,6 +173,7 @@ class VinaAdapter(ToolAdapter):
     def _persist_job(self, job_id, status, summary, scores, source_type, payload):
         db.insert("docking_jobs", {
             "id": job_id, "project_id": payload.get("project_id"), "created_at": utcnow(),
+            "workflow_run_id": payload.get("workflow_run_id"),
             "status": status, "input_summary": summary, "scores": scores,
             "source_type": source_type.value,
         })

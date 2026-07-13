@@ -233,14 +233,20 @@ def _reviewer_note(grade: str, claim_type: str) -> str:
 def _run_records(run_id: str | None):
     runs = db.list_records("workflow_runs", limit=200)
     run = db.get("workflow_runs", run_id) if run_id else (runs[0] if runs else {})
+    if run_id and not run:
+        raise ValueError("workflow run not found")
     pid = run.get("project_id") if run else None
-    ev = db.list_records("evidence_items", project_id=pid, limit=1000) if pid else db.list_records("evidence_items", limit=1000)
+    rid = run.get("id") if run else None
+    ev = (db.list_records("evidence_items", project_id=pid, workflow_run_id=rid, limit=1000)
+          if pid and rid else [])
     return run, pid, ev
 
 
 def grade_hypotheses(run_id: str | None = None) -> dict[str, Any]:
     run, pid, ev = _run_records(run_id)
-    hyps = db.list_records("hypotheses", project_id=pid, limit=500) if pid else db.list_records("hypotheses", limit=500)
+    rid = run.get("id") if run else None
+    hyps = (db.list_records("hypotheses", project_id=pid, workflow_run_id=rid, limit=500)
+            if pid and rid else [])
     graded = []
     for h in hyps:
         claim = {"id": f"clm-hyp-{h.get('id')}", "run_id": run.get("id") if run else None,
@@ -254,7 +260,9 @@ def grade_hypotheses(run_id: str | None = None) -> dict[str, Any]:
 
 def grade_target_candidates(run_id: str | None = None) -> dict[str, Any]:
     run, pid, ev = _run_records(run_id)
-    tgts = db.list_records("target_candidates", project_id=pid, limit=200) if pid else db.list_records("target_candidates", limit=200)
+    rid = run.get("id") if run else None
+    tgts = (db.list_records("target_candidates", project_id=pid, workflow_run_id=rid, limit=200)
+            if pid and rid else [])
     graded = []
     for t in tgts:
         has_precedent = (t.get("clinical_precedent_count") or 0) > 0
@@ -273,7 +281,9 @@ def grade_target_candidates(run_id: str | None = None) -> dict[str, Any]:
 
 def grade_molecule_candidates(run_id: str | None = None) -> dict[str, Any]:
     run, pid, ev = _run_records(run_id)
-    mols = db.list_records("molecule_candidates", project_id=pid, limit=500) if pid else db.list_records("molecule_candidates", limit=500)
+    rid = run.get("id") if run else None
+    mols = (db.list_records("molecule_candidates", project_id=pid, workflow_run_id=rid, limit=500)
+            if pid and rid else [])
     graded = []
     for m in mols:
         has_pchembl = m.get("pchembl_value") not in (None, "", "—")
@@ -326,8 +336,13 @@ def grade_run(run_id: str | None = None) -> dict[str, Any]:
     t = grade_target_candidates(run_id)
     m = grade_molecule_candidates(run_id)
     all_claims = h["graded_claims"] + t["graded_claims"] + m["graded_claims"]
+    resolved_run_id = h["run_id"]
+    run = db.get("workflow_runs", resolved_run_id) if resolved_run_id else None
     payload = {
-        "id": f"grades-{uuid.uuid4().hex[:8]}", "run_id": h["run_id"],
+        "id": f"grades-{uuid.uuid4().hex[:8]}",
+        "project_id": run.get("project_id") if run else None,
+        "run_id": resolved_run_id,
+        "workflow_run_id": resolved_run_id,
         "hypotheses": h, "targets": t, "molecules": m,
         "total_claims": len(all_claims), "grade_distribution": _dist(all_claims),
         "disclaimer": ("Grades reflect evidence STRENGTH only. In-silico and assay evidence are "

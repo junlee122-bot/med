@@ -92,7 +92,18 @@ SECTION_TITLES_KO: list[str] = [
 ]
 
 
-def _gather() -> dict[str, Any]:
+def _resolve_run(run_id: str | None = None) -> dict[str, Any]:
+    if run_id is not None:
+        run = db.get("workflow_runs", run_id)
+        if not run:
+            raise ValueError("workflow run not found")
+        return run
+    runs = [run for run in db.list_records("workflow_runs", limit=50)
+            if run.get("kind") in ("agentic", "agentic_replay")]
+    return runs[0] if runs else {}
+
+
+def _gather(run_id: str | None = None) -> dict[str, Any]:
     """Best-effort, deterministic figures pulled from existing services."""
     state: dict[str, Any] = {
         "run_count": 0,
@@ -106,10 +117,12 @@ def _gather() -> dict[str, Any]:
         "vina_bin": "",
         "reinvent4_bin": "",
     }
-    try:
-        state["run_count"] = len(db.list_records("workflow_runs", limit=50))
-    except Exception:
-        pass
+    run = _resolve_run(run_id)
+    rid = run.get("id")
+    pid = run.get("project_id")
+    state.update({"run_id": rid, "project_id": pid})
+    # Keep the figures confined to the single run represented by this paper.
+    state["run_count"] = 1 if rid else 0
     try:
         from app.config import get_settings
 
@@ -119,39 +132,40 @@ def _gather() -> dict[str, Any]:
     except Exception:
         pass
     try:
-        from app.services import evidence_grading
-
-        g = evidence_grading.grade_run(None)
-        state["graded_claims"] = g.get("total_claims", 0)
-        state["grade_distribution"] = g.get("grade_distribution", {})
+        rows = db.list_records("evidence_claims", workflow_run_id=rid, limit=1) if rid else []
+        if rows:
+            state["graded_claims"] = rows[0].get("total_claims", 0)
+            state["grade_distribution"] = rows[0].get("grade_distribution", {})
     except Exception:
         pass
     try:
-        from app.services import medchem_review
-
-        m = medchem_review.review_run(None)
-        state["medchem_count"] = m.get("count", 0)
-        state["rdkit_available"] = m.get("rdkit_available", "unknown")
+        rows = db.list_records("medchem_reviews", workflow_run_id=rid, limit=1) if rid else []
+        if rows:
+            state["medchem_count"] = rows[0].get("count", 0)
+            state["rdkit_available"] = rows[0].get("rdkit_available", "unknown")
     except Exception:
         pass
     try:
-        from app.services import translational_readiness
-
-        t = translational_readiness.assess_run(None)
-        state["readiness"] = t.get("readiness_level", "no run yet")
+        rows = db.list_records(
+            "translational_assessments", workflow_run_id=rid, limit=1,
+        ) if rid else []
+        if rows:
+            state["readiness"] = rows[0].get("readiness_level", "no run yet")
     except Exception:
         pass
     try:
-        from app.services import clinical_precedent_review
-
-        c = clinical_precedent_review.review_run(None)
-        state["clinical"] = c.get("summary") or c.get("status") or "reviewed"
+        rows = db.list_records(
+            "clinical_precedent_reviews", workflow_run_id=rid, limit=1,
+        ) if rid else []
+        if rows:
+            c = rows[0]
+            state["clinical"] = c.get("summary") or c.get("status") or "reviewed"
     except Exception:
         pass
     try:
         from app.services import source_type_governance
 
-        a = source_type_governance.audit()
+        a = source_type_governance.audit(project_id=pid, workflow_run_id=rid)
         state["governance"] = a.get("status", "audited")
     except Exception:
         pass
@@ -376,7 +390,7 @@ def _render_ko(state: dict[str, Any]) -> str:
     return "\n".join(p)
 
 
-def generate(lang: str = "en") -> dict[str, Any]:
+def generate(lang: str = "en", run_id: str | None = None) -> dict[str, Any]:
     """Generate the scientific whitepaper in the requested language.
 
     Args:
@@ -388,7 +402,7 @@ def generate(lang: str = "en") -> dict[str, Any]:
         persisted to the ``whitepapers`` table.
     """
     lang = "ko" if str(lang).lower().startswith("ko") else "en"
-    state = _gather()
+    state = _gather(run_id)
     if lang == "ko":
         markdown = _render_ko(state)
         sections = list(SECTION_TITLES_KO)
@@ -400,6 +414,9 @@ def generate(lang: str = "en") -> dict[str, Any]:
 
     record: dict[str, Any] = {
         "id": f"wp-{uuid.uuid4().hex[:8]}",
+        "project_id": state.get("project_id"),
+        "workflow_run_id": state.get("run_id"),
+        "run_id": state.get("run_id"),
         "lang": lang,
         "language": lang,
         "title": title,
@@ -415,11 +432,20 @@ def generate(lang: str = "en") -> dict[str, Any]:
     return record
 
 
-def latest(lang: str = "en") -> Optional[dict[str, Any]]:
+def latest(lang: str = "en", run_id: str | None = None) -> Optional[dict[str, Any]]:
     """Return the most recently persisted whitepaper for ``lang``, or ``None``."""
     lang = "ko" if str(lang).lower().startswith("ko") else "en"
+    run = _resolve_run(run_id)
+    rid = run.get("id")
+    if not rid:
+        return None
     try:
-        for rec in db.list_records("whitepapers", limit=200):
+        for rec in db.list_records(
+            "whitepapers",
+            project_id=run.get("project_id"),
+            workflow_run_id=rid,
+            limit=200,
+        ):
             if rec.get("lang") == lang or rec.get("language") == lang:
                 return rec
     except Exception:
@@ -427,14 +453,19 @@ def latest(lang: str = "en") -> Optional[dict[str, Any]]:
     return None
 
 
-def export() -> dict[str, Any]:
-    """Generate both language editions and return their markdown together."""
-    en = generate("en")
-    ko = generate("ko")
+def export(run_id: str | None = None) -> dict[str, Any]:
+    """Return persisted editions for one run without mutating state."""
+    run = _resolve_run(run_id)
+    en = latest("en", run.get("id") or None)
+    ko = latest("ko", run.get("id") or None)
     return {
         "generated_at": utcnow(),
-        "en": en["markdown"],
-        "ko": ko["markdown"],
+        "project_id": run.get("project_id"),
+        "workflow_run_id": run.get("id"),
+        "run_id": run.get("id"),
+        "en": en["markdown"] if en else None,
+        "ko": ko["markdown"] if ko else None,
+        "available": {"en": bool(en), "ko": bool(ko)},
         "disclaimer": f"{DISCLAIMER_EN}\n\n{DISCLAIMER_KO}",
         "source_type": SourceType.HEURISTIC_ANALYSIS.value,
     }

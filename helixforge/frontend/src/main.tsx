@@ -1,52 +1,55 @@
-import React from 'react'
+import React, { lazy, Suspense } from 'react'
 import ReactDOM from 'react-dom/client'
 import { HashRouter, Routes, Route } from 'react-router-dom'
 import './index.css'
 import { Layout } from '@/components/Layout'
-import { Overview } from '@/pages/Overview'
-import { ToolRegistry } from '@/pages/ToolRegistry'
-import { ComputeCenter } from '@/pages/ComputeCenter'
-import { ModelLab } from '@/pages/ModelLab'
-import { ActiveLearning } from '@/pages/ActiveLearning'
-import { NewRun } from '@/pages/NewRun'
-import { Hybrid } from '@/pages/Hybrid'
-import { LLMRouter } from '@/pages/LLMRouter'
-import { Rediscovery } from '@/pages/Rediscovery'
-import { OptimizationLoop } from '@/pages/OptimizationLoop'
-import { Cockpit } from '@/pages/Cockpit'
-import { PeerReview } from '@/pages/PeerReview'
-import { ProposalStudio } from '@/pages/ProposalStudio'
-import { EvidenceGrading } from '@/pages/EvidenceGrading'
-import { MoleculeQA } from '@/pages/MoleculeQA'
-import { ProfessionalReview } from '@/pages/ProfessionalReview'
-import { ExpertReview } from '@/pages/ExpertReview'
-import { ProfessionalDocs } from '@/pages/ProfessionalDocs'
-import { DemoLab } from '@/pages/DemoLab'
-import { Snapshots } from '@/pages/Snapshots'
-import { ScenarioMatrix } from '@/pages/ScenarioMatrix'
-import { AILedger } from '@/pages/AILedger'
-import { Release } from '@/pages/Release'
-import { Submission } from '@/pages/Submission'
-import { EvidenceExplorer } from '@/pages/EvidenceExplorer'
-import { Targets } from '@/pages/Targets'
-import { Hypotheses } from '@/pages/Hypotheses'
-import { MoleculeLab } from '@/pages/MoleculeLab'
-import { TDCBench } from '@/pages/TDCBench'
-import { DockingLab } from '@/pages/DockingLab'
-import { ReinventStudio } from '@/pages/ReinventStudio'
-import { Clinical } from '@/pages/Clinical'
-import { SafetyGate } from '@/pages/SafetyGate'
-import { Evaluation } from '@/pages/Evaluation'
-import { Impact } from '@/pages/Impact'
-import { Rubric } from '@/pages/Rubric'
-import { Reports } from '@/pages/Reports'
-import { Presentation } from '@/pages/Presentation'
-import { Settings } from '@/pages/Settings'
+import { Spinner } from '@/components/ui'
+
+const Overview = lazy(() => import('@/pages/Overview').then((m) => ({ default: m.Overview })))
+const ToolRegistry = lazy(() => import('@/pages/ToolRegistry').then((m) => ({ default: m.ToolRegistry })))
+const ComputeCenter = lazy(() => import('@/pages/ComputeCenter').then((m) => ({ default: m.ComputeCenter })))
+const ModelLab = lazy(() => import('@/pages/ModelLab').then((m) => ({ default: m.ModelLab })))
+const ActiveLearning = lazy(() => import('@/pages/ActiveLearning').then((m) => ({ default: m.ActiveLearning })))
+const NewRun = lazy(() => import('@/pages/NewRun').then((m) => ({ default: m.NewRun })))
+const Hybrid = lazy(() => import('@/pages/Hybrid').then((m) => ({ default: m.Hybrid })))
+const LLMRouter = lazy(() => import('@/pages/LLMRouter').then((m) => ({ default: m.LLMRouter })))
+const Rediscovery = lazy(() => import('@/pages/Rediscovery').then((m) => ({ default: m.Rediscovery })))
+const OptimizationLoop = lazy(() => import('@/pages/OptimizationLoop').then((m) => ({ default: m.OptimizationLoop })))
+const Cockpit = lazy(() => import('@/pages/Cockpit').then((m) => ({ default: m.Cockpit })))
+const PeerReview = lazy(() => import('@/pages/PeerReview').then((m) => ({ default: m.PeerReview })))
+const ProposalStudio = lazy(() => import('@/pages/ProposalStudio').then((m) => ({ default: m.ProposalStudio })))
+const EvidenceGrading = lazy(() => import('@/pages/EvidenceGrading').then((m) => ({ default: m.EvidenceGrading })))
+const MoleculeQA = lazy(() => import('@/pages/MoleculeQA').then((m) => ({ default: m.MoleculeQA })))
+const ProfessionalReview = lazy(() => import('@/pages/ProfessionalReview').then((m) => ({ default: m.ProfessionalReview })))
+const ExpertReview = lazy(() => import('@/pages/ExpertReview').then((m) => ({ default: m.ExpertReview })))
+const ProfessionalDocs = lazy(() => import('@/pages/ProfessionalDocs').then((m) => ({ default: m.ProfessionalDocs })))
+const DemoLab = lazy(() => import('@/pages/DemoLab').then((m) => ({ default: m.DemoLab })))
+const Snapshots = lazy(() => import('@/pages/Snapshots').then((m) => ({ default: m.Snapshots })))
+const ScenarioMatrix = lazy(() => import('@/pages/ScenarioMatrix').then((m) => ({ default: m.ScenarioMatrix })))
+const AILedger = lazy(() => import('@/pages/AILedger').then((m) => ({ default: m.AILedger })))
+const Release = lazy(() => import('@/pages/Release').then((m) => ({ default: m.Release })))
+const Submission = lazy(() => import('@/pages/Submission').then((m) => ({ default: m.Submission })))
+const EvidenceExplorer = lazy(() => import('@/pages/EvidenceExplorer').then((m) => ({ default: m.EvidenceExplorer })))
+const Targets = lazy(() => import('@/pages/Targets').then((m) => ({ default: m.Targets })))
+const Hypotheses = lazy(() => import('@/pages/Hypotheses').then((m) => ({ default: m.Hypotheses })))
+const MoleculeLab = lazy(() => import('@/pages/MoleculeLab').then((m) => ({ default: m.MoleculeLab })))
+const TDCBench = lazy(() => import('@/pages/TDCBench').then((m) => ({ default: m.TDCBench })))
+const DockingLab = lazy(() => import('@/pages/DockingLab').then((m) => ({ default: m.DockingLab })))
+const ReinventStudio = lazy(() => import('@/pages/ReinventStudio').then((m) => ({ default: m.ReinventStudio })))
+const Clinical = lazy(() => import('@/pages/Clinical').then((m) => ({ default: m.Clinical })))
+const SafetyGate = lazy(() => import('@/pages/SafetyGate').then((m) => ({ default: m.SafetyGate })))
+const Evaluation = lazy(() => import('@/pages/Evaluation').then((m) => ({ default: m.Evaluation })))
+const Impact = lazy(() => import('@/pages/Impact').then((m) => ({ default: m.Impact })))
+const Rubric = lazy(() => import('@/pages/Rubric').then((m) => ({ default: m.Rubric })))
+const Reports = lazy(() => import('@/pages/Reports').then((m) => ({ default: m.Reports })))
+const Presentation = lazy(() => import('@/pages/Presentation').then((m) => ({ default: m.Presentation })))
+const Settings = lazy(() => import('@/pages/Settings').then((m) => ({ default: m.Settings })))
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <HashRouter>
       <Layout>
+        <Suspense fallback={<Spinner label="Loading page…" />}>
         <Routes>
           <Route path="/" element={<Overview />} />
           <Route path="/tools" element={<ToolRegistry />} />
@@ -88,6 +91,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/presentation" element={<Presentation />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>
+        </Suspense>
       </Layout>
     </HashRouter>
   </React.StrictMode>,

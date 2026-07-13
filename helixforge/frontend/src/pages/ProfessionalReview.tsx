@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { api } from '@/lib/api'
+import { useEffect, useState } from 'react'
+import { api, getRememberedRunId } from '@/lib/api'
 import { Icon } from '@/components/Icon'
 import { Badge, Disclaimer, Empty, ErrorNote, PageHeader, Panel, Spinner, StatCard } from '@/components/ui'
 import { HUMAN_RESPONSIBILITY } from '@/lib/api'
@@ -8,29 +8,57 @@ type Tab = 'release' | 'biology' | 'translational' | 'clinical' | 'pareto' | 're
 
 const CAT_TONE: Record<string, string> = { READY: 'green', PARTIAL: 'amber', NOT_READY: 'red', PASS: 'green', REVIEW_REQUIRED: 'amber', BLOCKED: 'red' }
 
+const pendingReviews = new Map<string, Promise<any>>()
+
+function requestReview(tab: Tab, runId: string): Promise<any> {
+  const key = tab === 'redteam' ? 'redteam' : `${runId || '__latest__'}:${tab}`
+  const existing = pendingReviews.get(key)
+  if (existing) return existing
+  const request = (tab === 'release' ? api.professionalReleaseCompute(runId || undefined)
+    : tab === 'biology' ? api.targetBiologyRun(runId || undefined)
+    : tab === 'translational' ? api.translationalRun(runId || undefined)
+    : tab === 'clinical' ? api.clinicalPrecedentRun(runId || undefined)
+    : tab === 'pareto' ? api.paretoRun(runId || undefined)
+    : api.redTeamProfessional())
+    .finally(() => pendingReviews.delete(key))
+  pendingReviews.set(key, request)
+  return request
+}
+
 export function ProfessionalReview() {
+  const [runId] = useState(getRememberedRunId)
   const [tab, setTab] = useState<Tab>('release')
   const [data, setData] = useState<Record<string, any>>({})
-  const [loading, setLoading] = useState(false)
-  const [err, setErr] = useState('')
+  const [pending, setPending] = useState<Record<Tab, boolean>>({ release: false, biology: false, translational: false, clinical: false, pareto: false, redteam: false })
+  const [errors, setErrors] = useState<Record<Tab, string>>({ release: '', biology: '', translational: '', clinical: '', pareto: '', redteam: '' })
 
   async function load(t: Tab) {
-    setTab(t); setErr('')
-    if (data[t]) return
-    setLoading(true)
+    setTab(t); setErrors((current) => ({ ...current, [t]: '' }))
+    if (data[t] || pending[t]) return
+    setPending((current) => ({ ...current, [t]: true }))
     try {
-      const res = t === 'release' ? await api.professionalReleaseLatest()
-        : t === 'biology' ? await api.targetBiologyRun()
-        : t === 'translational' ? await api.translationalRun()
-        : t === 'clinical' ? await api.clinicalPrecedentRun()
-        : t === 'pareto' ? await api.paretoRun()
-        : await api.redTeamProfessional()
+      const res = await requestReview(t, runId)
       setData((d) => ({ ...d, [t]: res }))
-    } catch (e: any) { setErr(e.message) } finally { setLoading(false) }
+    } catch (e: unknown) {
+      setErrors((current) => ({ ...current, [t]: e instanceof Error ? e.message : 'Professional review failed.' }))
+    } finally { setPending((current) => ({ ...current, [t]: false })) }
   }
-  if (!data.release && !loading && tab === 'release' && !err) load('release')
+
+  useEffect(() => {
+    let active = true
+    setData({})
+    setErrors({ release: '', biology: '', translational: '', clinical: '', pareto: '', redteam: '' })
+    setPending({ release: true, biology: false, translational: false, clinical: false, pareto: false, redteam: false })
+    requestReview('release', runId)
+      .then((result) => { if (active) setData((current) => ({ ...current, release: result })) })
+      .catch((reason: unknown) => { if (active) setErrors((current) => ({ ...current, release: reason instanceof Error ? reason.message : 'Professional review failed.' })) })
+      .finally(() => { if (active) setPending((current) => ({ ...current, release: false })) })
+    return () => { active = false }
+  }, [runId])
 
   const cur = data[tab]
+  const loading = pending[tab]
+  const err = errors[tab]
   const tabs: [Tab, string][] = [
     ['release', 'Release Scorecard'], ['biology', 'Target Biology'], ['translational', 'Translational'],
     ['clinical', 'Clinical Precedent'], ['pareto', 'Pareto Front'], ['redteam', 'Scientific Red-Team'],
@@ -41,7 +69,7 @@ export function ProfessionalReview() {
         subtitle="Expert-grade review layer: 16-category release scorecard, target biology plausibility, translational readiness (capped without wet-lab), clinical precedent (precedent ≠ efficacy), Pareto trade-offs, and a scientific red-team." />
       <div className="mb-4 flex flex-wrap gap-2">
         {tabs.map(([t, label]) => (
-          <button key={t} className={`btn-secondary ${tab === t ? 'ring-1 ring-brand-400' : ''}`} onClick={() => load(t)}>{label}</button>
+          <button key={t} aria-pressed={tab === t} className={`btn-secondary ${tab === t ? 'ring-1 ring-brand-400' : ''}`} disabled={pending[t]} onClick={() => load(t)}>{label}</button>
         ))}
       </div>
       {err && <div className="mb-4"><ErrorNote error={err} /></div>}

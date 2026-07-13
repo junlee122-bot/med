@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
+from fastapi import HTTPException
+
 from app.models.schemas import SourceType, utcnow
 from app.storage import db
 
@@ -22,14 +24,26 @@ def _issue(sev: str, category: str, detail: str, fix: str = "") -> dict[str, Any
 
 def lint_run(run_id: str, markdown: Optional[str] = None) -> dict[str, Any]:
     run = db.get("workflow_runs", run_id)
-    project_id = run.get("project_id") if run else None
-    evidence = db.list_records("evidence_items", project_id=project_id, limit=500)
-    hypotheses = db.list_records("hypotheses", project_id=project_id, limit=200)
-    molecules = db.list_records("molecule_candidates", project_id=project_id, limit=500)
-    tool_runs = [t for t in db.list_records("tool_runs", project_id=project_id, limit=2000)
-                 if t.get("workflow_run_id") == run_id]
+    if not run:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+    project_id = run.get("project_id")
+    evidence = db.list_records(
+        "evidence_items", project_id=project_id, workflow_run_id=run_id, limit=500
+    )
+    hypotheses = db.list_records(
+        "hypotheses", project_id=project_id, workflow_run_id=run_id, limit=200
+    )
+    molecules = db.list_records(
+        "molecule_candidates", project_id=project_id, workflow_run_id=run_id, limit=500
+    )
+    tool_runs = db.list_records(
+        "tool_runs", project_id=project_id, workflow_run_id=run_id, limit=2000
+    )
     if markdown is None and run:
         rep = db.get("reports", run.get("report_id") or "")
+        if rep and (rep.get("project_id") != project_id
+                    or rep.get("workflow_run_id") != run_id):
+            rep = None
         markdown = rep.get("markdown", "") if rep else ""
     markdown = markdown or ""
 
@@ -89,7 +103,8 @@ def lint_run(run_id: str, markdown: Optional[str] = None) -> dict[str, Any]:
     # 6. Replay results must be labeled RECORDED_REAL_TOOL_OUTPUT.
     if run and run.get("kind") == "agentic_replay":
         rep = db.get("reports", run.get("report_id") or "")
-        if rep and rep.get("source_type") != SourceType.RECORDED_REAL_TOOL_OUTPUT.value:
+        if rep and rep.get("project_id") == project_id and rep.get("workflow_run_id") == run_id \
+                and rep.get("source_type") != SourceType.RECORDED_REAL_TOOL_OUTPUT.value:
             issues.append(_issue("BLOCKED", "replay_mislabeled",
                                  "Replay report is not labeled RECORDED_REAL_TOOL_OUTPUT."))
 

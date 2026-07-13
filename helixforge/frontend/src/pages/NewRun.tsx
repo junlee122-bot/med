@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api } from '@/lib/api'
+import { api, rememberRunId } from '@/lib/api'
 import { Icon } from '@/components/Icon'
 import { Badge, Disclaimer, ErrorNote, Field, PageHeader, Panel, Spinner } from '@/components/ui'
 import { HUMAN_RESPONSIBILITY } from '@/lib/api'
@@ -18,9 +18,14 @@ export function NewRun() {
   const [running, setRunning] = useState(false)
   const [err, setErr] = useState('')
 
-  useEffect(() => { (async () => {
-    try { setCfg(await api.runConfigs()) } catch (e: any) { setErr(e.message) } finally { setLoading(false) }
-  })() }, [])
+  useEffect(() => {
+    let active = true
+    api.runConfigs()
+      .then((result) => { if (active) setCfg(result) })
+      .catch((error: unknown) => { if (active) setErr(error instanceof Error ? error.message : 'Failed to load run presets.') })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [])
 
   function applyPreset(p: any) {
     setTarget(p.target_query); setCondition(p.condition); setValidation(null)
@@ -49,8 +54,13 @@ export function NewRun() {
       setValidation(v)
       if (!v.valid) { setRunning(false); return }
       const result = await api.runAgentic(v.normalized_payload)
+      rememberRunId(result.run_id)
       nav(`/cockpit?run=${result.run_id}`)
-    } catch (e: any) { setErr(e.message); setRunning(false) }
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : 'Failed to launch run.')
+    } finally {
+      setRunning(false)
+    }
   }
 
   if (loading) return <Spinner label="Loading run presets…" />
@@ -99,7 +109,7 @@ export function NewRun() {
             <div className="mb-2 section-title">3 · Error injections <span className="text-slate-500">(optional — demonstrates self-correction)</span></div>
             <div className="flex flex-wrap gap-2">
               {cfg?.error_injection_options.map((o: any) => (
-                <button key={o.id} onClick={() => toggleInjection(o.id)}
+                <button key={o.id} aria-pressed={Boolean(injections[o.id])} onClick={() => toggleInjection(o.id)}
                   className={`rounded-full border px-3 py-1 text-xs transition ${injections[o.id] ? 'border-helix-amber bg-helix-amber/10 text-helix-amber' : 'border-white/8 text-slate-400 hover:border-white/20'}`}>
                   {injections[o.id] ? '✓ ' : ''}{o.label}
                 </button>

@@ -26,12 +26,19 @@ _VALID_CATEGORY = {"EVIDENCE_GAP", "OVERCLAIM", "CONTRADICTION", "SOURCE_CONFUSI
 
 
 def _gather_context(run_id: str) -> dict[str, Any]:
-    run = db.get("workflow_runs", run_id) or {}
+    run = db.get("workflow_runs", run_id)
+    if not run:
+        raise ValueError("workflow run not found")
     pid = run.get("project_id")
-    hyps = [h for h in db.list_records("hypotheses", project_id=pid, limit=200)
-            if h.get("workflow_run_id") == run_id]
-    mols = db.list_records("molecule_candidates", project_id=pid, limit=200) if pid else []
-    ev = db.list_records("evidence_items", project_id=pid, limit=200) if pid else []
+    hyps = db.list_records(
+        "hypotheses", project_id=pid, workflow_run_id=run_id, limit=200
+    ) if pid else []
+    mols = db.list_records(
+        "molecule_candidates", project_id=pid, workflow_run_id=run_id, limit=200
+    ) if pid else []
+    ev = db.list_records(
+        "evidence_items", project_id=pid, workflow_run_id=run_id, limit=200
+    ) if pid else []
     entity_ids = ({h.get("id") for h in hyps} | {m.get("id") for m in mols} | {e.get("id") for e in ev})
     return {"run": run, "pid": pid, "hyps": hyps, "mols": mols, "ev": ev, "entity_ids": entity_ids}
 
@@ -149,7 +156,8 @@ def run_semantic_critic(run_id: str, mode: Optional[str] = None, client: Any = N
             pass
 
     payload = {
-        "id": f"critique-{uuid.uuid4().hex[:10]}", "run_id": run_id, "project_id": pid,
+        "id": f"critique-{uuid.uuid4().hex[:10]}", "run_id": run_id,
+        "workflow_run_id": run_id, "project_id": pid,
         "created_at": utcnow(), "reasoning_source_type": source, "model": res.model,
         "llm_call_id": res.llm_call_id, "fallback_used": res.fallback_used,
         "critique_items": data["critique_items"], "critique_count": len(data["critique_items"]),
@@ -167,5 +175,5 @@ def run_semantic_critic(run_id: str, mode: Optional[str] = None, client: Any = N
 
 
 def get_semantic_critic(run_id: str) -> Optional[dict]:
-    rows = [c for c in db.list_records("semantic_critiques", limit=200) if c.get("run_id") == run_id]
+    rows = db.list_records("semantic_critiques", workflow_run_id=run_id, limit=200)
     return rows[0] if rows else None

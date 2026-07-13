@@ -1,7 +1,7 @@
 # 데모 실행 런북 (한국어)
 
 ## 0. 사전 준비
-- Python 3.11, Node 20 이상. (RDKit·PyTDC는 무거우므로 conda 사용 권장: `conda env create -f backend/environment.yml`)
+- Python 3.11, Node 22.12 이상. (RDKit·PyTDC는 무거우므로 conda 사용 권장: `conda env create -f backend/environment.yml`)
 - 인터넷 연결(PubMed/ChEMBL/ClinicalTrials/TDC 다운로드에 필요). API 키는 선택 사항입니다.
 
 ## 1. 백엔드 실행

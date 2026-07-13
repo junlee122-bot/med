@@ -59,14 +59,18 @@ def run_error_injection_demo(req: ErrorInjectionDemoRequest):
 
 @router.get("/workflow/runs/{run_id}/agents")
 def run_agents(run_id: str):
-    runs = [r for r in db.list_records("agent_runs", limit=1000) if r.get("workflow_run_id") == run_id]
+    if not db.get("workflow_runs", run_id):
+        raise HTTPException(status_code=404, detail="run not found")
+    runs = db.list_records("agent_runs", workflow_run_id=run_id, limit=1000)
     runs.sort(key=lambda r: r.get("stage_index", 0))
     return {"run_id": run_id, "agent_runs": runs}
 
 
 @router.get("/workflow/runs/{run_id}/revisions")
 def run_revisions(run_id: str):
-    revs = [r for r in db.list_records("revision_events", limit=1000) if r.get("workflow_run_id") == run_id]
+    if not db.get("workflow_runs", run_id):
+        raise HTTPException(status_code=404, detail="run not found")
+    revs = db.list_records("revision_events", workflow_run_id=run_id, limit=1000)
     return {"run_id": run_id, "revision_events": revs}
 
 
@@ -82,10 +86,10 @@ def run_trace(run_id: str):
     run = db.get("workflow_runs", run_id)
     if not run:
         raise HTTPException(status_code=404, detail="run not found")
-    agents = sorted([r for r in db.list_records("agent_runs", limit=1000) if r.get("workflow_run_id") == run_id],
+    agents = sorted(db.list_records("agent_runs", workflow_run_id=run_id, limit=1000),
                     key=lambda r: r.get("stage_index", 0))
-    tools = [t for t in db.list_records("tool_runs", limit=2000) if t.get("workflow_run_id") == run_id]
-    revs = [r for r in db.list_records("revision_events", limit=500) if r.get("workflow_run_id") == run_id]
+    tools = db.list_records("tool_runs", workflow_run_id=run_id, limit=2000)
+    revs = db.list_records("revision_events", workflow_run_id=run_id, limit=500)
     nodes = [{"id": a["stage"], "label": a["agent_name"], "index": a.get("stage_index", 0),
               "status": a.get("status"), "confidence": a.get("confidence"),
               "source_types": a.get("source_types", []),

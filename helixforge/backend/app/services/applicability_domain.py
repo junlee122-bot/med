@@ -92,8 +92,12 @@ def assess_molecule(smiles: str, reference_smiles: list[str], k: int = 5,
 def assess_run(run_id: str | None = None) -> dict[str, Any]:
     runs = db.list_records("workflow_runs", limit=200)
     run = db.get("workflow_runs", run_id) if run_id else (runs[0] if runs else {})
+    if run_id and not run:
+        raise ValueError("workflow run not found")
     pid = run.get("project_id") if run else None
-    mols = db.list_records("molecule_candidates", project_id=pid, limit=500) if pid else db.list_records("molecule_candidates", limit=500)
+    rid = run.get("id") if run else None
+    mols = (db.list_records("molecule_candidates", project_id=pid, workflow_run_id=rid, limit=500)
+            if pid and rid else [])
     indexed = [(m, m.get("canonical_smiles") or m.get("smiles")) for m in mols]
     smiles_all = [s for _, s in indexed if s]
     # Reference set = the run's own ChEMBL-derived candidate set (index-based
@@ -109,11 +113,12 @@ def assess_run(run_id: str | None = None) -> dict[str, Any]:
     dist: dict[str, int] = {}
     for r in results:
         dist[r["domain_status"]] = dist.get(r["domain_status"], 0) + 1
-    payload = {"id": f"appdom-{uuid.uuid4().hex[:8]}", "run_id": run.get("id") if run else None,
+    payload = {"id": f"appdom-{uuid.uuid4().hex[:8]}", "project_id": pid,
+               "run_id": rid, "workflow_run_id": rid,
                "results": results, "count": len(results), "status_distribution": dist,
                "reference_set_source": reference_source, "rdkit_available": RDKIT,
                "disclaimer": "Applicability domain bounds where model/score confidence is meaningful.",
-               "checked_at": utcnow()}
+               "checked_at": utcnow(), "created_at": utcnow()}
     try:
         db.insert("applicability_results", payload)
     except Exception:

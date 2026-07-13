@@ -33,7 +33,7 @@ def main() -> int:
     if not readme.exists():
         problems.append("root README.md missing")
     else:
-        text = readme.read_text()
+        text = readme.read_text(encoding="utf-8")
         if "helixforge/" not in text:
             problems.append("root README.md does not point to helixforge/")
         if "official" not in text.lower():
@@ -60,7 +60,7 @@ def main() -> int:
     legacy = ROOT / "legacy-demo-spa"
     if legacy.exists():
         lr = legacy / "README.md"
-        if not lr.exists() or "archived" not in lr.read_text().lower():
+        if not lr.exists() or "archived" not in lr.read_text(encoding="utf-8").lower():
             problems.append("legacy-demo-spa/README.md must explain it is archived")
     # There must be no root-level package.json presenting a legacy app as main.
     if (ROOT / "package.json").exists():

@@ -31,6 +31,8 @@ class PlanRequest(BaseModel):
 
 @router.post("/plan")
 def plan(req: PlanRequest):
+    if req.workflow_run_id and not db.get("workflow_runs", req.workflow_run_id):
+        raise HTTPException(status_code=404, detail="workflow run not found")
     caps = capability_detector.detect("local")
     return compute_aware_planner.plan_compute(
         caps, requested_capabilities=req.requested_capabilities,
@@ -41,19 +43,25 @@ def plan(req: PlanRequest):
 # ---- Jobs ----
 class JobSpecRequest(BaseModel):
     spec: dict = Field(default_factory=dict)
-    requested_by_agent: str = "human"
     pricing_profile_id: str | None = None
 
 
 @router.post("/jobs")
 def create_job(req: JobSpecRequest):
-    return job_manager.create_job(req.spec, requested_by_agent=req.requested_by_agent,
-                                  pricing_profile_id=req.pricing_profile_id)
+    try:
+        return job_manager.create_job(req.spec, requested_by_agent="api-administrator",
+                                      pricing_profile_id=req.pricing_profile_id)
+    except ValueError as exc:
+        status = 404 if "workflow run not found" in str(exc) else 400
+        raise HTTPException(status_code=status, detail=str(exc)) from exc
 
 
 @router.post("/jobs/dry-run")
 def dry_run(req: JobSpecRequest):
-    return job_manager.dry_run(req.spec, pricing_profile_id=req.pricing_profile_id)
+    try:
+        return job_manager.dry_run(req.spec, pricing_profile_id=req.pricing_profile_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get("/jobs")
@@ -70,15 +78,13 @@ def get_job(job_id: str):
 
 
 class ApproveRequest(BaseModel):
-    approved_by: str = "human"
-    approved_cost_usd: float | None = None
+    pass
 
 
 @router.post("/jobs/{job_id}/approve")
 def approve_job(job_id: str, req: ApproveRequest):
     try:
-        return job_manager.approve_job(job_id, approved_by=req.approved_by,
-                                       approved_cost_usd=req.approved_cost_usd)
+        return job_manager.approve_job(job_id, approved_by="api-administrator")
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -119,7 +125,10 @@ class EstimateRequest(BaseModel):
 def estimate(req: EstimateRequest):
     from app.compute import job_spec as JS
     v = JS.validate_gpu_job_spec(req.spec)
-    est = cost_guard.estimate_gpu_job_cost(v["normalized"], req.pricing_profile_id)
+    try:
+        est = cost_guard.estimate_gpu_job_cost(v["normalized"], req.pricing_profile_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     budget = cost_guard.check_budget(est["estimated_cost_usd"], v["normalized"]["resource_request"]["max_cost_usd"])
     return {"validated": v["valid"], "errors": v["errors"], "estimate": est, "budget": budget}
 
@@ -135,17 +144,18 @@ def pricing_profiles():
 
 
 class PricingProfileRequest(BaseModel):
-    id: str
+    id: str = Field(min_length=1, max_length=80, pattern=r"^[A-Za-z0-9._-]+$")
     gpu_class: str = ""
-    price_per_gpu_hour: float = 2.0
-    storage_per_gb_month: float = 0.1
+    price_per_gpu_hour: float = Field(default=2.0, ge=0.0, le=100_000.0)
+    storage_per_gb_month: float = Field(default=0.1, ge=0.0, le=100_000.0)
     currency: str = "USD"
 
 
 @router.post("/pricing-profiles")
 def create_pricing_profile(req: PricingProfileRequest):
     from app.models.schemas import utcnow
-    rec = {"id": req.id, "event_type": "pricing_profile", "created_at": utcnow(),
+    rec = {"id": f"pricing-profile-{req.id}", "profile_id": req.id,
+           "event_type": "pricing_profile", "created_at": utcnow(),
            "pricing_snapshot": req.model_dump()}
     db.insert("compute_cost_events", rec)
     return {"saved": True, "profile": req.model_dump(),
@@ -173,6 +183,13 @@ def provider_test(provider_id: str):
 @router.get("/artifacts")
 def artifacts():
     return {"artifacts": artifact_registry.list_artifacts()}
+
+
+@router.get("/artifacts/types")
+def compute_artifact_types():
+    """List submission-report types before the dynamic artifact-id route."""
+    from app.services import compute_reports
+    return {"types": compute_reports.ARTIFACT_TYPES}
 
 
 @router.get("/artifacts/{artifact_id}")
@@ -206,7 +223,15 @@ class PlanAgentRequest(BaseModel):
 def plan_agent(req: PlanAgentRequest):
     from app.agents.base import AgentContext
     from app.agents.compute_planner_agent import ComputePlannerAgent
-    ctx = AgentContext(project_id=req.project_id or req.workflow_run_id,
+    run = db.get("workflow_runs", req.workflow_run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="workflow run not found")
+    project_id = run.get("project_id")
+    if not project_id:
+        raise HTTPException(status_code=409, detail="workflow run has no project")
+    if req.project_id is not None and req.project_id != project_id:
+        raise HTTPException(status_code=404, detail="workflow run not found")
+    ctx = AgentContext(project_id=project_id,
                        workflow_run_id=req.workflow_run_id,
                        condition=req.condition, target_query=req.target_query)
     out = ComputePlannerAgent().run(ctx)
@@ -224,6 +249,8 @@ def plan_agent(req: PlanAgentRequest):
 # ---- Compute decisions for a run ----
 @router.get("/runs/{run_id}/decisions")
 def run_decisions(run_id: str):
+    if not db.get("workflow_runs", run_id):
+        raise HTTPException(status_code=404, detail="workflow run not found")
     return {"run_id": run_id, "compute_decisions": compute_aware_planner.get_decisions(run_id)}
 
 

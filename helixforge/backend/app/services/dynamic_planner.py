@@ -146,6 +146,18 @@ def plan_run(*, condition: str, target_query: str, scenario_id: str = "",
              run_id: Optional[str] = None, project_id: Optional[str] = None,
              client: Any = None) -> dict[str, Any]:
     """Produce a validated plan. Uses the LLM if enabled; else the deterministic plan."""
+    if run_id:
+        run = db.get("workflow_runs", run_id)
+        if not run:
+            raise ValueError("workflow run not found")
+        authoritative_project_id = run.get("project_id")
+        if project_id and project_id != authoritative_project_id:
+            raise ValueError("project_id does not match workflow run")
+        project_id = authoritative_project_id
+    else:
+        # A project-only plan cannot be tied to an authoritative execution and
+        # would contaminate project views. Keep previews explicitly unscoped.
+        project_id = None
     det = deterministic_plan(condition, target_query, tools_health)
     user_prompt = (
         f"Disease/condition: {condition}\nTarget query: {target_query}\nScenario: {scenario_id}\n"
@@ -173,7 +185,8 @@ def plan_run(*, condition: str, target_query: str, scenario_id: str = "",
 
     plan_id = f"hplan-{uuid.uuid4().hex[:10]}"
     payload = {
-        "id": plan_id, "run_id": run_id, "project_id": project_id, "created_at": utcnow(),
+        "id": plan_id, "run_id": run_id, "workflow_run_id": run_id,
+        "project_id": project_id, "created_at": utcnow(),
         "condition": condition, "target_query": target_query, "scenario_id": scenario_id,
         "requested_mode": mode, "plan_source": plan_source, "model": res.model,
         "llm_call_id": res.llm_call_id, "fallback_used": res.fallback_used,
@@ -181,10 +194,7 @@ def plan_run(*, condition: str, target_query: str, scenario_id: str = "",
         "validation": {k: validation[k] for k in ("valid", "errors", "warnings")},
         "deterministic_fallback_available": True,
     }
-    try:
-        db.insert("hybrid_plans", payload)
-    except Exception:
-        pass
+    db.insert("hybrid_plans", payload)
     return payload
 
 
@@ -198,6 +208,13 @@ def replan(*, run_id: str, failed_stage: str, failure_summary: str, condition: s
            client: Any = None) -> dict[str, Any]:
     """On a stage failure, ask the planner to revise if LLM is enabled+budgeted; else
     apply deterministic recovery. Records a ReplanEvent."""
+    run = db.get("workflow_runs", run_id)
+    if not run:
+        raise ValueError("workflow run not found")
+    authoritative_project_id = run.get("project_id")
+    if project_id and project_id != authoritative_project_id:
+        raise ValueError("project_id does not match workflow run")
+    project_id = authoritative_project_id
     user_prompt = (
         f"A stage failed and the plan must be revised.\nCondition: {condition}\nTarget: {target_query}\n"
         f"Failed stage: {failed_stage}\nFailure summary: {failure_summary}\n"
@@ -216,7 +233,8 @@ def replan(*, run_id: str, failed_stage: str, failure_summary: str, condition: s
         source = "DETERMINISTIC_FALLBACK"
 
     event = {
-        "id": f"replan-{uuid.uuid4().hex[:10]}", "run_id": run_id, "project_id": project_id,
+        "id": f"replan-{uuid.uuid4().hex[:10]}", "run_id": run_id,
+        "workflow_run_id": run_id, "project_id": project_id,
         "created_at": utcnow(), "failed_stage": failed_stage, "failure_summary": failure_summary,
         "plan_source": source, "model": res.model, "recovery": "revised plan produced",
         "revised_stage_ids": [s.get("stage_id") for s in recovered_plan.get("selected_stages", [])],
@@ -229,4 +247,4 @@ def replan(*, run_id: str, failed_stage: str, failure_summary: str, condition: s
 
 
 def list_replans(run_id: str) -> list[dict]:
-    return [r for r in db.list_records("replan_events", limit=500) if r.get("run_id") == run_id]
+    return db.list_records("replan_events", workflow_run_id=run_id, limit=500)

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { api } from '@/lib/api'
+import { api, getRememberedRunId } from '@/lib/api'
 import { Icon } from '@/components/Icon'
 import { Badge, Empty, ErrorNote, PageHeader, Panel, Spinner } from '@/components/ui'
 
@@ -21,29 +21,55 @@ const RISKS = [
   'No wet-lab or clinical validation is claimed',
 ]
 
+const pendingSubmissionChecks = new Map<string, Promise<any>>()
+
+function requestSubmissionCheck(runId: string): Promise<any> {
+  const key = runId || '__latest__'
+  const pending = pendingSubmissionChecks.get(key)
+  if (pending) return pending
+  const request = api.submissionCheck(runId || undefined).finally(() => {
+    pendingSubmissionChecks.delete(key)
+  })
+  pendingSubmissionChecks.set(key, request)
+  return request
+}
+
 function download(name: string, content: string, type = 'text/markdown') {
   const blob = new Blob([content], { type }); const url = URL.createObjectURL(blob)
   const a = document.createElement('a'); a.href = url; a.download = name; a.click(); URL.revokeObjectURL(url)
 }
 
 export function Submission() {
+  const [runId] = useState(getRememberedRunId)
   const [active, setActive] = useState<any | null>(null)
   const [busy, setBusy] = useState('')
   const [err, setErr] = useState('')
   const [check, setCheck] = useState<any | null>(null)
+  const [checkLoading, setCheckLoading] = useState(true)
+  const [checkError, setCheckError] = useState('')
 
-  useEffect(() => { api.submissionCheck().then(setCheck).catch(() => {}) }, [])
+  useEffect(() => {
+    let active = true
+    requestSubmissionCheck(runId)
+      .then((result) => { if (active) setCheck(result) })
+      .catch((reason: unknown) => { if (active) setCheckError(reason instanceof Error ? reason.message : 'Submission check failed.') })
+      .finally(() => { if (active) setCheckLoading(false) })
+    return () => { active = false }
+  }, [runId])
 
   async function gen(key: string) {
     setBusy(key); setErr('')
-    try { setActive(await api.submissionGenerate(key)) } catch (e: any) { setErr(e.message) } finally { setBusy('') }
+    try { setActive(await api.submissionGenerate(key, runId || undefined)) } catch (e: any) { setErr(e.message) } finally { setBusy('') }
   }
   async function bundle() {
     setBusy('bundle'); setErr('')
     try {
-      const b = await api.submissionBundle()
+      const b = await api.submissionBundle(runId || undefined)
       download('helixforge-submission-bundle.json', JSON.stringify(b, null, 2), 'application/json')
-      setCheck(await api.submissionCheck())
+      // A post-mutation check must be fresh; the mount-only StrictMode dedupe
+      // promise may represent state from before bundle generation.
+      setCheck(await api.submissionCheck(runId || undefined))
+      setCheckError('')
     } catch (e: any) { setErr(e.message) } finally { setBusy('') }
   }
 
@@ -63,7 +89,7 @@ export function Submission() {
             <div className="section-title mb-3">One-click generation</div>
             <div className="space-y-2">
               {ARTIFACTS.map((a) => (
-                <button key={a.key} onClick={() => gen(a.key)} disabled={!!busy}
+                <button key={a.key} onClick={() => gen(a.key)} disabled={!!busy} aria-pressed={active?.type === a.key}
                   className={`flex w-full items-center justify-between rounded-lg border p-2.5 text-left ${active?.type === a.key ? 'border-helix-cyan/50 bg-helix-cyan/5' : 'border-line bg-bg-soft/40 hover:bg-bg-hover/60'}`}>
                   <span className="flex items-center gap-2 text-sm text-slate-200"><Icon name={a.icon} size={14} className="text-helix-cyan" /> {a.label}</span>
                   {busy === a.key ? <Spinner label="" /> : <Icon name="ChevronRight" size={14} className="text-slate-500" />}
@@ -73,7 +99,7 @@ export function Submission() {
           </Panel>
           <Panel>
             <div className="section-title mb-2">Final sanity check</div>
-            {!check ? <Spinner label="" /> : (
+            {checkLoading ? <Spinner label="" /> : checkError ? <ErrorNote error={checkError} /> : !check ? <Empty>No submission check result.</Empty> : (
               <div className="space-y-1">
                 {check.checklist.map((c: any) => (
                   <div key={c.item} className="flex items-center gap-2 text-xs">

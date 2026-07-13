@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { api } from '@/lib/api'
+import { api, rememberRunId } from '@/lib/api'
 import { Icon } from '@/components/Icon'
 import { Badge, Disclaimer, Empty, ErrorNote, Field, PageHeader, Panel, Spinner } from '@/components/ui'
 import { HUMAN_RESPONSIBILITY } from '@/lib/api'
@@ -36,10 +36,12 @@ export function Hybrid() {
   async function run() {
     setRunning(true); setErr(''); setResult(null)
     try {
-      setResult(await api.runHybridPipeline({
+      const next = await api.runHybridPipeline({
         mode, target_query: targetQuery, condition, scenario_id: scenarioId,
         budget_usd: budgetUsd, max_pubmed_results: maxPubmed, ...toggles,
-      }))
+      })
+      setResult(next)
+      rememberRunId(next.workflow_run_id)
     } catch (e: any) { setErr(e.message) } finally { setRunning(false) }
   }
 
@@ -102,7 +104,7 @@ export function Hybrid() {
                 <div className="flex flex-wrap items-center gap-2 text-xs">
                   <span className="text-slate-500">mode</span> <Badge tone="violet">{result.global_mode || result.mode || mode}</Badge>
                   <span className="text-slate-500">status</span> <Badge tone={STATUS_TONE[result.status] || 'slate'}>{result.status || '—'}</Badge>
-                  {result.run_id && <span className="text-slate-500">run <span className="font-mono text-slate-400">{result.run_id}</span></span>}
+                  {result.workflow_run_id && <span className="text-slate-500">run <span className="font-mono text-slate-400">{result.workflow_run_id}</span></span>}
                 </div>
                 <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
                   <div className="flex items-center gap-1.5"><span className="text-slate-500">plan</span> <ReasoningBadge type={result.plan_source} /></div>

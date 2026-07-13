@@ -30,7 +30,8 @@ def _scaffold_overlap(train_smiles: list[str], test_smiles: list[str]) -> int:
 
 def curate(records: list[dict[str, Any]], dataset_name: str = "dataset",
            source: str = "user", endpoint_type: str = "activity",
-           license_status: str = "REVIEW_REQUIRED", exploratory: bool = False) -> dict[str, Any]:
+           license_status: str = "REVIEW_REQUIRED", exploratory: bool = False,
+           run_id: str | None = None, project_id: str | None = None) -> dict[str, Any]:
     """records: [{smiles, label?, standard_type?, standard_units?, standard_relation?, ...}]."""
     if not cu.rdkit_available():
         return {"status": "UNAVAILABLE", "reason": "RDKit not available",
@@ -95,7 +96,8 @@ def curate(records: list[dict[str, Any]], dataset_name: str = "dataset",
 
     ds_id = f"ds-{uuid.uuid4().hex[:8]}"
     rec = {
-        "id": ds_id, "dataset_name": dataset_name, "source": source,
+        "id": ds_id, "project_id": project_id, "run_id": run_id,
+        "workflow_run_id": run_id, "dataset_name": dataset_name, "source": source,
         "source_type": SourceType.REAL_TOOL_OUTPUT.value if source in ("chembl", "tdc") else SourceType.HUMAN_INPUT.value,
         "endpoint_type": endpoint_type, "row_count": len(records),
         "valid_smiles_count": n, "invalid_smiles_count": invalid_count, "duplicate_count": duplicate_count,
@@ -118,8 +120,10 @@ def curate(records: list[dict[str, Any]], dataset_name: str = "dataset",
     return rec
 
 
-def list_datasets() -> list[dict[str, Any]]:
-    return db.list_records("dataset_versions", limit=200)
+def list_datasets(project_id: str | None = None,
+                  run_id: str | None = None) -> list[dict[str, Any]]:
+    return db.list_records("dataset_versions", project_id=project_id,
+                           workflow_run_id=run_id, limit=200)
 
 
 def get_dataset(dataset_id: str) -> dict[str, Any] | None:

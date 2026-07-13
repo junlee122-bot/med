@@ -11,7 +11,10 @@ from typing import Any
 
 from app.compute import job_spec as JS
 from app.compute import schemas as S
-from app.compute.cost_guard import check_budget, estimate_gpu_job_cost, record_cost_event
+from app.compute.cost_guard import (
+    check_budget, estimate_gpu_job_cost, record_cost_event,
+    release_budget_reservation, reserve_budget,
+)
 from app.compute.provider_registry import get_provider
 from app.models.schemas import SourceType, utcnow
 from app.storage import db
@@ -23,7 +26,10 @@ def dry_run(spec: dict[str, Any], pricing_profile_id: str | None = None) -> dict
     v = JS.validate_gpu_job_spec(spec)
     blocked_fields = scan_spec_for_forbidden(spec)
     est = estimate_gpu_job_cost(v["normalized"], pricing_profile_id) if v["valid"] else None
-    budget = check_budget(est["estimated_cost_usd"], v["normalized"]["resource_request"]["max_cost_usd"]) if est else None
+    budget = check_budget(
+        est["estimated_cost_usd"], v["normalized"]["resource_request"]["max_cost_usd"],
+        workflow_run_id=spec.get("workflow_run_id"),
+    ) if est else None
     provider = get_provider("generic_rest")
     payload = JS.build_safe_job_payload(v["normalized"]) if v["valid"] else None
     return {
@@ -46,9 +52,19 @@ def create_job(spec: dict[str, Any], requested_by_agent: str = "human",
     job_id = f"cjob-{uuid.uuid4().hex[:10]}"
     v = JS.validate_gpu_job_spec(spec)
     now = utcnow()
+    requested_run_id = workflow_run_id or spec.get("workflow_run_id")
+    requested_project_id = project_id or spec.get("project_id")
+    if requested_run_id:
+        run = db.get("workflow_runs", requested_run_id)
+        if not run:
+            raise ValueError("workflow run not found")
+        authoritative_project_id = run.get("project_id")
+        if requested_project_id and requested_project_id != authoritative_project_id:
+            raise ValueError("project_id does not match workflow run")
+        requested_project_id = authoritative_project_id
     base = {
-        "id": job_id, "project_id": project_id or spec.get("project_id"),
-        "workflow_run_id": workflow_run_id or spec.get("workflow_run_id"),
+        "id": job_id, "project_id": requested_project_id,
+        "workflow_run_id": requested_run_id,
         "requested_by_agent": requested_by_agent, "job_type": spec.get("job_type"),
         "provider_id": "generic_rest", "execution_backend": S.ExecutionBackend.REMOTE_GPU,
         "specification": v["normalized"], "specification_hash": v.get("spec_hash"),
@@ -64,9 +80,15 @@ def create_job(spec: dict[str, Any], requested_by_agent: str = "human",
         db.insert("compute_jobs", base)
         return base
     est = estimate_gpu_job_cost(v["normalized"], pricing_profile_id)
-    budget = check_budget(est["estimated_cost_usd"], v["normalized"]["resource_request"]["max_cost_usd"])
+    budget = reserve_budget(
+        job_id, est["estimated_cost_usd"],
+        v["normalized"]["resource_request"]["max_cost_usd"],
+        project_id=base.get("project_id"), workflow_run_id=base.get("workflow_run_id"),
+    )
     record_cost_event(job_id, "estimate", estimated=est["estimated_cost_usd"],
-                      pricing_snapshot=est.get("pricing_profile"))
+                      pricing_snapshot=est.get("pricing_profile"),
+                      project_id=base.get("project_id"),
+                      workflow_run_id=base.get("workflow_run_id"))
     if not budget["ok"]:
         base.update({"status": S.ComputeJobStatus.BUDGET_BLOCKED,
                      "approval_status": S.ApprovalStatus.NOT_REQUIRED,
@@ -92,9 +114,34 @@ def approve_job(job_id: str, approved_by: str = "human", approved_cost_usd: floa
         raise ValueError("job not found")
     if job.get("status") != S.ComputeJobStatus.WAITING_FOR_APPROVAL:
         return {**job, "note": f"job not awaiting approval (status={job.get('status')})."}
+    v = JS.validate_gpu_job_spec(job.get("specification") or {})
+    if not v["valid"]:
+        release_budget_reservation(job_id)
+        job.update({"status": S.ComputeJobStatus.VALIDATION_FAILED,
+                    "approval_status": S.ApprovalStatus.NOT_REQUIRED,
+                    "errors": v["errors"], "warnings": v["warnings"],
+                    "source_type": SourceType.GPU_SAFETY_BLOCKED.value})
+        db.insert("compute_jobs", job)
+        return job
+    est = estimate_gpu_job_cost(v["normalized"])
+    budget = reserve_budget(
+        job_id, est["estimated_cost_usd"],
+        v["normalized"]["resource_request"].get("max_cost_usd"),
+        project_id=job.get("project_id"), workflow_run_id=job.get("workflow_run_id"),
+    )
+    if not budget["ok"]:
+        release_budget_reservation(job_id)
+        job.update({"status": S.ComputeJobStatus.BUDGET_BLOCKED,
+                    "approval_status": S.ApprovalStatus.NOT_REQUIRED,
+                    "budget": budget, "estimated_cost_usd": est["estimated_cost_usd"],
+                    "source_type": SourceType.GPU_BUDGET_BLOCKED.value,
+                    "note": "Approval blocked by the current budget guard."})
+        db.insert("compute_jobs", job)
+        return job
     job["approval_status"] = S.ApprovalStatus.APPROVED
     job["approved_by"] = approved_by
-    job["approved_cost_usd"] = approved_cost_usd or job.get("estimated_cost_usd")
+    job["approved_cost_usd"] = est["estimated_cost_usd"]
+    job["budget"] = budget
     # Approval alone does not submit in this build session — it marks the job ready.
     job["status"] = S.ComputeJobStatus.CONFIGURED_NOT_RUN
     job["approved_at"] = utcnow()
@@ -110,6 +157,7 @@ def cancel_job(job_id: str) -> dict[str, Any]:
         raise ValueError("job not found")
     job["status"] = S.ComputeJobStatus.CANCELLED
     job["cancelled_at"] = utcnow()
+    release_budget_reservation(job_id)
     db.insert("compute_jobs", job)
     return job
 
@@ -120,9 +168,53 @@ def retry_job(job_id: str) -> dict[str, Any]:
         raise ValueError("job not found")
     if job.get("retry_count", 0) >= job.get("max_retries", 1):
         return {**job, "note": "max retries reached; not retrying (avoids infinite retry)."}
+    retryable = {
+        S.ComputeJobStatus.TIMED_OUT,
+        S.ComputeJobStatus.TOOL_ERROR,
+        S.ComputeJobStatus.ARTIFACT_INVALID,
+    }
+    if job.get("status") not in retryable:
+        return {**job, "note": f"status {job.get('status')} is not retryable; create a corrected job instead."}
+
+    # A retry is a new paid-execution decision: re-run the immutable safety
+    # validator and current budget guard instead of reviving a stale approval.
+    v = JS.validate_gpu_job_spec(job.get("specification") or {})
+    if not v["valid"]:
+        release_budget_reservation(job_id)
+        job.update({"status": S.ComputeJobStatus.VALIDATION_FAILED,
+                    "approval_status": S.ApprovalStatus.NOT_REQUIRED,
+                    "errors": v["errors"], "warnings": v["warnings"],
+                    "source_type": SourceType.GPU_SAFETY_BLOCKED.value})
+        db.insert("compute_jobs", job)
+        return job
+    est = estimate_gpu_job_cost(v["normalized"])
+    budget = reserve_budget(
+        job_id, est["estimated_cost_usd"],
+        v["normalized"]["resource_request"].get("max_cost_usd"),
+        project_id=job.get("project_id"), workflow_run_id=job.get("workflow_run_id"),
+    )
+    if not budget["ok"]:
+        release_budget_reservation(job_id)
+        job.update({"status": S.ComputeJobStatus.BUDGET_BLOCKED,
+                    "approval_status": S.ApprovalStatus.NOT_REQUIRED,
+                    "budget": budget, "estimated_cost_usd": est["estimated_cost_usd"],
+                    "source_type": SourceType.GPU_BUDGET_BLOCKED.value})
+        db.insert("compute_jobs", job)
+        return job
     job["retry_count"] = job.get("retry_count", 0) + 1
     job["status"] = S.ComputeJobStatus.WAITING_FOR_APPROVAL
     job["approval_status"] = S.ApprovalStatus.PENDING
+    job["budget"] = budget
+    job["estimated_cost_usd"] = est["estimated_cost_usd"]
+    job["approved_by"] = None
+    job["approved_cost_usd"] = None
+    job["approved_at"] = None
+    job["source_type"] = SourceType.GPU_CONFIGURED_NOT_RUN.value
+    job["note"] = "Retry revalidated and re-budgeted; fresh human approval required."
+    record_cost_event(job_id, "retry_estimate", estimated=est["estimated_cost_usd"],
+                      pricing_snapshot=est.get("pricing_profile"),
+                      project_id=job.get("project_id"),
+                      workflow_run_id=job.get("workflow_run_id"))
     db.insert("compute_jobs", job)
     return job
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.services import (
@@ -12,15 +12,45 @@ from app.storage import db
 router = APIRouter(prefix="/api", tags=["translational"])
 
 
+def _resolve_run_id(run_id: str) -> str | None:
+    if run_id == "latest":
+        runs = db.list_records("workflow_runs", limit=1)
+        return runs[0].get("id") if runs else None
+    if not db.get("workflow_runs", run_id):
+        raise HTTPException(status_code=404, detail="workflow run not found")
+    return run_id
+
+
+def _persisted_run_result(table: str, run_id: str, **empty_fields):
+    resolved = _resolve_run_id(run_id)
+    if resolved is None:
+        return {
+            "status": "NOT_COMPUTED", "run_id": None, "workflow_run_id": None,
+            **empty_fields,
+        }
+    records = db.list_records(table, workflow_run_id=resolved, limit=1)
+    if records:
+        return records[0]
+    return {
+        "status": "NOT_COMPUTED", "run_id": resolved, "workflow_run_id": resolved,
+        **empty_fields,
+    }
+
+
 # ---- Target biology review (§3) ----
 @router.post("/target-biology/review-run")
 def target_biology_review_run(run_id: str | None = None):
-    return target_biology_review.review_run(run_id)
+    try:
+        return target_biology_review.review_run(run_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.get("/target-biology/run/{run_id}")
 def target_biology_run(run_id: str):
-    return target_biology_review.review_run(run_id)
+    return _persisted_run_result(
+        "target_biology_reviews", run_id, reviews=[], count=0, status_distribution={},
+    )
 
 
 @router.get("/target-biology/target/{target_id}")
@@ -29,41 +59,59 @@ def target_biology_target(target_id: str):
     if not tgt:
         return {"error": "target not found"}
     pid = tgt.get("project_id")
-    ev = db.list_records("evidence_items", project_id=pid, limit=1000) if pid else []
+    rid = tgt.get("workflow_run_id") or tgt.get("run_id")
+    ev = db.list_records("evidence_items", project_id=pid, workflow_run_id=rid, limit=1000) if pid and rid else []
     return target_biology_review.review_target(tgt, ev)
 
 
 # ---- Translational readiness (§11) ----
 @router.post("/translational/readiness/run")
 def translational_readiness_run(run_id: str | None = None):
-    return translational_readiness.assess_run(run_id)
+    try:
+        return translational_readiness.assess_run(run_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.get("/translational/readiness/{run_id}")
 def translational_readiness_get(run_id: str):
-    return translational_readiness.assess_run(run_id)
+    return _persisted_run_result(
+        "translational_assessments", run_id,
+        readiness_level=None, blocking_gaps=[], recommended_next_actions=[],
+    )
 
 
 # ---- Clinical precedent review (§12) ----
 @router.post("/clinical/precedent-review")
 def clinical_precedent(run_id: str | None = None):
-    return clinical_precedent_review.review_run(run_id)
+    try:
+        return clinical_precedent_review.review_run(run_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.get("/clinical/precedent-review/{run_id}")
 def clinical_precedent_get(run_id: str):
-    return clinical_precedent_review.review_run(run_id)
+    return _persisted_run_result(
+        "clinical_precedent_reviews", run_id,
+        trials=[], precedent_strength="NOT_COMPUTED",
+    )
 
 
 # ---- Pareto optimization (§9) ----
 @router.post("/optimization/pareto/run")
 def pareto_run(run_id: str | None = None):
-    return pareto_optimization.run(run_id)
+    try:
+        return pareto_optimization.run(run_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.get("/optimization/pareto/run/{run_id}")
 def pareto_run_get(run_id: str):
-    return pareto_optimization.run(run_id)
+    return _persisted_run_result(
+        "pareto_analyses", run_id, front=[], all_candidates=[], objective_names=[],
+    )
 
 
 # ---- Docking protocol governance (§8) ----
@@ -85,9 +133,28 @@ def docking_protocol_create(req: DockingProtocolRequest):
         exhaustiveness=req.exhaustiveness, mode=req.mode, score=req.score)
 
 
+@router.post("/docking/protocol/run/{run_id}")
+def docking_protocol_compute_run(run_id: str):
+    resolved = _resolve_run_id(run_id)
+    if resolved is None:
+        raise HTTPException(status_code=404, detail="workflow run not found")
+    try:
+        return docking_protocol.run(resolved)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
 @router.get("/docking/protocol/run/{run_id}")
 def docking_protocol_run(run_id: str):
-    return docking_protocol.run(None if run_id == "latest" else run_id)
+    record = _persisted_run_result("docking_protocols", run_id, protocol=None, lint=None)
+    if record.get("status") == "NOT_COMPUTED":
+        return record
+    return {
+        "run_id": record.get("run_id") or record.get("workflow_run_id"),
+        "protocol": record,
+        "lint": record.get("lint"),
+        "checked_at": (record.get("lint") or {}).get("checked_at") or record.get("created_at"),
+    }
 
 
 class DockingLintRequest(BaseModel):

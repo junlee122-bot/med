@@ -4,9 +4,14 @@ import type { RDKitResponse } from '@/lib/api'
 import { Icon } from '@/components/Icon'
 import { Badge, Empty, ErrorNote, Field, PageHeader, Panel, SourceBadge, Spinner, StatCard } from '@/components/ui'
 
-interface Candidate { smiles: string; source: string; res?: RDKitResponse; safety?: string }
+interface Candidate { smiles: string; source: string; res?: RDKitResponse; safety: string; error?: string }
 
 const SEEDS = ['CC(=O)Oc1ccccc1C(=O)O', 'CN1C=NC2=C1C(=O)N(C)C(=O)N2C', 'COc1cc2ncnc(Nc3ccc(F)cc3)c2cc1OC', 'CC(C)(C']
+
+function safetyStatus(result: any): string {
+  const status = result?.status || result?.safety_status
+  return typeof status === 'string' && status.trim() ? status : 'UNKNOWN'
+}
 
 export function MoleculeLab() {
   const [smiles, setSmiles] = useState('COc1cc2ncnc(Nc3ccc(F)cc3)c2cc1OC')
@@ -26,10 +31,19 @@ export function MoleculeLab() {
     try {
       const rows: Candidate[] = []
       for (const s of SEEDS) {
-        const res = await api.rdkitDescriptors(s)
-        let safety = 'PASS'
-        try { const sc = await api.safetyScreen({ smiles: s, label: s }); safety = sc.status || sc.safety_status || 'PASS' } catch {}
-        rows.push({ smiles: s, source: 'seed', res, safety })
+        const [descriptorResult, safetyResult] = await Promise.allSettled([
+          api.rdkitDescriptors(s),
+          api.safetyScreen({ smiles: s, label: s }),
+        ])
+        rows.push({
+          smiles: s,
+          source: 'seed',
+          res: descriptorResult.status === 'fulfilled' ? descriptorResult.value : undefined,
+          safety: safetyResult.status === 'fulfilled' ? safetyStatus(safetyResult.value) : 'TOOL_ERROR',
+          error: descriptorResult.status === 'rejected'
+            ? (descriptorResult.reason instanceof Error ? descriptorResult.reason.message : 'Descriptor tool failed')
+            : undefined,
+        })
       }
       setCandidates(rows)
     } catch (e: any) { setErr(e.message) } finally { setLoading(null) }
@@ -45,11 +59,25 @@ export function MoleculeLab() {
         const s = a.canonical_smiles
         if (!s || seen.has(s)) continue
         seen.add(s)
-        const res = await api.rdkitValidate(s)
-        rows.push({ smiles: s, source: `ChEMBL ${a.molecule_chembl_id}`, res })
+        const [validationResult, safetyResult] = await Promise.allSettled([
+          api.rdkitValidate(s),
+          api.safetyScreen({ smiles: s, label: String(a.molecule_chembl_id || s) }),
+        ])
+        rows.push({
+          smiles: s,
+          source: `ChEMBL ${a.molecule_chembl_id}`,
+          res: validationResult.status === 'fulfilled' ? validationResult.value : undefined,
+          safety: safetyResult.status === 'fulfilled' ? safetyStatus(safetyResult.value) : 'TOOL_ERROR',
+          error: validationResult.status === 'rejected'
+            ? (validationResult.reason instanceof Error ? validationResult.reason.message : 'Validation tool failed')
+            : undefined,
+        })
         if (rows.length >= 8) break
       }
-      setCandidates((prev) => [...rows, ...prev])
+      setCandidates((prev) => {
+        const refreshed = new Set(rows.map((row) => `${row.source}:${row.smiles}`))
+        return [...rows, ...prev.filter((row) => !refreshed.has(`${row.source}:${row.smiles}`))]
+      })
     } catch (e: any) { setErr(e.message) } finally { setLoading(null) }
   }
 
@@ -129,15 +157,15 @@ export function MoleculeLab() {
             <table className="w-full text-left text-xs">
               <thead className="bg-bg-soft text-slate-400"><tr><th className="p-2">Source</th><th className="p-2">SMILES</th><th className="p-2">Valid</th><th className="p-2">MW</th><th className="p-2">QED</th><th className="p-2">Lipinski</th><th className="p-2">Safety</th><th className="p-2">Provenance</th></tr></thead>
               <tbody>
-                {candidates.map((c, i) => (
-                  <tr key={i} className="border-t border-line">
+                {candidates.map((c) => (
+                  <tr key={`${c.source}:${c.smiles}`} className="border-t border-line">
                     <td className="p-2 text-slate-400">{c.source}</td>
                     <td className="p-2 font-mono text-[10px] text-slate-500">{c.smiles.slice(0, 30)}</td>
-                    <td className="p-2">{c.res?.valid ? <Badge tone="green">valid</Badge> : <Badge tone="red">invalid</Badge>}</td>
+                    <td className="p-2">{!c.res ? <Badge tone="amber">tool error</Badge> : c.res.valid ? <Badge tone="green">valid</Badge> : <Badge tone="red">invalid</Badge>}</td>
                     <td className="p-2 text-slate-400">{c.res?.descriptors?.mol_weight ?? '—'}</td>
                     <td className="p-2 text-slate-400">{c.res?.descriptors?.qed ?? '—'}</td>
                     <td className="p-2 text-slate-400">{c.res?.descriptors ? (c.res.descriptors.lipinski_pass ? 'pass' : `${c.res.descriptors.lipinski_violations} viol`) : '—'}</td>
-                    <td className="p-2">{c.safety ? <Badge tone={c.safety === 'PASS' ? 'green' : c.safety === 'BLOCKED' ? 'red' : 'amber'}>{c.safety}</Badge> : '—'}</td>
+                    <td className="p-2"><Badge tone={c.safety === 'PASS' ? 'green' : c.safety === 'BLOCKED' || c.safety === 'TOOL_ERROR' ? 'red' : 'amber'}>{c.safety}</Badge></td>
                     <td className="p-2">{c.res && <SourceBadge type={c.res.source_type} />}</td>
                   </tr>
                 ))}

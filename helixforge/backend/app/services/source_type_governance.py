@@ -27,14 +27,46 @@ def _source_values(rec: dict) -> list[str]:
     return vals
 
 
-def audit() -> dict[str, Any]:
+def _scoped_records(
+    table: str,
+    project_id: str | None,
+    workflow_run_id: str | None,
+    limit: int,
+) -> list[dict[str, Any]]:
+    if table == "workflow_runs" and workflow_run_id:
+        run = db.get("workflow_runs", workflow_run_id)
+        if not run or (project_id is not None and run.get("project_id") != project_id):
+            return []
+        return [run]
+    return db.list_records(
+        table,
+        project_id=project_id,
+        workflow_run_id=workflow_run_id,
+        limit=limit,
+    )
+
+
+def audit(
+    project_id: str | None = None,
+    workflow_run_id: str | None = None,
+    *,
+    _records_by_table: dict[str, list[dict[str, Any]]] | None = None,
+) -> dict[str, Any]:
+    """Audit persisted records, or an explicitly supplied in-memory probe set.
+
+    ``_records_by_table`` exists for side-effect-free self-audit probes. It is
+    keyword-only and intentionally internal so production callers continue to
+    audit the database by default.
+    """
     counts: dict[str, int] = {}
     unknown: list[str] = []
     missing: list[str] = []
     real_vs_replay: list[str] = []
 
     for table in SCIENTIFIC_TABLES:
-        for rec in db.list_records(table, limit=3000):
+        records = (_records_by_table.get(table, []) if _records_by_table is not None
+                   else _scoped_records(table, project_id, workflow_run_id, 3000))
+        for rec in records:
             vals = _source_values(rec)
             # Rule 1: scientific entities must carry a source label.
             if not vals and table in ("tool_runs", "agent_runs", "evidence_items",
@@ -54,7 +86,9 @@ def audit() -> dict[str, Any]:
     heuristic_as_official: list[str] = []
     baseline_as_validated: list[str] = []
     for table in ("reports", "submission_artifacts"):
-        for rec in db.list_records(table, limit=200):
+        records = (_records_by_table.get(table, []) if _records_by_table is not None
+                   else _scoped_records(table, project_id, workflow_run_id, 200))
+        for rec in records:
             md = rec.get("markdown", "") or ""
             if re.search(r"CONFIGURED_BUT_NOT_RUN.{0,60}(real result|completed|executed successfully)", md, re.I):
                 overclaimed_not_run.append(f"{table}:{rec.get('id')}")

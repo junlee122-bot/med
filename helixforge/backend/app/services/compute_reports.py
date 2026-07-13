@@ -70,7 +70,7 @@ CPU-only submission is NOT blocked by missing GPU. See docs/EXTERNAL_GPU_ARCHITE
 
 def _cost_plan(s: dict[str, Any]) -> str:
     from app.compute.cost_guard import costs_summary
-    c = costs_summary()
+    c = costs_summary(s.get("run_id"))
     return f"""# Compute Cost & Budget Plan
 
 > {DISCLAIMER}
@@ -126,13 +126,16 @@ def _artifact_body(kind: str, s: dict[str, Any]) -> str:
     raise ValueError(f"unknown compute artifact kind: {kind}")
 
 
-def generate(kind: str, run_id: str | None = None) -> dict[str, Any]:
+def _generate_from_summary(kind: str, summary: dict[str, Any]) -> dict[str, Any]:
     if kind not in ARTIFACT_TYPES:
         raise ValueError(f"kind must be one of {ARTIFACT_TYPES}")
-    s = compute_evaluation.compute_summary(run_id)
-    md = _artifact_body(kind, s)
+    md = _artifact_body(kind, summary)
     lint = lint_report(md)
-    art = {"id": f"comp-art-{kind}-{uuid.uuid4().hex[:8]}", "type": kind, "kind": kind,
+    run_id = summary.get("run_id")
+    art = {"id": f"comp-art-{kind}-{uuid.uuid4().hex[:8]}",
+           "project_id": summary.get("project_id"),
+           "run_id": run_id, "workflow_run_id": run_id,
+           "type": kind, "kind": kind,
            "title": kind.replace("_", " ").title(), "markdown": md,
            "safety_lint": lint, "export_safe": lint["export_safe"],
            "source_type": "HEURISTIC_ANALYSIS", "created_at": utcnow()}
@@ -140,5 +143,12 @@ def generate(kind: str, run_id: str | None = None) -> dict[str, Any]:
     return art
 
 
+def generate(kind: str, run_id: str | None = None) -> dict[str, Any]:
+    if kind not in ARTIFACT_TYPES:
+        raise ValueError(f"kind must be one of {ARTIFACT_TYPES}")
+    return _generate_from_summary(kind, compute_evaluation.compute_summary(run_id))
+
+
 def generate_all(run_id: str | None = None) -> list[dict[str, Any]]:
-    return [generate(k, run_id) for k in ARTIFACT_TYPES]
+    summary = compute_evaluation.compute_summary(run_id)
+    return [_generate_from_summary(kind, summary) for kind in ARTIFACT_TYPES]

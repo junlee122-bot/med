@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { api } from '@/lib/api'
+import { useEffect, useState } from 'react'
+import { api, getRememberedRunId } from '@/lib/api'
 import { Icon } from '@/components/Icon'
 import { Badge, Disclaimer, Empty, ErrorNote, PageHeader, Panel, Spinner } from '@/components/ui'
 import { HUMAN_RESPONSIBILITY } from '@/lib/api'
@@ -12,27 +12,54 @@ const STATUS_TONE: Record<string, string> = {
   IN_DOMAIN: 'green', BORDERLINE: 'amber', OUT_OF_DOMAIN: 'red', UNKNOWN: 'slate',
 }
 
+const pendingAnalyses = new Map<string, Promise<any>>()
+
+function requestAnalysis(tab: Tab, runId: string): Promise<any> {
+  const key = `${runId || '__latest__'}:${tab}`
+  const existing = pendingAnalyses.get(key)
+  if (existing) return existing
+  const request = (tab === 'activity' ? api.activitiesNormalizeRun(runId || undefined)
+    : tab === 'medchem' ? api.medchemReviewRun(runId || undefined)
+    : api.applicabilityRun(runId || undefined))
+    .finally(() => pendingAnalyses.delete(key))
+  pendingAnalyses.set(key, request)
+  return request
+}
+
 export function MoleculeQA() {
+  const [runId] = useState(getRememberedRunId)
   const [tab, setTab] = useState<Tab>('activity')
   const [data, setData] = useState<Record<Tab, any>>({ activity: null, medchem: null, applicability: null })
-  const [loading, setLoading] = useState(false)
-  const [err, setErr] = useState('')
+  const [pending, setPending] = useState<Record<Tab, boolean>>({ activity: false, medchem: false, applicability: false })
+  const [errors, setErrors] = useState<Record<Tab, string>>({ activity: '', medchem: '', applicability: '' })
 
   async function load(t: Tab) {
-    setTab(t); setErr('')
-    if (data[t]) return
-    setLoading(true)
+    setTab(t); setErrors((current) => ({ ...current, [t]: '' }))
+    if (data[t] || pending[t]) return
+    setPending((current) => ({ ...current, [t]: true }))
     try {
-      const res = t === 'activity' ? await api.activitiesNormalizeRun()
-        : t === 'medchem' ? await api.medchemReviewRun()
-        : await api.applicabilityRun()
+      const res = await requestAnalysis(t, runId)
       setData((d) => ({ ...d, [t]: res }))
-    } catch (e: any) { setErr(e.message) } finally { setLoading(false) }
+    } catch (e: unknown) {
+      setErrors((current) => ({ ...current, [t]: e instanceof Error ? e.message : 'Molecule analysis failed.' }))
+    } finally { setPending((current) => ({ ...current, [t]: false })) }
   }
-  // initial
-  if (!data.activity && !loading && tab === 'activity' && !err) load('activity')
+
+  useEffect(() => {
+    let active = true
+    setData({ activity: null, medchem: null, applicability: null })
+    setErrors({ activity: '', medchem: '', applicability: '' })
+    setPending({ activity: true, medchem: false, applicability: false })
+    requestAnalysis('activity', runId)
+      .then((result) => { if (active) setData((current) => ({ ...current, activity: result })) })
+      .catch((reason: unknown) => { if (active) setErrors((current) => ({ ...current, activity: reason instanceof Error ? reason.message : 'Molecule analysis failed.' })) })
+      .finally(() => { if (active) setPending((current) => ({ ...current, activity: false })) })
+    return () => { active = false }
+  }, [runId])
 
   const cur = data[tab]
+  const loading = pending[tab]
+  const err = errors[tab]
   return (
     <div>
       <PageHeader
@@ -42,7 +69,7 @@ export function MoleculeQA() {
       />
       <div className="mb-4 flex gap-2">
         {(['activity', 'medchem', 'applicability'] as Tab[]).map((t) => (
-          <button key={t} className={`btn-secondary ${tab === t ? 'ring-1 ring-brand-400' : ''}`} onClick={() => load(t)}>
+          <button key={t} className={`btn-secondary ${tab === t ? 'ring-1 ring-brand-400' : ''}`} disabled={pending[t]} onClick={() => load(t)}>
             {t === 'activity' ? 'Activity Normalization' : t === 'medchem' ? 'MedChem Review' : 'Applicability Domain'}
           </button>
         ))}

@@ -25,10 +25,15 @@ export function LLMRouter() {
   async function load() {
     setLoading(true); setErr('')
     try {
-      const [cfg, hlth, rtr, cst, tpl] = await Promise.all([
+      const results = await Promise.allSettled([
         api.llmConfig(), api.llmHealth(), api.llmRouter(), api.llmCosts(), api.llmPromptTemplates(),
       ])
-      setConfig(cfg); setHealth(hlth); setRouter(rtr); setCosts(cst); setTemplates(tpl)
+      const setters = [setConfig, setHealth, setRouter, setCosts, setTemplates]
+      results.forEach((result, index) => {
+        setters[index](result.status === 'fulfilled' ? result.value : null)
+      })
+      const failures = results.filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+      if (failures.length) setErr(failures.map((failure) => failure.reason instanceof Error ? failure.reason.message : String(failure.reason)).join('; '))
     } catch (e: any) { setErr(e.message) } finally { setLoading(false) }
   }
   useEffect(() => { load() }, [])

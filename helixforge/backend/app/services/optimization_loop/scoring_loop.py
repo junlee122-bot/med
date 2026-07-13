@@ -80,7 +80,8 @@ def score_candidate(cand: dict, reference_smiles: list[str]) -> dict[str, Any]:
     )
     provenance = _clamp01(float(cand.get("composite_score") or 0.0) / 100.0) or 0.5
     inputs = molecule_inputs_from_rdkit(
-        rd, activity, safety_status="PASS", tdc_ready=False, provenance=provenance
+        rd, activity, safety_status=cand.get("safety_status") or "UNKNOWN",
+        tdc_ready=False, provenance=provenance
     )
     uncertainty = round(_clamp01(0.2 - conf_adjust), 3)
     inputs["uncertainty"] = uncertainty

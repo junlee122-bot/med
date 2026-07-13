@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { api } from '@/lib/api'
+import { api, getRememberedRunId, rememberRunId } from '@/lib/api'
 import { Icon } from '@/components/Icon'
 import { Badge, Empty, ErrorNote, PageHeader, Panel, Spinner } from '@/components/ui'
 
 export function Hypotheses() {
+  const [runId, setRunId] = useState(getRememberedRunId)
   const [hyps, setHyps] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [running, setRunning] = useState(false)
@@ -11,13 +12,16 @@ export function Hypotheses() {
 
   async function load() {
     setLoading(true)
-    try { const r = await api.listHypotheses(); setHyps(r.hypotheses) } catch (e: any) { setErr(e.message) } finally { setLoading(false) }
+    try { const r = await api.listHypotheses(undefined, runId || undefined); setHyps(r.hypotheses) } catch (e: any) { setHyps([]); setErr(e.message) } finally { setLoading(false) }
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [runId])
 
   async function runPipeline() {
     setRunning(true); setErr('')
-    try { await api.runAgenticPipeline({ target_query: 'EGFR', max_results: 6, create_reinvent_config: false }); await load() }
+    try {
+      const result = await api.runAgenticPipeline({ target_query: 'EGFR', max_results: 6, create_reinvent_config: false })
+      rememberRunId(result.run_id); setRunId(result.run_id)
+    }
     catch (e: any) { setErr(e.message) } finally { setRunning(false) }
   }
 

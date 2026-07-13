@@ -30,8 +30,17 @@ def _latest_run() -> dict[str, Any]:
     return runs[0] if runs else {}
 
 
-def _facts() -> dict[str, Any]:
-    run = _latest_run()
+def _resolve_run(run_id: str | None = None) -> dict[str, Any]:
+    if run_id is None:
+        return _latest_run()
+    run = db.get("workflow_runs", run_id)
+    if not run:
+        raise ValueError("workflow run not found")
+    return run
+
+
+def _facts(run: dict[str, Any] | None = None) -> dict[str, Any]:
+    run = _latest_run() if run is None else run
     m = run.get("metrics", {}) or {}
     return {
         "mode": "기록 재생(recorded replay)" if run.get("kind") == "agentic_replay" else "실시간(live)",
@@ -45,9 +54,9 @@ def _facts() -> dict[str, Any]:
     }
 
 
-def build_full_proposal_ko() -> str:
+def build_full_proposal_ko(run: dict[str, Any] | None = None) -> str:
     s = get_settings()
-    f = _facts()
+    f = _facts(run)
     no_run = "" if f["run_id"] != "—" else "> ⚠ 아직 파이프라인 실행 기록이 없습니다. 실행 후 수치가 채워집니다.\n\n"
     md = f"""# HelixForge AI — 신약개발 멀티에이전트 워크벤치 (공모 제안서)
 **버전** {s.app_version} · **생성** {utcnow()}
@@ -140,8 +149,8 @@ PubMed(NCBI E-utilities), ChEMBL(EMBL-EBI), ClinicalTrials.gov v2, Therapeutics 
     return md
 
 
-def build_peer_one_pager_ko() -> str:
-    f = _facts()
+def build_peer_one_pager_ko(run: dict[str, Any] | None = None) -> str:
+    f = _facts(run)
     return f"""# HelixForge AI — 1페이지 동료 검토 요약
 
 > {DISCLAIMER_KO}
@@ -162,8 +171,8 @@ def build_peer_one_pager_ko() -> str:
 """
 
 
-def build_qa_defense_ko() -> str:
-    f = _facts()
+def build_qa_defense_ko(run: dict[str, Any] | None = None) -> str:
+    f = _facts(run)
     qa = [
         ("이 시스템은 챗봇과 무엇이 다른가?",
          "실제 도구 어댑터, 감사 로그, 검증, 자기수정을 갖춘 멀티에이전트 워크플로우입니다. (Agent Cockpit에서 확인)"),
@@ -202,7 +211,7 @@ def build_qa_defense_ko() -> str:
     return f"# HelixForge AI — 심사위원 Q&A 방어 시트\n\n> {DISCLAIMER_KO}\n\n{body}\n"
 
 
-def generate(kind: str) -> dict[str, Any]:
+def _generate_with_run(kind: str, run: dict[str, Any]) -> dict[str, Any]:
     builders = {
         "full_proposal_ko": build_full_proposal_ko,
         "peer_one_pager_ko": build_peer_one_pager_ko,
@@ -210,14 +219,38 @@ def generate(kind: str) -> dict[str, Any]:
     }
     if kind not in builders:
         raise ValueError(f"unknown proposal kind: {kind}")
-    md = builders[kind]()
+    md = builders[kind](run)
     lint = lint_report(md)
     art = {"id": f"prop-{kind}-{uuid.uuid4().hex[:8]}", "type": kind, "kind": kind,
            "title": kind.replace("_", " ").title(), "markdown": md,
-           "safety_lint": lint, "export_safe": lint["export_safe"], "created_at": utcnow()}
+           "safety_lint": lint, "export_safe": lint["export_safe"], "created_at": utcnow(),
+           "run_id": run.get("id"), "workflow_run_id": run.get("id"),
+           "project_id": run.get("project_id")}
     db.insert("submission_artifacts", art)
     return art
 
 
-def generate_all() -> list[dict[str, Any]]:
-    return [generate(k) for k in ("full_proposal_ko", "peer_one_pager_ko", "qa_defense_ko")]
+def generate(kind: str, run_id: str | None = None) -> dict[str, Any]:
+    return _generate_with_run(kind, _resolve_run(run_id))
+
+
+def generate_all(run_id: str | None = None) -> list[dict[str, Any]]:
+    run = _resolve_run(run_id)
+    return [
+        _generate_with_run(k, run)
+        for k in ("full_proposal_ko", "peer_one_pager_ko", "qa_defense_ko")
+    ]
+
+
+def list_artifacts(run_id: str | None = None, limit: int = 10) -> list[dict[str, Any]]:
+    run = _resolve_run(run_id)
+    rid = run.get("id")
+    pid = run.get("project_id")
+    if not rid:
+        return []
+    rows = db.list_records(
+        "submission_artifacts", project_id=pid, workflow_run_id=rid, limit=max(limit, 1)
+    )
+    return [row for row in rows if row.get("kind") in {
+        "full_proposal_ko", "peer_one_pager_ko", "qa_defense_ko",
+    }][:limit]

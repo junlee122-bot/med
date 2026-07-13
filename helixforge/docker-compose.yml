@@ -3,12 +3,35 @@
 # Frontend on http://localhost:8080 (nginx proxies /api → backend).
 # Backend on http://localhost:8000 (FastAPI + Swagger at /docs).
 services:
+  # One-shot ownership migration for data volumes created by older images that
+  # ran the backend as root.  The application container itself remains
+  # unprivileged; only this short-lived initializer receives CAP_CHOWN.
+  backend-data-init:
+    build: ./backend
+    image: helixforge-backend:local
+    user: "0:0"
+    command: ["chown", "-R", "helixforge:helixforge", "/data"]
+    volumes:
+      - helixforge-data:/data
+    restart: "no"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+
   backend:
     build: ./backend
+    image: helixforge-backend:local
     container_name: helixforge-backend
     ports:
-      - "8000:8000"
+      # Local-development compose is intentionally loopback-only. Production
+      # deployments must set ENVIRONMENT=production + HELIXFORGE_API_TOKEN.
+      - "127.0.0.1:8000:8000"
     environment:
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - HELIXFORGE_API_TOKEN=${HELIXFORGE_API_TOKEN:-}
       - HELIXFORGE_DATA_DIR=/data
       - NCBI_API_KEY=${NCBI_API_KEY:-}
       - NCBI_EMAIL=${NCBI_EMAIL:-}
@@ -20,7 +43,14 @@ services:
       - CORS_ORIGINS=http://localhost:8080,http://localhost:5174
     volumes:
       - helixforge-data:/data
+    depends_on:
+      backend-data-init:
+        condition: service_completed_successfully
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
 
   frontend:
     build:
@@ -30,10 +60,14 @@ services:
         VITE_API_BASE: ""
     container_name: helixforge-frontend
     ports:
-      - "8080:80"
+      - "127.0.0.1:8080:8080"
     depends_on:
       - backend
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
 
 volumes:
   helixforge-data:

@@ -1,14 +1,47 @@
 """Phase 8 Priority-3 tests: GPU worker contracts (configured-not-run), CPU
 scientific demo, GPU dry-run (no submission), and compute record/replay. No GPU,
 no network, no key, no paid job."""
+import uuid
+
 import pytest
 from fastapi.testclient import TestClient
 
 from app.compute import gpu_worker_contracts
 from app.main import app
 from app.services import compute_snapshot, cpu_demo
+from app.storage import db
 
 client = TestClient(app)
+
+
+@pytest.mark.integration
+def test_compute_snapshot_cost_summary_is_snapshot_scoped():
+    suffix = uuid.uuid4().hex[:10]
+    run_id, project_id = f"cost-run-{suffix}", f"cost-project-{suffix}"
+    job_id, other_job_id = f"cost-job-{suffix}", f"other-job-{suffix}"
+    db.insert("workflow_runs", {
+        "id": run_id, "project_id": project_id, "created_at": "2026-01-01T00:00:00Z",
+    })
+    db.insert("compute_jobs", {
+        "id": job_id, "project_id": project_id, "workflow_run_id": run_id,
+        "created_at": "2026-01-01T00:00:00Z",
+    })
+    db.insert("compute_cost_events", {
+        "id": f"cost-event-{suffix}", "compute_job_id": job_id,
+        "event_type": "actual_cost", "estimated_cost_usd": 1.5,
+        "actual_cost_usd": 1.25, "created_at": "2026-01-01T00:00:00Z",
+    })
+    snap = compute_snapshot.create_from_run(run_id)
+    db.insert("compute_cost_events", {
+        "id": f"other-cost-event-{suffix}", "compute_job_id": other_job_id,
+        "event_type": "actual_cost", "estimated_cost_usd": 999,
+        "actual_cost_usd": 999, "created_at": "2026-01-01T00:00:00Z",
+    })
+
+    summary = compute_snapshot.cost_summary(snap["id"])
+    assert summary["event_count"] == 1
+    assert summary["estimated_total_usd"] == 1.5
+    assert summary["actual_total_usd"] == 1.25
 
 
 # ---- GPU worker contracts ----
@@ -88,6 +121,10 @@ def test_compute_snapshot_replay_no_provider_call_and_no_secrets():
     # seed a run with a compute decision
     from app.services import compute_aware_planner
     from app.compute import capability_detector
+    db.insert("workflow_runs", {
+        "id": "csnap-run", "project_id": "csnap-project",
+        "created_at": "2026-01-01T00:00:00Z",
+    })
     caps = capability_detector.detect("local")
     compute_aware_planner.plan_compute(caps, workflow_run_id="csnap-run")
     snap = compute_snapshot.create_from_run("csnap-run")
@@ -103,6 +140,10 @@ def test_compute_snapshot_replay_no_provider_call_and_no_secrets():
 def test_compute_snapshot_endpoints():
     from app.services import compute_aware_planner
     from app.compute import capability_detector
+    db.insert("workflow_runs", {
+        "id": "csnap-ep", "project_id": "csnap-project",
+        "created_at": "2026-01-01T00:00:00Z",
+    })
     compute_aware_planner.plan_compute(capability_detector.detect("local"), workflow_run_id="csnap-ep")
     snap = client.post("/api/snapshots/create-compute-from-run/csnap-ep").json()
     rep = client.post(f"/api/snapshots/{snap['id']}/replay-compute").json()

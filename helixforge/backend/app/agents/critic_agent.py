@@ -103,7 +103,25 @@ class CriticAgent(BaseAgent):
         out.assumptions = ["Checks are deterministic rules, not a semantic LLM critique."]
         out.next_action = "Evaluation Agent computes metrics."
         out.confidence = self.compute_confidence(0.8, out)
-        out.check("invalid_excluded", not invalid_ids or True)
-        out.check("overclaims_rewritten", True)
-        out.check("failed_citations_demoted", True)
+        molecules_by_id = {m.get("id"): m for m in ctx.shared.get("molecules", [])}
+        invalid_excluded = all(
+            not molecules_by_id.get(mid, {}).get("composite_score")
+            and str(molecules_by_id.get(mid, {}).get("recommendation", "")).lower().startswith("reject")
+            for mid in invalid_ids
+        )
+        overclaims_rewritten = all(not h.get("overclaim") for h in ctx.shared.get("hypotheses", []))
+        # Citation Verifier stores failed citations as IDs. Older callers may
+        # still provide full evidence records, so accept both representations.
+        failed_ids = {
+            e.get("id") if isinstance(e, dict) else str(e)
+            for e in failed
+        }
+        failed_ids.discard(None)
+        failed_citations_demoted = all(
+            failed_ids.isdisjoint(set(h.get("evidence_ids") or []))
+            for h in ctx.shared.get("hypotheses", [])
+        )
+        out.check("invalid_excluded", invalid_excluded)
+        out.check("overclaims_rewritten", overclaims_rewritten)
+        out.check("failed_citations_demoted", failed_citations_demoted)
         return out

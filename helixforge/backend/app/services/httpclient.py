@@ -40,7 +40,10 @@ def _via_curl(url: str, params: Optional[dict[str, Any]], headers: Optional[dict
         cmd += ["--data-urlencode", f"{k}={v}"]
     cmd.append(url)
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout + 5)
+        proc = subprocess.run(
+            cmd, capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=timeout + 5,
+        )
     except subprocess.TimeoutExpired:
         return HttpResult(0, "", "curl", error="curl timeout")
     except FileNotFoundError:

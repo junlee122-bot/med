@@ -3,36 +3,57 @@ ligand-based screening, active-learning simulation, and CPU multi-objective sear
 All CPU-only, no GPU/network/key required; degrades honestly if sklearn is absent."""
 from __future__ import annotations
 
+from typing import Literal
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from app.services import (
     active_learning, cpu_multiobjective, cpu_qsar, dataset_curation, ligand_screening,
 )
+from app.storage import db
 
 router = APIRouter(prefix="/api", tags=["model-lab"])
+
+
+def _resolve_run_project(run_id: str | None) -> str | None:
+    if run_id is None:
+        return None
+    run = db.get("workflow_runs", run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="workflow run not found")
+    project_id = run.get("project_id")
+    if not project_id:
+        raise HTTPException(status_code=409, detail="workflow run has no project")
+    return project_id
 
 
 # ---- Dataset curation ----
 class CurateRequest(BaseModel):
     records: list[dict] = Field(default_factory=list)
     dataset_name: str = "dataset"
-    source: str = "user"
+    source: Literal["user"] = "user"
     endpoint_type: str = "activity"
     license_status: str = "REVIEW_REQUIRED"
     exploratory: bool = False
+    run_id: str | None = None
 
 
 @router.post("/datasets/curate")
 def curate(req: CurateRequest):
-    return dataset_curation.curate(req.records, dataset_name=req.dataset_name, source=req.source,
+    # Public uploads are always human-provided. Only trusted server adapters may
+    # mint REAL_TOOL_OUTPUT provenance.
+    project_id = _resolve_run_project(req.run_id)
+    return dataset_curation.curate(req.records, dataset_name=req.dataset_name, source="user",
                                    endpoint_type=req.endpoint_type, license_status=req.license_status,
-                                   exploratory=req.exploratory)
+                                   exploratory=req.exploratory, run_id=req.run_id,
+                                   project_id=project_id)
 
 
 @router.get("/datasets")
-def list_datasets():
-    return {"datasets": dataset_curation.list_datasets()}
+def list_datasets(run_id: str | None = None):
+    project_id = _resolve_run_project(run_id)
+    return {"datasets": dataset_curation.list_datasets(project_id, run_id)}
 
 
 @router.get("/datasets/{dataset_id}")
@@ -69,13 +90,17 @@ class TrainRequest(BaseModel):
 
 @router.post("/cpu-models/train")
 def train_model(req: TrainRequest):
+    project_id = _resolve_run_project(req.run_id)
     return cpu_qsar.train(req.dataset, task=req.task, endpoint=req.endpoint,
-                          model_family=req.model_family, run_id=req.run_id)
+                          model_family=req.model_family, run_id=req.run_id,
+                          project_id=project_id)
 
 
 @router.get("/cpu-models")
 def list_models(run_id: str | None = None):
-    return {"models": cpu_qsar.list_models(run_id), "availability": cpu_qsar.available()}
+    project_id = _resolve_run_project(run_id)
+    return {"models": cpu_qsar.list_models(run_id, project_id),
+            "availability": cpu_qsar.available()}
 
 
 @router.get("/cpu-models/{model_id}")
@@ -129,8 +154,10 @@ class ScreenRequest(BaseModel):
 
 @router.post("/ligand-screen/run")
 def ligand_screen(req: ScreenRequest):
+    project_id = _resolve_run_project(req.run_id)
     return ligand_screening.screen(req.candidates, req.reference_ligands, top_k=req.top_k,
-                                   run_id=req.run_id, target=req.target)
+                                   run_id=req.run_id, target=req.target,
+                                   project_id=project_id)
 
 
 @router.get("/ligand-screen/runs/{screen_id}")
@@ -154,14 +181,17 @@ class ALRequest(BaseModel):
 
 @router.post("/active-learning/run")
 def active_learning_run(req: ALRequest):
+    project_id = _resolve_run_project(req.run_id)
     return active_learning.run(req.pool, strategy=req.strategy, oracle_mode=req.oracle_mode,
                                cycles=req.cycles, batch_size=req.batch_size,
-                               initial_labeled=req.initial_labeled, run_id=req.run_id)
+                               initial_labeled=req.initial_labeled, run_id=req.run_id,
+                               project_id=project_id)
 
 
 @router.get("/active-learning/runs")
-def list_al_runs():
-    return {"runs": active_learning.list_runs()}
+def list_al_runs(run_id: str | None = None):
+    project_id = _resolve_run_project(run_id)
+    return {"runs": active_learning.list_runs(project_id, run_id)}
 
 
 @router.get("/active-learning/runs/{al_id}")

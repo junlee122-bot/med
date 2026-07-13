@@ -4,6 +4,7 @@ Offline unit tests use synthetic DB rows. The run-dependent tests share one live
 agentic run (module fixture) and are marked live_api + slow so CI can skip them.
 """
 import uuid
+import json
 
 import pytest
 from fastapi.testclient import TestClient
@@ -18,6 +19,66 @@ from app.storage import db
 client = TestClient(app)
 
 
+@pytest.mark.unit
+def test_snapshot_rejects_tampered_payload(tmp_path, monkeypatch):
+    pid = f"proj-snap-integrity-{uuid.uuid4().hex[:6]}"
+    rid = f"run-snap-integrity-{uuid.uuid4().hex[:6]}"
+    db.insert("workflow_runs", {
+        "id": rid, "project_id": pid, "created_at": "2026-01-01T00:00:00Z",
+        "kind": "agentic", "condition": "NSCLC", "target_query": "EGFR",
+    })
+    db.insert("evidence_items", {
+        "id": f"ev-{rid}", "project_id": pid, "workflow_run_id": rid,
+        "created_at": "2026-01-01T00:00:00Z", "title": "original",
+        "source_type": "REAL_TOOL_OUTPUT",
+    })
+    monkeypatch.setattr(snapshots, "SNAP_DIR", tmp_path)
+    snap = snapshots.create_snapshot_from_run(rid, "integrity test")
+    path = tmp_path / f"{snap['id']}.json"
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["evidence_items"][0]["title"] = "tampered"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="checksum mismatch"):
+        snapshots.export_snapshot(snap["id"])
+    with pytest.raises(ValueError, match="checksum mismatch"):
+        snapshots.replay_snapshot(snap["id"])
+
+
+@pytest.mark.unit
+def test_replay_scopes_legacy_snapshot_entities(tmp_path):
+    suffix = uuid.uuid4().hex[:8]
+    original_run = f"legacy-run-{suffix}"
+    payload = {
+        "run": {
+            "id": original_run, "project_id": f"legacy-project-{suffix}",
+            "created_at": "2025-01-01T00:00:00Z", "status": "complete",
+        },
+        "plan": None, "agent_runs": [], "tool_runs": [], "audit_events": [],
+        "evidence_items": [{"id": f"legacy-ev-{suffix}", "source_type": "REAL_TOOL_OUTPUT"}],
+        "target_candidates": [{"id": f"legacy-tgt-{suffix}", "source_type": "REAL_TOOL_OUTPUT"}],
+        "molecule_candidates": [{"id": f"legacy-mol-{suffix}", "source_type": "REAL_TOOL_OUTPUT"}],
+        "hypotheses": [], "evaluation_results": [], "revision_events": [],
+        "reports": {}, "counts": {}, "metrics": {},
+    }
+    path = tmp_path / f"legacy-{suffix}.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    snap_id = f"legacy-snapshot-{suffix}"
+    db.insert("run_snapshots", {
+        "id": snap_id, "project_id": payload["run"]["project_id"],
+        "source_run_id": original_run, "created_at": "2025-01-02T00:00:00Z",
+        "name": "legacy", "condition": "NSCLC", "target_query": "EGFR",
+        "checksum": snapshots._checksum(payload), "storage_path": str(path),
+    })
+
+    replay = snapshots.replay_snapshot(snap_id)
+    replay_run = replay["run_id"]
+    for table in ("evidence_items", "target_candidates", "molecule_candidates"):
+        rows = db.list_records(table, workflow_run_id=replay_run)
+        assert len(rows) == 1
+        assert rows[0]["project_id"] == replay["project_id"]
+
+
 # --------------------------------------------------------------------------
 # Offline unit tests
 # --------------------------------------------------------------------------
@@ -26,10 +87,12 @@ def test_evidence_linter_blocks_failed_citation_as_verified():
     pid = f"proj-test-{uuid.uuid4().hex[:6]}"
     rid = f"run-test-{uuid.uuid4().hex[:6]}"
     db.insert("workflow_runs", {"id": rid, "project_id": pid, "created_at": "2026-01-01T00:00:00Z", "kind": "agentic"})
-    db.insert("evidence_items", {"id": "ev-fail-x", "project_id": pid, "created_at": "2026-01-01T00:00:00Z",
+    db.insert("evidence_items", {"id": "ev-fail-x", "project_id": pid, "workflow_run_id": rid,
+                                 "created_at": "2026-01-01T00:00:00Z",
                                  "source_name": "PubMed", "identifier": "PMID:00000000",
                                  "verification_status": "FAILED", "source_type": "HUMAN_INPUT"})
-    db.insert("hypotheses", {"id": "hyp-x", "project_id": pid, "created_at": "2026-01-01T00:00:00Z",
+    db.insert("hypotheses", {"id": "hyp-x", "project_id": pid, "workflow_run_id": rid,
+                             "created_at": "2026-01-01T00:00:00Z",
                              "statement": "uses a failed citation", "evidence_ids": ["ev-fail-x"]})
     res = evidence_linter.lint_run(rid, markdown="Final responsibility belongs to the human research team.")
     assert res["status"] == "BLOCKED"
@@ -41,11 +104,13 @@ def test_evidence_linter_passes_clean_report():
     pid = f"proj-clean-{uuid.uuid4().hex[:6]}"
     rid = f"run-clean-{uuid.uuid4().hex[:6]}"
     db.insert("workflow_runs", {"id": rid, "project_id": pid, "created_at": "2026-01-01T00:00:00Z", "kind": "agentic"})
-    db.insert("evidence_items", {"id": "ev-ok-x", "project_id": pid, "created_at": "2026-01-01T00:00:00Z",
+    db.insert("evidence_items", {"id": "ev-ok-x", "project_id": pid, "workflow_run_id": rid,
+                                 "created_at": "2026-01-01T00:00:00Z",
                                  "source_name": "PubMed", "identifier": "PMID:12345678",
                                  "identifier_type": "PMID", "verification_status": "VERIFIED",
                                  "retrieved_at": "2026-01-01T00:00:00Z", "source_type": "REAL_TOOL_OUTPUT"})
-    db.insert("hypotheses", {"id": "hyp-ok", "project_id": pid, "created_at": "2026-01-01T00:00:00Z",
+    db.insert("hypotheses", {"id": "hyp-ok", "project_id": pid, "workflow_run_id": rid,
+                             "created_at": "2026-01-01T00:00:00Z",
                              "statement": "ok", "evidence_ids": ["ev-ok-x"], "assumptions": ["in-silico only"]})
     res = evidence_linter.lint_run(rid, markdown="... research decision support only. responsibility belongs to the human research team.")
     assert res["status"] in ("PASS", "REVIEW_REQUIRED")
@@ -57,7 +122,8 @@ def test_evidence_linter_detects_missing_source_type():
     pid = f"proj-ms-{uuid.uuid4().hex[:6]}"
     rid = f"run-ms-{uuid.uuid4().hex[:6]}"
     db.insert("workflow_runs", {"id": rid, "project_id": pid, "created_at": "2026-01-01T00:00:00Z", "kind": "agentic"})
-    db.insert("evidence_items", {"id": "ev-nost", "project_id": pid, "created_at": "2026-01-01T00:00:00Z",
+    db.insert("evidence_items", {"id": "ev-nost", "project_id": pid, "workflow_run_id": rid,
+                                 "created_at": "2026-01-01T00:00:00Z",
                                  "source_name": "PubMed", "identifier": "PMID:1", "verification_status": "VERIFIED"})
     res = evidence_linter.lint_run(rid, markdown="responsibility belongs to the human research team.")
     assert any(i["category"] == "missing_source_type" for i in res["issues"])
@@ -106,6 +172,24 @@ def test_release_readiness_endpoint():
     body = r.json()
     assert body["status"] in ("NOT_READY", "DRAFT_READY", "PROPOSAL_READY", "DEMO_READY", "SUBMISSION_READY")
     assert 0 <= body["total_score"] <= 100
+
+
+@pytest.mark.integration
+def test_run_export_does_not_include_same_project_other_run_records():
+    pid = f"export-project-{uuid.uuid4().hex[:6]}"
+    first = f"export-run-a-{uuid.uuid4().hex[:6]}"
+    second = f"export-run-b-{uuid.uuid4().hex[:6]}"
+    for run_id in (first, second):
+        db.insert("workflow_runs", {"id": run_id, "project_id": pid,
+                                    "created_at": "2026-01-01T00:00:00Z", "kind": "agentic"})
+    db.insert("evidence_items", {"id": f"ev-{first}", "project_id": pid,
+                                 "workflow_run_id": first, "created_at": "2026-01-01T00:00:00Z"})
+    db.insert("evidence_items", {"id": f"ev-{second}", "project_id": pid,
+                                 "workflow_run_id": second, "created_at": "2026-01-01T00:00:00Z"})
+    response = client.get(f"/api/export/run/{first}")
+    assert response.status_code == 200
+    ids = {item["id"] for item in response.json()["evidence_items"]}
+    assert ids == {f"ev-{first}"}
 
 
 # --------------------------------------------------------------------------

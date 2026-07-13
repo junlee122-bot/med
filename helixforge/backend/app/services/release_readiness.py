@@ -29,14 +29,30 @@ def _latest_agentic_run() -> dict[str, Any] | None:
     return runs[0] if runs else None
 
 
-def compute() -> dict[str, Any]:
+def compute(run_id: str | None = None) -> dict[str, Any]:
     checks: dict[str, list[dict]] = {}
     blocking: list[str] = []
     warnings: list[str] = []
 
+    run = db.get("workflow_runs", run_id) if run_id else _latest_agentic_run()
+    if run_id and not run:
+        raise ValueError("workflow run not found")
+    run = run or {}
+    rid = run.get("id")
+    pid = run.get("project_id")
+
+    def scoped(table: str, limit: int) -> list[dict[str, Any]]:
+        if not rid or not pid:
+            return []
+        return db.list_records(
+            table, project_id=pid, workflow_run_id=rid, limit=limit
+        )
+
     # Tool health.
     health = {h.tool_id: h for h in reg.health_all()}
-    snaps = snapshots.list_snapshots()
+    # Register built-ins, but only credit a snapshot attached to this run.
+    snapshots.list_snapshots()
+    snaps = scoped("run_snapshots", 200)
     have_snapshot = len(snaps) > 0
 
     def tool_ok(tid: str) -> bool:
@@ -53,19 +69,20 @@ def compute() -> dict[str, Any]:
     ]
 
     # Agent readiness.
-    run = _latest_agentic_run()
-    agent_runs = db.count("agent_runs")
-    revisions = db.count("revision_events")
+    agent_run_rows = scoped("agent_runs", 1000)
+    revision_rows = scoped("revision_events", 1000)
+    agent_runs = len(agent_run_rows)
+    revisions = len(revision_rows)
     checks["agent_readiness"] = [
-        _check(run is not None, True, "An agentic pipeline run exists"),
+        _check(bool(rid), True, "An agentic pipeline run exists"),
         _check(agent_runs >= 10, True, f"≥10 agent runs completed ({agent_runs})"),
-        _check(any(a.get("agent_name") == "Critic Agent" for a in db.list_records("agent_runs", limit=200)),
+        _check(any(a.get("agent_name") == "Critic Agent" for a in agent_run_rows),
                False, "Critic ran"),
         _check(revisions > 0, False, f"Revision events demonstrated ({revisions})"),
     ]
 
     # Evidence readiness.
-    evidence = db.list_records("evidence_items", limit=500)
+    evidence = scoped("evidence_items", 500)
     verified = [e for e in evidence if (e.get("verification_status") or "").upper() == "VERIFIED"]
     failed_used = False  # evidence linter is the deeper check
     checks["evidence_readiness"] = [
@@ -74,7 +91,7 @@ def compute() -> dict[str, Any]:
     ]
 
     # Molecule readiness.
-    molecules = db.list_records("molecule_candidates", limit=500)
+    molecules = scoped("molecule_candidates", 500)
     valid = [m for m in molecules if m.get("valid")]
     bad_reco = [m for m in molecules if m.get("valid") is False and m.get("recommendation") not in
                 (None, "Reject — invalid structure", "Reject")]
@@ -86,7 +103,7 @@ def compute() -> dict[str, Any]:
     ]
 
     # Report readiness.
-    reports = db.list_records("reports", limit=200)
+    reports = scoped("reports", 200)
     has_ko = any(r.get("language") == "ko" for r in reports)
     has_en = any(r.get("language") == "en" for r in reports)
     checks["report_readiness"] = [
@@ -111,14 +128,14 @@ def compute() -> dict[str, Any]:
     ]
 
     # Hybrid Fable readiness (NON-blocking — a deterministic demo is always allowed).
-    llm_calls = db.list_records("llm_calls", limit=500)
+    llm_calls = scoped("llm_calls", 500)
     real_llm = [c for c in llm_calls if c.get("reasoning_source_type") == "REAL_LLM_OUTPUT"]
-    hybrid_plans = db.list_records("hybrid_plans", limit=200)
-    critiques = db.list_records("semantic_critiques", limit=200)
-    rediscoveries = db.list_records("rediscovery_runs", limit=200)
-    opt_loops = db.list_records("optimization_loop_runs", limit=200)
-    hybrid_snaps = [a for a in db.list_records("snapshot_artifacts", limit=500) if a.get("is_hybrid")]
-    hybrid_hyps = [h for h in db.list_records("hypotheses", limit=500) if h.get("hybrid")]
+    hybrid_plans = scoped("hybrid_plans", 200)
+    critiques = scoped("semantic_critiques", 200)
+    rediscoveries = scoped("rediscovery_runs", 200)
+    opt_loops = scoped("optimization_loop_runs", 200)
+    hybrid_snaps = [a for a in scoped("snapshot_artifacts", 500) if a.get("is_hybrid")]
+    hybrid_hyps = [h for h in scoped("hypotheses", 500) if h.get("hybrid")]
     have_llm_snapshot = len(hybrid_snaps) > 0
     checks["hybrid_readiness"] = [
         _check(len(hybrid_plans) > 0, False, "Hybrid planning readiness (a plan was produced)"),
@@ -170,6 +187,7 @@ def compute() -> dict[str, Any]:
                             "(a deterministic demo is still fully supported).")
 
     return {
+        "workflow_run_id": rid,
         "total_score": score, "status": status,
         "blocking_issues": blocking, "warnings": warnings,
         "recommended_next_actions": next_actions or ["Project is in good shape — review artifacts and rehearse the demo."],

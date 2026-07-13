@@ -11,6 +11,7 @@ from typing import Any
 
 from app.config import BASE_DIR, get_settings
 from app.models.schemas import utcnow
+from app.services.provenance import redact_secrets
 from app.storage import db
 
 
@@ -28,7 +29,8 @@ def run_audit() -> dict[str, Any]:
     secret = s.ncbi_api_key
 
     # 1. .env gitignored.
-    gi = (BASE_DIR.parent / ".gitignore").read_text() if (BASE_DIR.parent / ".gitignore").exists() else ""
+    gi = ((BASE_DIR.parent / ".gitignore").read_text(encoding="utf-8")
+          if (BASE_DIR.parent / ".gitignore").exists() else "")
     findings.append(_finding(".env" in gi, "high" if ".env" not in gi else "info",
                              "env_ignored", ".env is gitignored" if ".env" in gi else ".env NOT gitignored"))
 
@@ -45,9 +47,12 @@ def run_audit() -> dict[str, Any]:
     else:
         findings.append(_finding(True, "info", "secret_in_storage", "No NCBI key configured; nothing to leak."))
 
-    # 3. Export/submission bundles are sanitized (redaction is applied in code).
-    findings.append(_finding(True, "info", "export_sanitized",
-                             "Snapshot/submission exports run redact_secrets; secrets are excluded."))
+    # 3. Verify recursive export redaction with a nested structured probe.
+    probe_secret = "sk-ant-security-audit-example-123456"
+    redacted = redact_secrets({"nested": {"api_key": probe_secret}, "text": probe_secret})
+    export_safe = probe_secret not in str(redacted)
+    findings.append(_finding(export_safe, "critical" if not export_safe else "info", "export_sanitized",
+                             "Recursive export redaction passed" if export_safe else "Recursive export redaction failed"))
 
     # 4. CORS configuration note.
     origins = s.cors_list()
@@ -56,8 +61,12 @@ def run_audit() -> dict[str, Any]:
                              f"CORS origins: {origins}" if not wide else "CORS allows '*' — tighten for production"))
 
     # 5. Debug/environment.
-    findings.append(_finding(s.environment != "production" or True, "info", "environment",
-                             f"environment={s.environment}"))
+    is_production = s.environment.strip().lower() in {"production", "prod"}
+    production_auth_ok = not is_production or bool(s.helixforge_api_token)
+    findings.append(_finding(
+        production_auth_ok, "critical" if not production_auth_ok else "info", "environment",
+        f"environment={s.environment}; authentication={'configured' if s.helixforge_api_token else 'development-only'}",
+    ))
 
     # 6. Large committed snapshot warning.
     big = []

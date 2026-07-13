@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { api } from '@/lib/api'
+import { api, getRememberedRunId, rememberRunId } from '@/lib/api'
 import { Icon } from '@/components/Icon'
 import { Badge, Empty, ErrorNote, PageHeader, Panel, Spinner } from '@/components/ui'
 
 export function Targets() {
+  const [runId, setRunId] = useState(getRememberedRunId)
   const [targets, setTargets] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [running, setRunning] = useState(false)
@@ -11,14 +12,17 @@ export function Targets() {
   const [sel, setSel] = useState<any | null>(null)
 
   async function load() {
-    setLoading(true)
-    try { const r = await api.listTargets(); setTargets(r.targets) } catch (e: any) { setErr(e.message) } finally { setLoading(false) }
+    setLoading(true); setErr(''); setSel(null)
+    try { const r = await api.listTargets(undefined, runId || undefined); setTargets(r.targets) } catch (e: any) { setTargets([]); setErr(e.message) } finally { setLoading(false) }
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [runId])
 
   async function runPipeline() {
     setRunning(true); setErr('')
-    try { await api.runAgenticPipeline({ target_query: 'EGFR', condition: 'non-small cell lung cancer', max_results: 6, create_reinvent_config: false }); await load() }
+    try {
+      const result = await api.runAgenticPipeline({ target_query: 'EGFR', condition: 'non-small cell lung cancer', max_results: 6, create_reinvent_config: false })
+      rememberRunId(result.run_id); setRunId(result.run_id)
+    }
     catch (e: any) { setErr(e.message) } finally { setRunning(false) }
   }
 
@@ -43,7 +47,19 @@ export function Targets() {
                 </tr></thead>
                 <tbody>
                   {targets.map((t) => (
-                    <tr key={t.id} onClick={() => setSel(t)} className={`cursor-pointer border-t border-line hover:bg-bg-hover/50 ${sel?.id === t.id ? 'bg-helix-cyan/5' : ''}`}>
+                    <tr
+                      key={t.id}
+                      role="button"
+                      tabIndex={0}
+                      aria-selected={sel?.id === t.id}
+                      onClick={() => setSel(t)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault(); setSel(t)
+                        }
+                      }}
+                      className={`cursor-pointer border-t border-line hover:bg-bg-hover/50 ${sel?.id === t.id ? 'bg-helix-cyan/5' : ''}`}
+                    >
                       <td className="p-2 text-slate-500">{t.rank}</td>
                       <td className="p-2 font-medium text-slate-100">{t.pref_name}</td>
                       <td className="p-2 text-slate-400">{t.target_chembl_id}</td>

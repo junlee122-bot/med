@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { api, SOURCE_META } from '@/lib/api'
+import { api, getRememberedRunId, SOURCE_META } from '@/lib/api'
 import { Icon } from '@/components/Icon'
 import { Badge, Disclaimer, Empty, ErrorNote, PageHeader, Panel, Spinner } from '@/components/ui'
 import { HUMAN_RESPONSIBILITY } from '@/lib/api'
@@ -19,6 +19,7 @@ function SBadge({ type }: { type?: string }) {
 }
 
 export function ModelLab() {
+  const [runId] = useState(getRememberedRunId)
   const [tab, setTab] = useState<Tab>('Datasets')
   const [datasets, setDatasets] = useState<any[]>([])
   const [models, setModels] = useState<any[]>([])
@@ -31,25 +32,34 @@ export function ModelLab() {
   async function load() {
     setLoading(true); setErr('')
     try {
-      const [d, m] = await Promise.all([api.datasetsList(), api.cpuModelsList()])
-      setDatasets(d.datasets || []); setModels(m.models || []); setModelAvail(m.availability)
+      const [datasetsResult, modelsResult] = await Promise.allSettled([
+        api.datasetsList(runId || undefined), api.cpuModelsList(runId || undefined),
+      ])
+      setDatasets(datasetsResult.status === 'fulfilled' ? datasetsResult.value.datasets || [] : [])
+      if (modelsResult.status === 'fulfilled') {
+        setModels(modelsResult.value.models || []); setModelAvail(modelsResult.value.availability)
+      } else {
+        setModels([]); setModelAvail(null)
+      }
+      const failures = [datasetsResult, modelsResult].filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+      if (failures.length) setErr(failures.map((failure) => failure.reason instanceof Error ? failure.reason.message : String(failure.reason)).join('; '))
     } catch (e: any) { setErr(e.message) } finally { setLoading(false) }
   }
   useEffect(() => { load() }, [])
 
   async function curate() {
     setBusy('curate'); setErr('')
-    try { await api.datasetCurate({ records: DEMO_DATASET, dataset_name: 'demo', exploratory: true }); await load() }
+    try { await api.datasetCurate({ records: DEMO_DATASET, dataset_name: 'demo', exploratory: true, run_id: runId || undefined }); await load() }
     catch (e: any) { setErr(e.message) } finally { setBusy('') }
   }
   async function train() {
     setBusy('train'); setErr('')
-    try { await api.cpuModelTrain({ dataset: DEMO_DATASET, task: 'classification', endpoint: 'demo' }); await load() }
+    try { await api.cpuModelTrain({ dataset: DEMO_DATASET, task: 'classification', endpoint: 'demo', run_id: runId || undefined }); await load() }
     catch (e: any) { setErr(e.message) } finally { setBusy('') }
   }
   async function runScreen() {
     setBusy('screen'); setErr('')
-    try { setScreen(await api.ligandScreen({ candidates: [...EGFR_REFS, 'CCO', 'c1ccccc1'], reference_ligands: EGFR_REFS, target: 'EGFR' })) }
+    try { setScreen(await api.ligandScreen({ candidates: [...EGFR_REFS, 'CCO', 'c1ccccc1'], reference_ligands: EGFR_REFS, target: 'EGFR', run_id: runId || undefined })) }
     catch (e: any) { setErr(e.message) } finally { setBusy('') }
   }
 

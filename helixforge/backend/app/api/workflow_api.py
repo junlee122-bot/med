@@ -26,6 +26,8 @@ def run_real_pipeline(req: PipelineRequest):
 def workflow_compute_decisions(run_id: str):
     """Phase 8: compute backend decisions (CPU substitute / GPU spec / replay) for a run."""
     from app.services import compute_aware_planner
+    if not db.get("workflow_runs", run_id):
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
     return {"run_id": run_id, "compute_decisions": compute_aware_planner.get_decisions(run_id)}
 
 
@@ -49,13 +51,27 @@ def get_run(run_id: str):
     run = db.get("workflow_runs", run_id)
     if not run:
         raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
-    run["audit_events"] = db.list_records("audit_events", project_id=run.get("project_id"), limit=300, order="ASC")
+    run["audit_events"] = db.list_records(
+        "audit_events", project_id=run.get("project_id"), workflow_run_id=run_id,
+        limit=300, order="ASC",
+    )
     return run
 
 
 @router.get("/audit/events")
-def audit_events(project_id: str | None = None, limit: int = 200):
-    return {"events": audit.list_events(project_id=project_id, limit=limit)}
+def audit_events(project_id: str | None = None, run_id: str | None = None, limit: int = 200):
+    if run_id is not None:
+        run = db.get("workflow_runs", run_id)
+        if not run:
+            raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+        run_project = run.get("project_id")
+        if project_id is not None and project_id != run_project:
+            raise HTTPException(status_code=404, detail=f"Run {run_id} not found in project {project_id}")
+        project_id = run_project
+    return {"events": db.list_records(
+        "audit_events", project_id=project_id, workflow_run_id=run_id,
+        limit=limit, order="DESC",
+    )}
 
 
 @router.post("/safety/screen", response_model=SafetyResponse)
@@ -66,6 +82,10 @@ def safety_screen(req: SafetyScreenRequest):
 
 @router.post("/report/generate", response_model=ReportResponse)
 def report_generate(req: ReportGenerateRequest):
+    if req.workflow_run_id is not None:
+        run = db.get("workflow_runs", req.workflow_run_id)
+        if not run or run.get("project_id") != req.project_id:
+            raise HTTPException(status_code=404, detail="workflow run not found in project")
     rep = reg.report.generate(req.project_id, req.workflow_run_id, req.title)
     return ReportResponse(**rep)
 
@@ -92,7 +112,16 @@ def get_report(report_id: str):
 
 
 @router.get("/reports")
-def list_reports(project_id: str | None = None):
-    reps = db.list_records("reports", project_id=project_id, limit=50)
+def list_reports(project_id: str | None = None, run_id: str | None = None):
+    if run_id is not None:
+        run = db.get("workflow_runs", run_id)
+        if not run:
+            raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+        if project_id is not None and run.get("project_id") != project_id:
+            raise HTTPException(status_code=404, detail=f"Run {run_id} not found in project {project_id}")
+        project_id = run.get("project_id")
+    reps = db.list_records(
+        "reports", project_id=project_id, workflow_run_id=run_id, limit=50
+    )
     return {"reports": [{"report_id": r["id"], "title": r["title"], "created_at": r["created_at"],
                          "project_id": r.get("project_id")} for r in reps]}

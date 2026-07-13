@@ -45,7 +45,7 @@ export const NAV = [
   { path: '/settings', label: 'Settings', icon: 'Settings', group: 'System' },
 ]
 
-const GROUPS = ['Main', 'Run', 'Governance', 'Analysis', 'Submission', 'Demo', 'System']
+const GROUPS = ['Main', 'Run', 'Compute & Models', 'Governance', 'Analysis', 'Submission', 'Demo', 'System']
 
 const SOURCE_LEGEND = [
   { label: 'Real', tone: 'bg-brand-400' },

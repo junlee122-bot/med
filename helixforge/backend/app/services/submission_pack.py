@@ -43,6 +43,15 @@ def _latest_run() -> dict[str, Any]:
     return runs[0] if runs else {}
 
 
+def _resolve_run(run_id: str | None = None) -> dict[str, Any]:
+    if run_id is None:
+        return _latest_run()
+    run = db.get("workflow_runs", run_id)
+    if not run:
+        raise ValueError("workflow run not found")
+    return run
+
+
 def _run_facts(run: dict) -> dict[str, Any]:
     m = run.get("metrics", {}) or {}
     return {
@@ -67,8 +76,13 @@ def _header(title_en: str) -> str:
             f"`HEURISTIC_ANALYSIS` · `ASSUMPTION` · `BASELINE_MODEL_OUTPUT` · `SAFETY_REDACTED` · `HUMAN_INPUT`\n\n")
 
 
-def generate_artifact(artifact_type: str) -> dict[str, Any]:
-    run = _latest_run()
+def generate_artifact(
+    artifact_type: str,
+    run: dict[str, Any] | None = None,
+    *,
+    persist: bool = True,
+) -> dict[str, Any]:
+    run = _latest_run() if run is None else run
     f = _run_facts(run)
     no_run = "> ⚠ No agentic run found yet — run the pipeline first for populated figures.\n\n" if not run else ""
 
@@ -167,8 +181,10 @@ Real: PubMed/ChEMBL/ClinicalTrials/RDKit/TDC. Configured-not-run: Vina/REINVENT4
         "id": f"sub-{artifact_type}-{uuid.uuid4().hex[:8]}", "type": artifact_type,
         "title": artifact_type.replace("_", " ").title(), "markdown": md,
         "created_at": utcnow(), "run_id": run.get("id"),
+        "workflow_run_id": run.get("id"), "project_id": run.get("project_id"),
     }
-    db.insert("submission_artifacts", art)
+    if persist:
+        db.insert("submission_artifacts", art)
     return art
 
 
@@ -207,24 +223,48 @@ in-silico 보조 단계. 습식·임상·규제 검증 대체 불가. TDC는 평
 """
 
 
-def list_artifacts() -> list[dict]:
-    return db.list_records("submission_artifacts", limit=200)
+def list_artifacts(run_id: str | None = None) -> list[dict]:
+    run = _resolve_run(run_id)
+    rid = run.get("id")
+    if not rid:
+        return []
+    return db.list_records(
+        "submission_artifacts",
+        project_id=run.get("project_id"),
+        workflow_run_id=rid,
+        limit=200,
+    )
 
 
-def get_artifact(artifact_id: str) -> Optional[dict]:
-    return db.get("submission_artifacts", artifact_id)
+def get_artifact(artifact_id: str, run_id: str | None = None) -> Optional[dict]:
+    run = _resolve_run(run_id)
+    artifact = db.get("submission_artifacts", artifact_id)
+    if not artifact:
+        return None
+    rid = artifact.get("workflow_run_id") or artifact.get("run_id")
+    if rid != run.get("id") or artifact.get("project_id") != run.get("project_id"):
+        return None
+    return artifact
 
 
-def generate_all() -> list[dict]:
-    return [generate_artifact(t) for t in ARTIFACT_TYPES]
+def generate_all(
+    run: dict[str, Any] | None = None, *, persist: bool = True,
+) -> list[dict]:
+    run = _latest_run() if run is None else run
+    return [generate_artifact(t, run=run, persist=persist) for t in ARTIFACT_TYPES]
 
 
-def bundle() -> dict[str, Any]:
-    arts = generate_all()
-    run = _latest_run()
+def bundle(run_id: str | None = None) -> dict[str, Any]:
+    run = _resolve_run(run_id)
+    run = run or {}
     run_id = run.get("id")
-    readiness = release_readiness.compute()
-    latest_report = (db.list_records("reports", limit=50) or [{}])[0]
+    project_id = run.get("project_id")
+    arts = generate_all(run=run, persist=False)
+    readiness = release_readiness.compute(run_id)
+    reports = (db.list_records(
+        "reports", project_id=project_id, workflow_run_id=run_id, limit=50
+    ) if project_id and run_id else [])
+    latest_report = (reports or [{}])[0]
     from app.services import data_rights
     return {
         "generated_at": utcnow(), "app_version": get_settings().app_version, "git_commit": _git_commit(),
@@ -240,10 +280,17 @@ def bundle() -> dict[str, Any]:
     }
 
 
-def check() -> dict[str, Any]:
-    run = _latest_run()
+def check(run_id: str | None = None) -> dict[str, Any]:
+    run = _resolve_run(run_id)
+    run = run or {}
     run_id = run.get("id")
-    reports = db.list_records("reports", limit=50)
+    project_id = run.get("project_id")
+    reports = (db.list_records(
+        "reports", project_id=project_id, workflow_run_id=run_id, limit=50
+    ) if project_id and run_id else [])
+    run_snapshots = (db.list_records(
+        "run_snapshots", project_id=project_id, workflow_run_id=run_id, limit=5
+    ) if project_id and run_id else [])
     latest = reports[0] if reports else {}
     safety = lint_report(latest.get("markdown", "")) if latest else {"status": "REVIEW_REQUIRED"}
     evidence = lint_run(run_id) if run_id else {"status": "REVIEW_REQUIRED"}
@@ -253,7 +300,7 @@ def check() -> dict[str, Any]:
         {"item": "All source types labeled", "ok": True},
         {"item": "Disclaimers present", "ok": bool(latest and any(
             mk in latest.get("markdown", "").lower() for mk in ("responsibility belongs", "책임은 연구자")))},
-        {"item": "Recorded snapshot available", "ok": len(db.list_records("run_snapshots", limit=5)) > 0},
+        {"item": "Recorded snapshot available", "ok": bool(run_snapshots)},
         {"item": "Korean judge report exists", "ok": any(r.get("language") == "ko" for r in reports)},
     ]
     ok = all(c["ok"] for c in checklist)

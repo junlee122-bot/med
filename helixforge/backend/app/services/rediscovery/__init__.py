@@ -136,13 +136,18 @@ def run(scenario_id: str | None = None, run_id: str | None = None) -> dict[str, 
     """
     runs = db.list_records("workflow_runs", limit=200)
     run_rec = db.get("workflow_runs", run_id) if run_id else (runs[0] if runs else {})
+    if run_id and not run_rec:
+        raise ValueError("workflow run not found")
     run_rec = run_rec or {}
     resolved_run_id = run_rec.get("id")
     pid = run_rec.get("project_id")
 
     mols: list[dict[str, Any]] = []
-    if pid:
-        mols = db.list_records("molecule_candidates", project_id=pid, limit=500)
+    if pid and resolved_run_id:
+        mols = db.list_records(
+            "molecule_candidates", project_id=pid,
+            workflow_run_id=resolved_run_id, limit=500,
+        )
 
     chosen_scenario = scenario_id or _derive_scenario(run_rec.get("target_query"))
     block = comparator_library.get_comparators(chosen_scenario)

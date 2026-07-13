@@ -101,7 +101,7 @@ def _run_strategy(strategy: str, X, y, fps, initial: list[int], cycles: int, bat
 
 def run(pool: list[dict[str, Any]], strategy: str = "uncertainty", oracle_mode: str = "HELD_OUT_DATASET_LABEL",
         cycles: int = 4, batch_size: int = 3, initial_labeled: int = 4,
-        run_id: str | None = None) -> dict[str, Any]:
+        run_id: str | None = None, project_id: str | None = None) -> dict[str, Any]:
     """pool: [{smiles, label}] where label is the held-out oracle truth."""
     if not available():
         return {"status": "CONFIGURED_BUT_NOT_RUN", "reason": "sklearn/RDKit/numpy unavailable",
@@ -125,7 +125,8 @@ def run(pool: list[dict[str, Any]], strategy: str = "uncertainty", oracle_mode: 
 
     escalation = [{"smiles": s} for s in smiles[:batch_size]]  # top candidates for GPU escalation
     out = {
-        "id": f"al-{uuid.uuid4().hex[:8]}", "run_id": run_id, "strategy": strategy,
+        "id": f"al-{uuid.uuid4().hex[:8]}", "project_id": project_id,
+        "run_id": run_id, "workflow_run_id": run_id, "strategy": strategy,
         "oracle_mode": oracle_mode, "oracle_note": ("Oracle labels come from a held-out dataset, NOT experiments."
                                                     if oracle_mode == "HELD_OUT_DATASET_LABEL"
                                                     else "CPU surrogate labels are model outputs, NOT experiments."),
@@ -150,5 +151,7 @@ def get_run(al_id: str) -> dict[str, Any] | None:
     return db.get("active_learning_runs", al_id)
 
 
-def list_runs() -> list[dict[str, Any]]:
-    return db.list_records("active_learning_runs", limit=100)
+def list_runs(project_id: str | None = None,
+              run_id: str | None = None) -> list[dict[str, Any]]:
+    return db.list_records("active_learning_runs", project_id=project_id,
+                           workflow_run_id=run_id, limit=100)

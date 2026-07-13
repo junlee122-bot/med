@@ -13,7 +13,7 @@ import {
   Empty,
   Disclaimer,
 } from '@/components/ui'
-import { api, SOURCE_META, HUMAN_RESPONSIBILITY } from '@/lib/api'
+import { api, SOURCE_META, HUMAN_RESPONSIBILITY, rememberRunId } from '@/lib/api'
 import type { SourceType, ToolHealth } from '@/lib/api'
 
 interface SmokeResult {
@@ -175,12 +175,8 @@ export function Overview() {
         max_results: 6,
         create_reinvent_config: true,
       })
-      try {
-        localStorage.setItem('hf_last_run', run.run_id)
-      } catch {
-        // localStorage unavailable — navigation still works via server latest-run
-      }
-      navigate('/cockpit')
+      rememberRunId(run.run_id)
+      navigate(`/cockpit?run=${encodeURIComponent(run.run_id)}`)
     } catch (e) {
       setPipelineError(
         e instanceof Error ? e.message : 'Failed to start demo pipeline.',

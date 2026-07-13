@@ -7,6 +7,7 @@ is labeled GPU_ARTIFACT_UNVERIFIED and cannot be recommended as validated.
 from __future__ import annotations
 
 import hashlib
+import hmac
 import uuid
 from typing import Any
 
@@ -44,13 +45,20 @@ def validate_artifact(art: dict[str, Any]) -> dict[str, Any]:
     size = int(art.get("size_bytes", 0) or 0)
     if size > S.MAX_OUTPUT_SIZE_MB * 1024 * 1024:
         reasons.append("artifact exceeds max size")
-    # Checksum: if content present, recompute and compare to declared checksum.
-    declared = art.get("declared_checksum") or art.get("checksum_sha256")
-    if "content" in art and declared:
-        actual = _checksum(art["content"])
-        if actual != declared and art.get("checksum_sha256") not in (actual, None):
-            # only a mismatch when a declared value exists and differs from recomputed
-            if art.get("declared_checksum") and art["declared_checksum"] != actual:
+    # Checksum: if content is present, a declared checksum must match exactly.
+    declared_checksum = art.get("declared_checksum")
+    sha256_checksum = art.get("checksum_sha256")
+    if declared_checksum and sha256_checksum and not hmac.compare_digest(
+        str(declared_checksum), str(sha256_checksum)
+    ):
+        reasons.append("declared checksums disagree")
+    declared = declared_checksum or sha256_checksum
+    if "content" in art:
+        if not declared:
+            reasons.append("checksum required when artifact content is present")
+        else:
+            actual = _checksum(art["content"])
+            if not hmac.compare_digest(actual, str(declared)):
                 reasons.append("checksum mismatch")
     status = "VERIFIED" if not reasons else "GPU_ARTIFACT_UNVERIFIED"
     return {"valid": not reasons, "status": status, "reasons": reasons}
@@ -60,9 +68,11 @@ def register_artifact(compute_job_id: str, art: dict[str, Any],
                       source_type: str = SourceType.RECORDED_GPU_OUTPUT.value) -> dict[str, Any]:
     """Validate + persist an artifact. Unverified artifacts are stored but flagged."""
     v = validate_artifact(art)
-    checksum = art.get("checksum_sha256")
-    if not checksum and "content" in art:
-        checksum = _checksum(art["content"])
+    # Persist what was actually validated.  A contradictory caller-provided
+    # checksum must never be stored as if it described verified content.
+    checksum = _checksum(art["content"]) if "content" in art else (
+        art.get("checksum_sha256") or art.get("declared_checksum")
+    )
     rec = {
         "id": f"cart-{uuid.uuid4().hex[:10]}", "compute_job_id": compute_job_id,
         "artifact_type": art.get("artifact_type"), "filename": art.get("filename"),

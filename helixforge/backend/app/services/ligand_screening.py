@@ -49,7 +49,8 @@ def _recommendation(nearest: float, valid: bool, duplicate: bool, prop_ok: bool,
 
 
 def screen(candidates: list[str], reference_ligands: list[str], top_k: int = 10,
-           run_id: str | None = None, target: str | None = None) -> dict[str, Any]:
+           run_id: str | None = None, target: str | None = None,
+           project_id: str | None = None) -> dict[str, Any]:
     """Screen candidate SMILES against known reference ligand SMILES."""
     if not cu.rdkit_available():
         return {"status": "UNAVAILABLE", "reason": "RDKit not available", "source_type": SourceType.CONFIGURED_BUT_NOT_RUN.value,
@@ -100,7 +101,8 @@ def screen(candidates: list[str], reference_ligands: list[str], top_k: int = 10,
         role_counts[r["recommendation"]] = role_counts.get(r["recommendation"], 0) + 1
 
     out = {
-        "id": f"lscreen-{uuid.uuid4().hex[:8]}", "run_id": run_id, "target": target,
+        "id": f"lscreen-{uuid.uuid4().hex[:8]}", "project_id": project_id,
+        "run_id": run_id, "workflow_run_id": run_id, "target": target,
         "candidate_count": len(candidates), "valid_count": valid_count, "duplicate_count": dup_count,
         "reference_count": len(reference_ligands), "reference_scaffold_count": len(ref_scaffolds),
         "top_candidates": top_candidates, "recommendation_counts": role_counts,

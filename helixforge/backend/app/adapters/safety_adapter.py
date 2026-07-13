@@ -7,6 +7,7 @@ optimizes toxicity and never produces actionable hazardous instructions.
 from __future__ import annotations
 
 import re
+import hashlib
 from typing import Any
 
 from app.adapters.base import ToolAdapter
@@ -80,8 +81,12 @@ class SafetyAdapter(ToolAdapter):
             validation = ValidationStatus.PASSED
 
         if status != "PASS":
+            workflow_run_id = payload.get("workflow_run_id")
+            identity = f"{workflow_run_id or 'unscoped'}|{payload.get('project_id')}|{label}|{status}"
+            digest = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:12]
             db.insert("safety_flags", {
-                "id": f"sf-{abs(hash((label, status))) % 10**10}", "project_id": payload.get("project_id"),
+                "id": f"sf-{workflow_run_id or 'unscoped'}-{digest}",
+                "project_id": payload.get("project_id"), "workflow_run_id": workflow_run_id,
                 "created_at": utcnow(), "entity_label": label, "status": status,
                 "categories": categories or ["overclaim"], "redacted_summary": redacted,
             })

@@ -279,16 +279,20 @@ def run(run_id: str | None = None) -> dict:
     """Load molecules for a run, compute the Pareto analysis, and persist it."""
     runs = db.list_records("workflow_runs", limit=200)
     run_rec = db.get("workflow_runs", run_id) if run_id else (runs[0] if runs else {})
+    if run_id and not run_rec:
+        raise ValueError("workflow run not found")
     run_rec = run_rec or {}
     pid = run_rec.get("project_id")
+    rid = run_rec.get("id")
     mols = (
-        db.list_records("molecule_candidates", project_id=pid, limit=500)
-        if pid
-        else db.list_records("molecule_candidates", limit=500)
+        db.list_records("molecule_candidates", project_id=pid, workflow_run_id=rid, limit=500)
+        if pid and rid
+        else []
     )
     result = compute(mols)
     result["id"] = f"pareto-{uuid.uuid4().hex[:8]}"
-    result["run_id"] = run_rec.get("id")
+    result["run_id"] = rid
+    result["workflow_run_id"] = rid
     result["project_id"] = pid
     result["created_at"] = result.get("checked_at") or utcnow()
     try:

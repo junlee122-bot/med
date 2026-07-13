@@ -86,7 +86,8 @@ def _nvidia_smi(deep: bool, timeout: int) -> dict[str, Any]:
     if path and deep:
         try:
             res = subprocess.run([path, "--query-gpu=name", "--format=csv,noheader"],
-                                 capture_output=True, text=True, timeout=timeout)
+                                 capture_output=True, text=True, encoding="utf-8",
+                                 errors="replace", timeout=timeout)
             out["probed"] = True
             if res.returncode == 0:
                 out["gpu_count"] = len([l for l in res.stdout.splitlines() if l.strip()])
@@ -127,9 +128,29 @@ def _recorded_gpu_artifacts() -> dict[str, Any]:
         arts = [a for a in db.list_records("compute_artifacts", limit=500)
                 if a.get("source_type") == "RECORDED_GPU_OUTPUT"
                 or (a.get("metadata") or {}).get("recorded_gpu")]
-        return {"available": bool(arts), "count": len(arts)}
+        # A recorded output is only replay-compatible with the job type that
+        # produced it. Treating one arbitrary artifact as a replay source for
+        # every GPU capability can route unrelated stages to the wrong result.
+        job_types: set[str] = set()
+        compatible_count = 0
+        for art in arts:
+            metadata = art.get("metadata") or {}
+            job_type = metadata.get("job_type")
+            if not job_type and art.get("compute_job_id"):
+                job = db.get("compute_jobs", str(art["compute_job_id"]))
+                if job:
+                    job_type = job.get("job_type") or (job.get("specification") or {}).get("job_type")
+            if job_type:
+                job_types.add(str(job_type))
+                compatible_count += 1
+        return {
+            "available": bool(job_types),
+            "count": len(arts),
+            "compatible_count": compatible_count,
+            "job_types": sorted(job_types),
+        }
     except Exception:
-        return {"available": False, "count": 0}
+        return {"available": False, "count": 0, "compatible_count": 0, "job_types": []}
 
 
 def detect(mode: str = "local") -> dict[str, Any]:

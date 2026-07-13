@@ -127,8 +127,9 @@ def security_audit(sample_specs: list[dict] | None = None) -> dict[str, Any]:
     # 4. Provider live-calls gated.
     from app.compute.config import get_compute_config
     cfg = get_compute_config()
-    add(not (cfg.enable_live_gpu_test and cfg.remote_gpu_enabled) or True, "info",
-        "provider_gating", f"live GPU calls gated (enabled={cfg.remote_gpu_enabled}, live_flag={cfg.enable_live_gpu_test})")
+    live_enabled = cfg.enable_live_gpu_test and cfg.remote_gpu_enabled
+    add(not live_enabled, "medium", "provider_gating",
+        f"live GPU calls gated (enabled={cfg.remote_gpu_enabled}, live_flag={cfg.enable_live_gpu_test})")
     ok = all(f["ok"] for f in findings)
     return {"ok": ok, "findings": findings, "policies": security_policies(),
             "note": "No arbitrary shell, image, or code can reach a worker.", "checked_at": _now()}

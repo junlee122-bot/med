@@ -91,24 +91,24 @@ def _p_provenance_mislabel_flagged() -> tuple[bool, str]:
 
 
 def _p_gov_replay_as_real() -> tuple[bool, str]:
-    import uuid
-    from app.storage import db
-    rid = f"rt-replay-{uuid.uuid4().hex[:6]}"
-    db.insert("workflow_runs", {"id": rid, "project_id": f"rt-{uuid.uuid4().hex[:6]}",
-                                "created_at": "2026-01-01T00:00:00Z", "kind": "agentic_replay",
-                                "replay_mode": True, "source_types": ["REAL_TOOL_OUTPUT"]})
-    res = gov.audit()
+    rid = "red-team-probe-replay"
+    res = gov.audit(_records_by_table={
+        "workflow_runs": [{
+            "id": rid, "project_id": "red-team-probe", "kind": "agentic_replay",
+            "replay_mode": True, "source_types": ["REAL_TOOL_OUTPUT"],
+        }],
+    })
     return (res["status"] == "BLOCKED" and any(rid in x for x in res["real_vs_replay_conflicts"])), \
         "Replay run mislabeled REAL_TOOL_OUTPUT must be BLOCKED by governance."
 
 
 def _p_gov_configured_not_run_overclaim() -> tuple[bool, str]:
-    import uuid
-    from app.storage import db
-    db.insert("reports", {"id": f"rt-rep-{uuid.uuid4().hex[:6]}", "project_id": f"rt-{uuid.uuid4().hex[:6]}",
-                          "created_at": "2026-01-01T00:00:00Z",
-                          "markdown": "Vina CONFIGURED_BUT_NOT_RUN produced a real result and executed successfully."})
-    res = gov.audit()
+    res = gov.audit(_records_by_table={
+        "reports": [{
+            "id": "red-team-probe-report",
+            "markdown": "Vina CONFIGURED_BUT_NOT_RUN produced a real result and executed successfully.",
+        }],
+    })
     return bool(res["configured_not_run_overclaimed"]), "CONFIGURED_BUT_NOT_RUN overclaim must be caught."
 
 

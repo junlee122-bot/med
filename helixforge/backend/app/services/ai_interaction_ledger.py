@@ -93,10 +93,7 @@ def record_router_decision(*, run_id: str, purpose: str, model: str, mode: str,
 
 
 def list_interactions(run_id: Optional[str] = None, limit: int = 500) -> list[dict]:
-    rows = db.list_records("ai_interactions", limit=limit)
-    if run_id:
-        rows = [r for r in rows if r.get("run_id") == run_id]
-    return rows
+    return db.list_records("ai_interactions", workflow_run_id=run_id, limit=limit)
 
 
 def summary_for_run(run_id: str) -> dict[str, Any]:

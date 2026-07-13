@@ -27,6 +27,13 @@ def test_molecule_scoring_high_quality_reasonable():
     assert res["score"] >= 55
 
 
+def test_missing_safety_status_fails_closed():
+    res = scoring.score_molecule({"valid": True, "qed": 0.9, "lipinski_pass": True,
+                                  "activity_proxy_score": 0.9})
+    assert res["recommendation"] == "Review required"
+    assert any("unverified safety status" in w for w in res["warnings"])
+
+
 def test_target_scoring_conservative_with_missing_data():
     res = scoring.score_target({})  # everything missing
     assert res["warnings"], "missing inputs must emit warnings"

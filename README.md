@@ -21,7 +21,7 @@ uvicorn app.main:app --reload --port 8000
 
 # 2) Frontend (Vite/React)  →  http://localhost:5174
 cd helixforge/frontend
-npm install
+npm ci
 npm run dev
 
 # 3) Or everything via Docker

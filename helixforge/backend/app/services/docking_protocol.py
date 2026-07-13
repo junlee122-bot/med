@@ -69,6 +69,7 @@ def create_protocol(
     exhaustiveness: int | None = None,
     mode: str = NOT_CONFIGURED,
     score: float | None = None,
+    persist: bool = True,
 ) -> dict[str, Any]:
     """Build (and persist) a governed docking protocol record.
 
@@ -117,10 +118,11 @@ def create_protocol(
         "created_at": utcnow(),
     }
 
-    try:
-        db.insert("docking_protocols", record)
-    except Exception:  # pragma: no cover - persistence is best-effort
-        pass
+    if persist:
+        try:
+            db.insert("docking_protocols", record)
+        except Exception:  # pragma: no cover - persistence is best-effort
+            pass
     return record
 
 
@@ -223,11 +225,14 @@ def run(run_id: str | None = None) -> dict[str, Any]:
     """
     runs = db.list_records("workflow_runs", limit=200)
     run_rec = db.get("workflow_runs", run_id) if run_id else (runs[0] if runs else {})
+    if run_id and not run_rec:
+        raise ValueError("workflow run not found")
     run_rec = run_rec or {}
     pid = run_rec.get("project_id")
+    rid = run_rec.get("id")
     jobs = (
-        db.list_records("docking_jobs", project_id=pid, limit=200)
-        if pid else db.list_records("docking_jobs", limit=200)
+        db.list_records("docking_jobs", project_id=pid, workflow_run_id=rid, limit=200)
+        if pid and rid else []
     )
 
     hit = _first_real_score(jobs)
@@ -241,11 +246,17 @@ def run(run_id: str | None = None) -> dict[str, Any]:
             exhaustiveness=job.get("exhaustiveness"),
             mode=REAL_VINA_FIXTURE_RUN,
             score=score,
+            persist=False,
         )
     else:
-        protocol = create_protocol(run_id=run_rec.get("id"), mode=NOT_CONFIGURED)
+        protocol = create_protocol(run_id=run_rec.get("id"), mode=NOT_CONFIGURED, persist=False)
 
     lint = lint_protocol(protocol)
+    protocol["lint"] = lint
+    try:
+        db.insert("docking_protocols", protocol)
+    except Exception:  # pragma: no cover - persistence is best-effort
+        pass
     return {
         "run_id": run_rec.get("id"),
         "protocol": protocol,

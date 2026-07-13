@@ -104,22 +104,30 @@ def _detect_duplicate_molecules(norms: list[dict]) -> list[dict]:
 def normalize_run(run_id: str | None = None) -> dict[str, Any]:
     runs = db.list_records("workflow_runs", limit=200)
     run = db.get("workflow_runs", run_id) if run_id else (runs[0] if runs else {})
+    if run_id and not run:
+        raise ValueError("workflow run not found")
     pid = run.get("project_id") if run else None
-    targets = db.list_records("target_candidates", project_id=pid, limit=200) if pid else []
-    mols = db.list_records("molecule_candidates", project_id=pid, limit=500) if pid else []
-    trials = [e for e in (db.list_records("evidence_items", project_id=pid, limit=1000) if pid else [])
+    rid = run.get("id") if run else None
+    targets = (db.list_records("target_candidates", project_id=pid, workflow_run_id=rid, limit=200)
+               if pid and rid else [])
+    mols = (db.list_records("molecule_candidates", project_id=pid, workflow_run_id=rid, limit=500)
+            if pid and rid else [])
+    trials = [e for e in (db.list_records(
+        "evidence_items", project_id=pid, workflow_run_id=rid, limit=1000
+    ) if pid and rid else [])
               if e.get("identifier_type") == "NCT" or "clinicaltrials" in (e.get("source_name") or "").lower()]
     tnorm = [normalize_target(t) for t in targets]
     mnorm = [normalize_molecule(m) for m in mols]
     trnorm = [normalize_trial(t) for t in trials]
     dnorm = normalize_disease(run.get("condition", "")) if run else normalize_disease("")
     payload = {
-        "id": f"idnorm-{uuid.uuid4().hex[:8]}", "run_id": run.get("id") if run else None,
+        "id": f"idnorm-{uuid.uuid4().hex[:8]}", "run_id": rid,
+        "workflow_run_id": rid, "project_id": pid,
         "targets": tnorm, "molecules": mnorm, "trials": trnorm, "disease": dnorm,
         "duplicate_molecules": _detect_duplicate_molecules(mnorm),
         "rdkit_available": RDKIT,
         "note": "Cross-source IDs are resolved only where present; unresolved refs are labeled NOT_RESOLVED/ASSUMPTION.",
-        "checked_at": utcnow(),
+        "checked_at": utcnow(), "created_at": utcnow(),
     }
     try:
         db.insert("identity_normalizations", payload)

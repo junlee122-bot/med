@@ -45,9 +45,20 @@ def evidence_lint_latest():
     return lint_run(runs[0]["id"])
 
 
+def _resolve_run_scope(project_id: str | None, run_id: str | None) -> tuple[str | None, str | None]:
+    if run_id is None:
+        return project_id, None
+    run = db.get("workflow_runs", run_id)
+    if not run or (project_id is not None and run.get("project_id") != project_id):
+        raise HTTPException(status_code=404, detail="workflow run not found")
+    return run.get("project_id"), run_id
+
+
 @router.get("/targets")
-def list_targets(project_id: str | None = None, limit: int = 100):
-    rows = db.list_records("target_candidates", project_id=project_id, limit=limit)
+def list_targets(project_id: str | None = None, run_id: str | None = None, limit: int = 100):
+    project_id, run_id = _resolve_run_scope(project_id, run_id)
+    rows = db.list_records("target_candidates", project_id=project_id,
+                           workflow_run_id=run_id, limit=limit)
     rows.sort(key=lambda r: r.get("rank", 999))
     return {"targets": rows, "count": len(rows)}
 
@@ -61,8 +72,10 @@ def get_target(target_id: str):
 
 
 @router.get("/hypotheses")
-def list_hypotheses(project_id: str | None = None, limit: int = 100):
-    return {"hypotheses": db.list_records("hypotheses", project_id=project_id, limit=limit)}
+def list_hypotheses(project_id: str | None = None, run_id: str | None = None, limit: int = 100):
+    project_id, run_id = _resolve_run_scope(project_id, run_id)
+    return {"hypotheses": db.list_records("hypotheses", project_id=project_id,
+                                           workflow_run_id=run_id, limit=limit)}
 
 
 @router.get("/hypotheses/{hyp_id}")
@@ -74,8 +87,10 @@ def get_hypothesis(hyp_id: str):
 
 
 @router.get("/evidence")
-def list_evidence(project_id: str | None = None, limit: int = 200):
-    return {"evidence": db.list_records("evidence_items", project_id=project_id, limit=limit)}
+def list_evidence(project_id: str | None = None, run_id: str | None = None, limit: int = 200):
+    project_id, run_id = _resolve_run_scope(project_id, run_id)
+    return {"evidence": db.list_records("evidence_items", project_id=project_id,
+                                         workflow_run_id=run_id, limit=limit)}
 
 
 @router.get("/evidence/{evidence_id}")
@@ -94,7 +109,9 @@ def verify_evidence(req: EvidenceVerifyRequest):
 
 
 @router.get("/molecules")
-def list_molecules(project_id: str | None = None, limit: int = 200):
-    rows = db.list_records("molecule_candidates", project_id=project_id, limit=limit)
+def list_molecules(project_id: str | None = None, run_id: str | None = None, limit: int = 200):
+    project_id, run_id = _resolve_run_scope(project_id, run_id)
+    rows = db.list_records("molecule_candidates", project_id=project_id,
+                           workflow_run_id=run_id, limit=limit)
     rows.sort(key=lambda r: r.get("rank", 999))
     return {"molecules": rows, "count": len(rows)}

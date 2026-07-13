@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { api, SOURCE_META } from '@/lib/api'
+import { api, getRememberedRunId, SOURCE_META } from '@/lib/api'
 import { Icon } from '@/components/Icon'
 import { Badge, Disclaimer, Empty, ErrorNote, PageHeader, Panel, Spinner, StatCard } from '@/components/ui'
 import { HUMAN_RESPONSIBILITY } from '@/lib/api'
@@ -16,6 +16,7 @@ function SBadge({ type }: { type?: string }) {
 }
 
 export function ComputeCenter() {
+  const [runId] = useState(getRememberedRunId)
   const [cap, setCap] = useState<any>(null)
   const [providers, setProviders] = useState<any>(null)
   const [costs, setCosts] = useState<any>(null)
@@ -33,20 +34,28 @@ export function ComputeCenter() {
   async function load(mode: 'local' | 'deep' = 'local') {
     setLoading(true); setErr('')
     try {
-      const [c, p, co, wc, se, rr, at] = await Promise.all([
+      const results = await Promise.allSettled([
         api.computeCapabilities(mode), api.computeProviders(), api.computeCosts(),
         api.computeWorkerContracts(), api.computeSecurityAudit(),
-        api.computeReleaseReadiness(), api.computeArtifactTypes(),
+        api.computeReleaseReadiness(runId || undefined), api.computeArtifactTypes(),
       ])
-      setCap(c); setProviders(p); setCosts(co); setContracts(wc); setSecurity(se)
-      setReadiness(rr); setArtifactTypes(at.types || [])
+      const [c, p, co, wc, se, rr, at] = results
+      setCap(c.status === 'fulfilled' ? c.value : null)
+      setProviders(p.status === 'fulfilled' ? p.value : null)
+      setCosts(co.status === 'fulfilled' ? co.value : null)
+      setContracts(wc.status === 'fulfilled' ? wc.value : null)
+      setSecurity(se.status === 'fulfilled' ? se.value : null)
+      setReadiness(rr.status === 'fulfilled' ? rr.value : null)
+      setArtifactTypes(at.status === 'fulfilled' ? at.value.types || [] : [])
+      const failures = results.filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+      if (failures.length) setErr(failures.map((failure) => failure.reason instanceof Error ? failure.reason.message : String(failure.reason)).join('; '))
     } catch (e: any) { setErr(e.message) } finally { setLoading(false) }
   }
   useEffect(() => { load() }, [])
 
   async function genArtifact(kind: string) {
-    setBusy('art'); setErr('')
-    try { setArtifact(await api.computeArtifactGenerate(kind)) } catch (e: any) { setErr(e.message) } finally { setBusy('') }
+    setBusy('art'); setErr(''); setArtifact(null)
+    try { setArtifact(await api.computeArtifactGenerate(kind, runId || undefined)) } catch (e: any) { setErr(e.message) } finally { setBusy('') }
   }
 
   async function runDemo() {

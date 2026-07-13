@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { api, HUMAN_RESPONSIBILITY } from '@/lib/api'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { api, getRememberedRunId, HUMAN_RESPONSIBILITY, rememberRunId } from '@/lib/api'
 import type { AgenticRunResult, ErrorInjections } from '@/lib/api'
 import { Icon } from '@/components/Icon'
 import { Badge, Disclaimer, Empty, ErrorNote, PageHeader, Panel, SourceBadge, Spinner } from '@/components/ui'
@@ -15,6 +16,8 @@ const INJECTIONS: { key: keyof ErrorInjections; label: string; hint: string }[] 
 ]
 
 export function Cockpit() {
+  const location = useLocation()
+  const navigate = useNavigate()
   const [run, setRun] = useState<AgenticRunResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -23,14 +26,71 @@ export function Cockpit() {
   const [snaps, setSnaps] = useState<any[]>([])
   const [snapId, setSnapId] = useState('')
   const [replayInfo, setReplayInfo] = useState<{ warning: string; original: string } | null>(null)
+  const [snapshotError, setSnapshotError] = useState('')
 
   useEffect(() => {
-    api.listSnapshots().then((r) => {
-      setSnaps(r.snapshots)
-      const b = r.snapshots.find((s: any) => s.is_builtin) || r.snapshots[0]
-      if (b) setSnapId(b.id)
-    }).catch(() => {})
+    let active = true
+    api.listSnapshots()
+      .then((r) => {
+        if (!active) return
+        setSnaps(r.snapshots)
+        const b = r.snapshots.find((s: any) => s.is_builtin) || r.snapshots[0]
+        if (b) setSnapId(b.id)
+      })
+      .catch((reason: unknown) => {
+        if (active) setSnapshotError(reason instanceof Error ? reason.message : 'Failed to load snapshots.')
+      })
+    return () => { active = false }
   }, [])
+
+  useEffect(() => {
+    const queryRunId = new URLSearchParams(location.search).get('run')?.trim() || ''
+    const runId = queryRunId || getRememberedRunId()
+    if (!runId) {
+      setRun(null)
+      setReplayInfo(null)
+      setError('')
+      setLoading(false)
+      return
+    }
+
+    let active = true
+    setLoading(true)
+    setError('')
+    setRun(null)
+    setReplayInfo(null)
+    Promise.allSettled([api.getRun(runId), api.runAgents(runId), api.runRevisions(runId)])
+      .then(([runResult, agentsResult, revisionsResult]) => {
+        if (!active) return
+        if (runResult.status === 'rejected') {
+          throw runResult.reason
+        }
+        const stored = runResult.value
+        const agentRuns = agentsResult.status === 'fulfilled' ? agentsResult.value.agent_runs : []
+        const revisionEvents = revisionsResult.status === 'fulfilled' ? revisionsResult.value.revision_events : []
+        setRun({
+          ...stored,
+          run_id: stored.run_id || stored.id || runId,
+          project_id: stored.project_id || '',
+          agent_runs: agentRuns,
+          revision_events: revisionEvents,
+          plan: stored.plan || { objective: 'Stored workflow run', stages: [] },
+          steps: stored.steps || [],
+          counts: stored.counts || {},
+          metrics: stored.metrics || {},
+          disclaimer: stored.disclaimer || HUMAN_RESPONSIBILITY,
+        } as AgenticRunResult)
+        rememberRunId(runId)
+        const partialFailures = [agentsResult, revisionsResult].filter((result) => result.status === 'rejected').length
+        if (partialFailures) setError(`Run restored with ${partialFailures} unavailable trace panel(s).`)
+      })
+      .catch((reason: unknown) => {
+        if (active) setError(reason instanceof Error ? reason.message : `Failed to restore run ${runId}.`)
+      })
+      .finally(() => { if (active) setLoading(false) })
+
+    return () => { active = false }
+  }, [location.search])
 
   async function exec() {
     setLoading(true); setError(''); setRun(null); setReplayInfo(null)
@@ -40,14 +100,18 @@ export function Cockpit() {
         const r = await api.replaySnapshot(snapId)
         setRun(r as AgenticRunResult)
         setReplayInfo({ warning: r.warning, original: r.original_run_id })
+        rememberRunId(r.run_id)
+        navigate(`/cockpit?run=${encodeURIComponent(r.run_id)}`, { replace: true })
       } else {
         const r = await api.runAgenticPipeline({
           condition: 'non-small cell lung cancer', target_query: 'EGFR', max_results: 6,
           create_reinvent_config: true, error_injections: inj,
         })
         setRun(r)
+        rememberRunId(r.run_id)
+        navigate(`/cockpit?run=${encodeURIComponent(r.run_id)}`, { replace: true })
       }
-    } catch (e: any) { setError(e.message) } finally { setLoading(false) }
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : 'Failed to execute workflow.') } finally { setLoading(false) }
   }
 
   const m = run?.metrics || {}
@@ -62,8 +126,8 @@ export function Cockpit() {
         actions={
           <>
             <div className="flex overflow-hidden rounded-lg border border-line text-xs">
-              <button onClick={() => setMode('live')} className={`px-3 py-2 ${mode === 'live' ? 'bg-brand-500/20 text-brand-300' : 'text-slate-400 hover:bg-bg-hover'}`}>Live tools</button>
-              <button onClick={() => setMode('replay')} className={`px-3 py-2 ${mode === 'replay' ? 'bg-helix-cyan/20 text-helix-cyan' : 'text-slate-400 hover:bg-bg-hover'}`}>Recorded replay</button>
+              <button aria-pressed={mode === 'live'} onClick={() => setMode('live')} className={`px-3 py-2 ${mode === 'live' ? 'bg-brand-500/20 text-brand-300' : 'text-slate-400 hover:bg-bg-hover'}`}>Live tools</button>
+              <button aria-pressed={mode === 'replay'} onClick={() => setMode('replay')} className={`px-3 py-2 ${mode === 'replay' ? 'bg-helix-cyan/20 text-helix-cyan' : 'text-slate-400 hover:bg-bg-hover'}`}>Recorded replay</button>
             </div>
             {mode === 'replay' && (
               <select className="input !w-auto text-xs" value={snapId} onChange={(e) => setSnapId(e.target.value)}>
@@ -83,6 +147,7 @@ export function Cockpit() {
           Recorded replay mode: outputs are labeled RECORDED_REAL_TOOL_OUTPUT. No live external API call is made — the demo-safe path for flaky networks.
         </div>
       )}
+      {snapshotError && mode === 'replay' && <div className="mb-4"><ErrorNote error={snapshotError} /></div>}
 
       <Panel className="mb-4">
         <div className="mb-2 flex items-center justify-between">
@@ -93,6 +158,7 @@ export function Cockpit() {
           {INJECTIONS.map((it) => (
             <button
               key={it.key}
+              aria-pressed={inj[it.key]}
               onClick={() => setInj((s) => ({ ...s, [it.key]: !s[it.key] }))}
               className={`rounded-lg border p-2.5 text-left transition-colors ${inj[it.key] ? 'border-helix-amber/50 bg-helix-amber/10' : 'border-line bg-bg-soft/40 hover:bg-bg-hover/60'}`}
             >

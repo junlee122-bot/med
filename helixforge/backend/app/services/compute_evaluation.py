@@ -15,22 +15,43 @@ from app.models.schemas import utcnow
 from app.storage import db
 
 
-def _latest_run_id(run_id: str | None) -> str | None:
+def _resolve_run(run_id: str | None) -> tuple[str | None, str | None]:
+    """Resolve an explicit or latest run and return its authoritative project."""
     if run_id:
-        return run_id
-    runs = db.list_records("workflow_runs", limit=50)
-    return runs[0].get("id") if runs else None
+        run = db.get("workflow_runs", run_id)
+        if not run:
+            raise ValueError("workflow run not found")
+    else:
+        runs = db.list_records("workflow_runs", limit=50)
+        run = next((item for item in runs
+                    if item.get("id") and item.get("project_id")), None)
+    if not run:
+        return None, None
+    project_id = run.get("project_id")
+    if not project_id:
+        raise ValueError("workflow run has no project")
+    return run.get("id"), project_id
+
+
+def _scoped(table: str, run_id: str | None,
+            project_id: str | None, limit: int) -> list[dict[str, Any]]:
+    """Read run-owned data at the database boundary, never from a global slice."""
+    if not run_id or not project_id:
+        return []
+    return db.list_records(table, project_id=project_id,
+                           workflow_run_id=run_id, limit=limit)
 
 
 def compute_summary(run_id: str | None = None) -> dict[str, Any]:
-    rid = _latest_run_id(run_id)
-    models = [m for m in db.list_records("cpu_models", limit=200) if not rid or m.get("run_id") == rid]
-    screens = [s for s in db.list_records("ligand_screens", limit=100) if not rid or s.get("run_id") == rid]
-    al_runs = [a for a in db.list_records("active_learning_runs", limit=100) if not rid or a.get("run_id") == rid]
-    datasets = db.list_records("dataset_versions", limit=100)
-    decisions = [d for d in db.list_records("compute_decisions", limit=200) if not rid or d.get("workflow_run_id") == rid]
-    jobs = db.list_records("compute_jobs", limit=100)
-    snaps = db.list_records("compute_snapshots", limit=50)
+    rid, project_id = _resolve_run(run_id)
+    models = _scoped("cpu_models", rid, project_id, 200)
+    screens = _scoped("ligand_screens", rid, project_id, 100)
+    al_runs = _scoped("active_learning_runs", rid, project_id, 100)
+    datasets = _scoped("dataset_versions", rid, project_id, 100)
+    decisions = _scoped("compute_decisions", rid, project_id, 200)
+    jobs = _scoped("compute_jobs", rid, project_id, 100)
+    snaps = _scoped("compute_snapshots", rid, project_id, 50)
+    opt_runs = _scoped("optimization_loop_runs", rid, project_id, 50)
     caps = capability_detector.detect("local")
 
     # A. CPU model quality
@@ -49,7 +70,6 @@ def compute_summary(run_id: str | None = None) -> dict[str, Any]:
           "beats_random": sum(1 for a in al_runs if a.get("beats_random")),
           "note": "compared against random acquisition; oracle = held-out data."}
     # D. Optimization (from optimization_loop_runs if present)
-    opt_runs = db.list_records("optimization_loop_runs", limit=50)
     optimization = {"run_count": len(opt_runs), "note": "selection/local-heuristic; no synthesis content."}
     # E. Compute efficiency
     gpu_jobs = [j for j in jobs if j.get("execution_backend") == "REMOTE_GPU"]
@@ -70,7 +90,7 @@ def compute_summary(run_id: str | None = None) -> dict[str, Any]:
                  "note": "GPU workers configured-not-run; readiness is PARTIAL, not blocking."}
 
     return {
-        "run_id": rid, "compute_profile": caps["profile"],
+        "run_id": rid, "project_id": project_id, "compute_profile": caps["profile"],
         "cpu_model_quality": cpu_model, "ligand_screen": ligand, "active_learning": al,
         "optimization": optimization, "compute_efficiency": efficiency,
         "reproducibility": repro, "gpu_readiness": gpu_ready,
@@ -131,6 +151,7 @@ def release_categories(run_id: str | None = None) -> dict[str, Any]:
     else:
         status = "TECHNICAL_DEMO_READY"
     return {
+        "run_id": s["run_id"], "project_id": s["project_id"],
         "status": status, "overall_score": overall, "categories": cats,
         "blocking_count": len(blocking),
         "cpu_only_note": "CPU-only submission is NOT blocked by missing GPU; GPU readiness stays configured-not-run.",

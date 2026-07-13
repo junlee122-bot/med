@@ -168,9 +168,11 @@ uvicorn app.main:app --reload --port 8000
 
 ### 2. Frontend
 
+Requires Node.js 22.12 or newer.
+
 ```bash
 cd helixforge/frontend
-npm install
+npm ci
 npm run dev            # http://localhost:5174 ; /api is proxied to :8000
 ```
 
@@ -199,6 +201,10 @@ docker compose up --build
 # frontend -> http://localhost:8080  (nginx serves the SPA and proxies /api → backend)
 ```
 
+The development Compose file binds both ports to `127.0.0.1`. For any networked
+deployment set `ENVIRONMENT=production` and a strong `HELIXFORGE_API_TOKEN`;
+production startup fails closed when the token is missing.
+
 ---
 
 ## Run the EGFR / NSCLC pipeline
@@ -222,13 +228,17 @@ export Markdown / JSON.
 
 ## Configure tools
 
-Set values in `.env` (defaults) or at runtime via **Settings** (stored
-server-side; the NCBI key is masked and never logged):
+Set safe operational values in `.env` or at runtime via **Settings** (stored
+server-side; the NCBI key is masked and never logged). Executable paths are
+deployment-only and deliberately rejected by the Settings API:
 
 - `NCBI_API_KEY`, `NCBI_EMAIL` — raise PubMed rate limits / identify per NCBI policy
 - `VINA_BIN` — enable real AutoDock Vina docking
 - `REINVENT4_PYTHON` / `REINVENT4_BIN` — enable real REINVENT4 runs
 - `CHUNK_SIZE`, `TIMEOUT_SECONDS` — external API pagination & timeout
+
+`VINA_BIN`, `REINVENT4_PYTHON`, and `REINVENT4_BIN` are deployment-only.
+`HELIXFORGE_API_TOKEN` is mandatory whenever `ENVIRONMENT=production`.
 
 See **[docs/TOOL_INTEGRATION.md](docs/TOOL_INTEGRATION.md)** for per-tool setup,
 and **[docs/RUNBOOK.md](docs/RUNBOOK.md)** for operations & troubleshooting.

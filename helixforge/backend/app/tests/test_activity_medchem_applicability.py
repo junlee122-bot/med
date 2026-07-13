@@ -135,6 +135,7 @@ def test_applicability_unknown_without_reference():
 
 @pytest.mark.unit
 @pytest.mark.local_tool
+@pytest.mark.skipif(not ad.RDKIT, reason="RDKit unavailable")
 def test_applicability_out_of_domain_low_similarity():
     r = ad.assess_molecule("CCO", ["c1ccc2c(c1)ncc3c2CCCC3", "C1CCCCC1CCCCCCNc1ncncn1"])
     assert r["domain_status"] in ("OUT_OF_DOMAIN", "BORDERLINE", "IN_DOMAIN")
@@ -143,6 +144,7 @@ def test_applicability_out_of_domain_low_similarity():
 
 @pytest.mark.unit
 @pytest.mark.local_tool
+@pytest.mark.skipif(not ad.RDKIT, reason="RDKit unavailable")
 def test_applicability_duplicate_low_novelty():
     r = ad.assess_molecule("CC(=O)Oc1ccccc1C(=O)O", ["CC(=O)Oc1ccccc1C(=O)O", "CCO"])
     assert r["is_near_duplicate"] is True

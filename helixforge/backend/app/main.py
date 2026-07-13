@@ -6,6 +6,8 @@ tool call is audited and labeled with a SourceType. No fabricated real results.
 """
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -44,6 +46,7 @@ from app.api import (
     workflow_api,
 )
 from app.config import get_settings
+from app.auth import install_auth_middleware
 from app.storage import db
 
 SAFETY_NOTICE = (
@@ -52,8 +55,15 @@ SAFETY_NOTICE = (
 )
 
 
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    db.init_db()
+    yield
+
+
 def create_app() -> FastAPI:
     settings = get_settings()
+    settings.validate_security_config()
     app = FastAPI(
         title=settings.app_name,
         version=settings.app_version,
@@ -61,7 +71,11 @@ def create_app() -> FastAPI:
             "Integration-first multi-agent AI drug discovery backend. "
             + SAFETY_NOTICE
         ),
+        lifespan=_lifespan,
     )
+    # Register auth first, then CORS. Starlette prepends middleware entries, so
+    # this makes CORS the outer layer and preserves CORS headers even on 401s.
+    install_auth_middleware(app, settings)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_list(),
@@ -70,7 +84,6 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
     for module in (health, literature, chembl_api, rdkit_api, tdc_api, vina_api,
                    reinvent_api, workflow_api, settings_api,
                    agentic_api, data_api, evaluation_api, export_api,
@@ -80,10 +93,6 @@ def create_app() -> FastAPI:
                    professional_docs_api, llm_api, hybrid_api, hybrid_pipeline_api,
                    compute_api, model_lab_api, compute_demo_api):
         app.include_router(module.router)
-
-    @app.on_event("startup")
-    def _startup() -> None:
-        db.init_db()
 
     @app.get("/")
     def root():

@@ -109,7 +109,7 @@ def _reg_metrics(y_true, y_pred) -> dict[str, Any]:
 
 def train(dataset: list[dict[str, Any]], task: str = "classification",
           endpoint: str = "activity", model_family: str = "random_forest",
-          run_id: str | None = None) -> dict[str, Any]:
+          run_id: str | None = None, project_id: str | None = None) -> dict[str, Any]:
     """dataset: [{smiles, label}]. task: classification|regression."""
     avail = available()
     if avail["status"] != "AVAILABLE":
@@ -164,7 +164,8 @@ def train(dataset: list[dict[str, Any]], task: str = "classification",
 
     small_sample = len(test_idx) < 20
     rec = {
-        "id": model_id, "run_id": run_id, "model_family": model_family, "task": task,
+        "id": model_id, "project_id": project_id, "run_id": run_id,
+        "workflow_run_id": run_id, "model_family": model_family, "task": task,
         "endpoint": endpoint, "feature_method": "morgan_1024",
         "dataset_summary": {"total": len(rows), "valid": len(valid_rows), "invalid": invalid_count,
                             "train": len(train_idx), "test": len(test_idx), "class_balance": class_balance},
@@ -184,7 +185,9 @@ def train(dataset: list[dict[str, Any]], task: str = "classification",
         "created_at": utcnow(),
     }
     db.insert("cpu_models", rec)
-    db.insert("model_checkpoints", {"id": f"ckpt-{model_id}", "compute_job_id": None,
+    db.insert("model_checkpoints", {"id": f"ckpt-{model_id}",
+                                    "project_id": project_id, "run_id": run_id,
+                                    "workflow_run_id": run_id, "compute_job_id": None,
                                     "model_family": model_family, "task": task, "checkpoint_path": "(in-process)",
                                     "checksum": checksum, "metrics": metrics,
                                     "validation_status": rec["validation_status"],
@@ -259,9 +262,10 @@ def predict(model_id: str, smiles_list: list[str]) -> dict[str, Any]:
             "disclaimer": "CPU baseline prediction — not clinical/safety validation.", "checked_at": utcnow()}
 
 
-def list_models(run_id: str | None = None) -> list[dict[str, Any]]:
-    models = db.list_records("cpu_models", limit=200)
-    return [m for m in models if not run_id or m.get("run_id") == run_id]
+def list_models(run_id: str | None = None,
+                project_id: str | None = None) -> list[dict[str, Any]]:
+    return db.list_records("cpu_models", project_id=project_id,
+                           workflow_run_id=run_id, limit=200)
 
 
 def get_model(model_id: str) -> dict[str, Any] | None:

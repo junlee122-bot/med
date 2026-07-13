@@ -40,7 +40,9 @@ class CitationVerifierAgent(BaseAgent):
         # Fake-citation injection (self-correction demo).
         if ctx.inj("fake_citation"):
             fake = {
-                "id": "ev-fake-demo", "project_id": ctx.project_id, "created_at": utcnow(),
+                "id": f"ev-{ctx.workflow_run_id}-fake-demo",
+                "project_id": ctx.project_id, "workflow_run_id": ctx.workflow_run_id,
+                "created_at": utcnow(),
                 "source_name": "PubMed", "source_type": SourceType.HUMAN_INPUT.value,
                 "identifier_type": "PMID", "identifier": "PMID:00000000",
                 "title": f"Fabricated: definitive proof of universal {ctx.target_query} cure",

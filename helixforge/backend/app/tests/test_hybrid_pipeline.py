@@ -11,6 +11,47 @@ from app.storage import db
 client = TestClient(app)
 
 
+@pytest.mark.unit
+def test_hybrid_pipeline_persists_run_scoped_plan_and_planner_call(monkeypatch):
+    suffix = uuid.uuid4().hex[:8]
+    run_id = f"hybrid-scope-run-{suffix}"
+    project_id = f"hybrid-scope-project-{suffix}"
+
+    def fake_backbone(_payload):
+        db.insert("projects", {"id": project_id, "created_at": "2026-01-01T00:00:00Z"})
+        db.insert("workflow_runs", {
+            "id": run_id, "project_id": project_id,
+            "created_at": "2026-01-01T00:00:00Z", "status": "complete",
+        })
+        return {"run_id": run_id, "project_id": project_id, "status": "complete",
+                "agent_runs": []}
+
+    monkeypatch.setenv("HELIXFORGE_USE_LLM", "false")
+    monkeypatch.setattr(hybrid_pipeline.agent_engine, "run_agentic_pipeline", fake_backbone)
+    monkeypatch.setattr(
+        hybrid_pipeline.hypothesis_reasoner, "generate_hybrid",
+        lambda **_kwargs: {
+            "fallback_used": True, "reasoning_source_type": "DETERMINISTIC_FALLBACK",
+            "hypotheses": [], "hypothesis_count": 0,
+        },
+    )
+    result = hybrid_pipeline.run_hybrid_pipeline({
+        "condition": "NSCLC", "target_query": "EGFR", "mode": "DETERMINISTIC_ONLY",
+        "run_true_rediscovery": False, "run_optimization_loop": False,
+        "run_semantic_critic": False,
+    })
+
+    plan = db.get("hybrid_plans", result["hybrid_plan_id"])
+    assert plan["run_id"] == run_id
+    assert plan["project_id"] == project_id
+    planner_calls = [
+        call for call in db.list_records("llm_calls", workflow_run_id=run_id)
+        if call.get("purpose") == "DYNAMIC_PLANNING"
+    ]
+    assert planner_calls
+    assert all(call.get("project_id") == project_id for call in planner_calls)
+
+
 @pytest.mark.slow
 @pytest.mark.integration
 def test_hybrid_pipeline_no_key_completes_deterministic(monkeypatch):
@@ -77,8 +118,17 @@ def test_hybrid_snapshot_records_llm_metadata():
 @pytest.mark.integration
 def test_hybrid_snapshot_excludes_secrets():
     rid, pid = _seed_min_run()
+    db.insert("llm_calls", {
+        "id": f"llm-secret-{uuid.uuid4().hex[:6]}", "run_id": rid, "project_id": pid,
+        "created_at": "2026-02-01T00:00:01Z", "purpose": "SECRET_REDACTION_TEST",
+        "reasoning_source_type": "REAL_LLM_OUTPUT", "data": {
+            "nested": {"api_key": "must-not-survive", "safe": "ok"},
+        }, "fallback_used": False,
+    })
     snap = hybrid_snapshot.create_hybrid_snapshot(rid)
     blob = str(snap["hybrid_meta"])
+    assert "must-not-survive" not in blob
+    assert "***REDACTED***" in blob
     assert "full_system_prompt" not in str(snap["hybrid_meta"].get("llm_calls"))
     # no full prompt fields leaked into snapshot
     for c in snap["hybrid_meta"]["llm_calls"]:
@@ -103,6 +153,34 @@ def test_hybrid_replay_labels_recorded_llm_output():
     assert all(c["reasoning_source_type"] == "RECORDED_LLM_OUTPUT" for c in rep["llm_reasoning_replay"])
 
 
+@pytest.mark.integration
+def test_hybrid_replay_preserves_fallback_source_label():
+    rid, pid = _seed_min_run()
+    db.insert("llm_calls", {
+        "id": f"llm-fallback-{uuid.uuid4().hex[:6]}", "run_id": rid, "project_id": pid,
+        "created_at": "2026-02-01T00:00:02Z", "purpose": "FALLBACK_TEST",
+        "reasoning_source_type": "DETERMINISTIC_FALLBACK", "fallback_used": True,
+        "input_hash": "sha256:fallback-input", "output_hash": "sha256:fallback-output",
+        "data": {"fallback": True},
+    })
+    snap = hybrid_snapshot.create_hybrid_snapshot(rid)
+    rep = hybrid_snapshot.replay_hybrid(snap["id"])
+    fallback = next(c for c in rep["llm_reasoning_replay"] if c["purpose"] == "FALLBACK_TEST")
+    assert fallback["reasoning_source_type"] == "DETERMINISTIC_FALLBACK"
+    assert fallback["replayable"] is False
+
+
+@pytest.mark.integration
+def test_hybrid_replay_rejects_tampered_metadata():
+    rid, _ = _seed_min_run()
+    snap = hybrid_snapshot.create_hybrid_snapshot(rid)
+    meta = db.get("snapshot_artifacts", f"hybmeta-{snap['id']}")
+    meta["llm_calls"][0]["output_summary"] = "tampered"
+    db.insert("snapshot_artifacts", meta)
+    with pytest.raises(ValueError, match="checksum mismatch"):
+        hybrid_snapshot.replay_hybrid(snap["id"])
+
+
 # ---- Endpoints ----
 @pytest.mark.integration
 def test_rediscovery_and_optimization_endpoints():
@@ -113,6 +191,8 @@ def test_rediscovery_and_optimization_endpoints():
 
 
 @pytest.mark.integration
+@pytest.mark.live_api
+@pytest.mark.slow
 def test_hybrid_pipeline_endpoint_deterministic(monkeypatch):
     monkeypatch.setenv("HELIXFORGE_USE_LLM", "false")
     r = client.post("/api/workflow/run-hybrid-agentic-pipeline",

@@ -40,7 +40,9 @@ class CheminformaticsValidatorAgent(BaseAgent):
             else:
                 invalid += 1
             mol = {
-                "id": f"mol-{ctx.workflow_run_id}-{i+1}", "project_id": ctx.project_id, "created_at": utcnow(),
+                "id": f"mol-{ctx.workflow_run_id}-{i+1}",
+                "project_id": ctx.project_id, "workflow_run_id": ctx.workflow_run_id,
+                "created_at": utcnow(),
                 "molecule_chembl_id": r.get("molecule_chembl_id"), "label": r.get("molecule_chembl_id"),
                 "smiles": smi, "canonical_smiles": rd.get("canonical_smiles"),
                 "valid": is_valid, "validity_reason": (rd.get("errors") or [None])[0] if not is_valid else None,
@@ -48,7 +50,7 @@ class CheminformaticsValidatorAgent(BaseAgent):
                 "activity_type": r.get("activity_type"), "standard_value": r.get("standard_value"),
                 "standard_units": r.get("standard_units"), "pchembl_value": r.get("pchembl_value"),
                 "source": r.get("source"), "source_type": r.get("source_type", SourceType.REAL_TOOL_OUTPUT.value),
-                "safety_status": sf.get("status", "PASS"), "safety_categories": sf.get("categories", []),
+                "safety_status": sf.get("status") or "UNKNOWN", "safety_categories": sf.get("categories", []),
                 "composite_score": None, "recommendation": ("Reject — invalid structure" if not is_valid else None),
                 "rdkit_validity": is_valid,
             }

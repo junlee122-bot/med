@@ -47,3 +47,14 @@ def test_release_rubric_mapping_mentions_hybrid():
     r = release_readiness.compute()
     assert "fable" in r["rubric_mapping"]["agent_originality"].lower()
     assert "hybrid_summary" in r
+
+
+@pytest.mark.unit
+def test_release_readiness_does_not_credit_missing_run(monkeypatch):
+    monkeypatch.setattr(release_readiness, "_latest_agentic_run", lambda: None)
+    result = release_readiness.compute()
+    run_check = next(
+        check for check in result["checks"]["agent_readiness"]
+        if check["label"] == "An agentic pipeline run exists"
+    )
+    assert run_check["ok"] is False

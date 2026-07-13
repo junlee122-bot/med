@@ -19,6 +19,9 @@ docker compose down                              # stop
 
 ## Health & smoke checks
 
+When `HELIXFORGE_API_TOKEN` is configured, only `/api/health` is public. Add
+`-H "Authorization: Bearer $HELIXFORGE_API_TOKEN"` to every other API request.
+
 ```bash
 curl http://localhost:8000/api/health            # service liveness
 curl http://localhost:8000/api/tools/health      # per-tool status matrix
@@ -46,6 +49,11 @@ Then `GET /api/report/{report_id}` (id is in the response) or use the Reports pa
   in every response (only the last 4 chars ever shown) and never logged.
 
 ## Common issues
+
+Security-sensitive executable paths (`VINA_BIN`, `REINVENT4_BIN`, and
+`REINVENT4_PYTHON`) are deployment-only and cannot be changed through the HTTP
+Settings API. Production requires both `ENVIRONMENT=production` and a strong
+`HELIXFORGE_API_TOKEN`.
 
 | Symptom | Cause | Fix |
 |---|---|---|

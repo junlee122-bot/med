@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { api } from '@/lib/api'
+import { api, getRememberedRunId, rememberRunId } from '@/lib/api'
 import type { EvaluationSummary } from '@/lib/api'
 import { Icon } from '@/components/Icon'
 import { Badge, Empty, ErrorNote, PageHeader, Panel, Spinner } from '@/components/ui'
@@ -15,6 +15,7 @@ const MODULE_META: Record<string, { label: string; icon: string }> = {
 }
 
 export function Evaluation() {
+  const [runId, setRunId] = useState(getRememberedRunId)
   const [sum, setSum] = useState<EvaluationSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [running, setRunning] = useState(false)
@@ -23,15 +24,16 @@ export function Evaluation() {
 
   async function load() {
     setLoading(true)
-    try { setSum(await api.evaluationSummary()) } catch (e: any) { setErr(e.message) } finally { setLoading(false) }
+    setErr('')
+    try { setSum(await api.evaluationSummary(undefined, runId || undefined)) } catch (e: any) { setSum(null); setErr(e.message) } finally { setLoading(false) }
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [runId])
 
   async function runRetro() {
     setRunning(true); setErr('')
     try {
       const r = await api.runRetrospective({ target_query: 'EGFR', condition: 'non-small cell lung cancer', max_results: 6, create_reinvent_config: false })
-      setRetro(r.retrospective); await load()
+      setRetro(r.retrospective); rememberRunId(r.run_id); setRunId(r.run_id)
     } catch (e: any) { setErr(e.message) } finally { setRunning(false) }
   }
 

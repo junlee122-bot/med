@@ -155,8 +155,12 @@ def review_molecule(smiles: str, label: str | None = None) -> dict[str, Any]:
 def review_run(run_id: str | None = None) -> dict[str, Any]:
     runs = db.list_records("workflow_runs", limit=200)
     run = db.get("workflow_runs", run_id) if run_id else (runs[0] if runs else {})
+    if run_id and not run:
+        raise ValueError("workflow run not found")
     pid = run.get("project_id") if run else None
-    mols = db.list_records("molecule_candidates", project_id=pid, limit=500) if pid else db.list_records("molecule_candidates", limit=500)
+    rid = run.get("id") if run else None
+    mols = (db.list_records("molecule_candidates", project_id=pid, workflow_run_id=rid, limit=500)
+            if pid and rid else [])
     reviews = []
     for m in mols:
         r = review_molecule(m.get("canonical_smiles") or m.get("smiles"),
@@ -166,11 +170,12 @@ def review_run(run_id: str | None = None) -> dict[str, Any]:
     dist: dict[str, int] = {}
     for r in reviews:
         dist[r["medchem_status"]] = dist.get(r["medchem_status"], 0) + 1
-    payload = {"id": f"medchem-{uuid.uuid4().hex[:8]}", "run_id": run.get("id") if run else None,
+    payload = {"id": f"medchem-{uuid.uuid4().hex[:8]}", "project_id": pid,
+               "run_id": rid, "workflow_run_id": rid,
                "reviews": reviews, "count": len(reviews), "status_distribution": dist,
                "rdkit_available": RDKIT, "pains_available": PAINS,
                "disclaimer": "Structural/property review only — no synthesis, dosage, or safety determination.",
-               "checked_at": utcnow()}
+               "checked_at": utcnow(), "created_at": utcnow()}
     try:
         db.insert("medchem_reviews", payload)
     except Exception:

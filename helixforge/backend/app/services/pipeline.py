@@ -33,6 +33,11 @@ def _step(name: str, tool: str, out: dict[str, Any]) -> WorkflowStepResult:
     )
 
 
+def _run_entity_id(prefix: str, run_id: str, source_id: Any) -> str:
+    """Keep source identifiers recognizable without sharing ids across runs."""
+    return f"{prefix}-{run_id}-{source_id}"
+
+
 def run_pipeline(payload: dict[str, Any]) -> WorkflowRunResponse:
     project_id = payload.get("project_id") or f"proj-{uuid.uuid4().hex[:8]}"
     run_id = f"run-{uuid.uuid4().hex[:10]}"
@@ -63,7 +68,8 @@ def run_pipeline(payload: dict[str, Any]) -> WorkflowRunResponse:
                reg.pubmed.execute({"query": f"{target_query} {condition} resistance", "max_results": max_results},
                                   project_id=project_id, workflow_run_id=run_id))
     for it in pm.get("items", [])[:max_results]:
-        db.insert("evidence_items", {"id": f"ev-{it['pmid']}", "project_id": project_id, "created_at": utcnow(),
+        db.insert("evidence_items", {"id": _run_entity_id("ev", run_id, it["pmid"]),
+                                     "project_id": project_id, "workflow_run_id": run_id, "created_at": utcnow(),
                                      "source_name": "PubMed", "identifier": f"PMID:{it['pmid']}",
                                      "title": it["title"], "url": it["url"], "source_type": SourceType.REAL_TOOL_OUTPUT.value})
 
@@ -73,8 +79,10 @@ def run_pipeline(payload: dict[str, Any]) -> WorkflowRunResponse:
                                   project_id=project_id, workflow_run_id=run_id))
     single_protein = None
     for t in ct.get("items", []):
-        db.insert("target_candidates", {"id": f"tgt-{t.get('target_chembl_id')}", "project_id": project_id,
-                                        "created_at": utcnow(), **t, "source_type": SourceType.REAL_TOOL_OUTPUT.value})
+        db.insert("target_candidates", {**t,
+                                        "id": _run_entity_id("tgt", run_id, t.get("target_chembl_id")),
+                                        "project_id": project_id, "workflow_run_id": run_id,
+                                        "created_at": utcnow(), "source_type": SourceType.REAL_TOOL_OUTPUT.value})
         if single_protein is None and t.get("target_type") == "SINGLE PROTEIN":
             single_protein = t.get("target_chembl_id")
     target_id = single_protein or "CHEMBL203"  # EGFR single protein fallback id
@@ -107,7 +115,8 @@ def run_pipeline(payload: dict[str, Any]) -> WorkflowRunResponse:
         if rd.get("valid"):
             validated += 1
         db.insert("molecule_candidates", {
-            "id": f"mol-{a.get('molecule_chembl_id')}-{len(seen)}", "project_id": project_id, "created_at": utcnow(),
+            "id": _run_entity_id("mol", run_id, f"{a.get('molecule_chembl_id')}-{len(seen)}"),
+            "project_id": project_id, "workflow_run_id": run_id, "created_at": utcnow(),
             "molecule_chembl_id": a.get("molecule_chembl_id"), "label": a.get("molecule_chembl_id"),
             "smiles": smi, "valid": rd.get("valid"), "descriptors": rd.get("descriptors"),
             "safety_status": sf.get("status"), "source_type": SourceType.REAL_TOOL_OUTPUT.value,
@@ -122,7 +131,8 @@ def run_pipeline(payload: dict[str, Any]) -> WorkflowRunResponse:
                     reg.tdc.execute({"dataset": "Caco2_Wang"}, project_id=project_id, workflow_run_id=run_id))
     if tdc_out.get("source_type") == SourceType.REAL_TOOL_OUTPUT.value:
         db.insert("tdc_dataset_records", {"id": f"tdc-{uuid.uuid4().hex[:6]}", "project_id": project_id,
-                                          "created_at": utcnow(), "dataset_name": tdc_out.get("dataset_name"),
+                                          "workflow_run_id": run_id, "created_at": utcnow(),
+                                          "dataset_name": tdc_out.get("dataset_name"),
                                           "task": tdc_out.get("task"), "row_count": tdc_out.get("row_count"),
                                           "split_summary": tdc_out.get("split_summary"),
                                           "source_type": SourceType.REAL_TOOL_OUTPUT.value})

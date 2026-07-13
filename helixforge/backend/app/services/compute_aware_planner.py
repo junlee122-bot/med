@@ -56,26 +56,38 @@ def plan_compute(capabilities: dict[str, Any], requested_capabilities: list[str]
     """Produce compute decisions for each requested capability. Deterministic."""
     profile = capabilities.get("profile", "CPU_ONLY")
     gpu_ok = _profile_allows_gpu(profile)
-    recorded_ok = capabilities.get("recorded_gpu_artifacts", {}).get("available", False)
+    recorded = capabilities.get("recorded_gpu_artifacts", {})
+    recorded_types = {str(value) for value in recorded.get("job_types", [])}
     requested = requested_capabilities or list(SUBSTITUTIONS.keys())
     decisions: list[dict[str, Any]] = []
+    project_id = None
+    if workflow_run_id:
+        run = db.get("workflow_runs", workflow_run_id)
+        project_id = run.get("project_id") if run else None
 
     for cap in requested:
         sub = SUBSTITUTIONS.get(cap)
         if not sub:
             continue
+        replay_ok = profile == "RECORDED_GPU_REPLAY" and sub["gpu_job_type"] in recorded_types
         if gpu_ok:
             backend = ExecutionBackend.REMOTE_GPU
             method = f"GPU job spec: {sub['gpu_job_type']} (validated, requires approval)"
             reason = "GPU enabled and configured → validated GPU job (human approval required)."
             source_type = SourceType.GPU_CONFIGURED_NOT_RUN.value
             approval = True
-        elif recorded_ok and profile == "RECORDED_GPU_REPLAY":
+            expected_quality = "GPU-grade"
+            expected_latency = "minutes (GPU, queued)"
+            limitations = ["GPU result requires artifact validation before use."]
+        elif replay_ok:
             backend = ExecutionBackend.RECORDED_ARTIFACT
             method = f"Recorded GPU output replay for {sub['gpu_job_type']}"
             reason = "Recorded GPU artifacts available → replay (labeled, zero cost)."
             source_type = SourceType.RECORDED_GPU_OUTPUT.value
             approval = False
+            expected_quality = "Recorded GPU output (not a new run)"
+            expected_latency = "seconds (recorded replay)"
+            limitations = ["Recorded output is reusable only for its original job type and provenance."]
         else:
             backend = sub["cpu_backend"]
             method = sub["cpu_method"]
@@ -84,28 +96,32 @@ def plan_compute(capabilities: dict[str, Any], requested_capabilities: list[str]
                            if backend != ExecutionBackend.CONFIG_ONLY
                            else SourceType.GPU_CONFIGURED_NOT_RUN.value)
             approval = False
+            expected_quality = "CPU-baseline / screening signal"
+            expected_latency = "seconds-minutes (CPU)"
+            limitations = ["CPU substitute is a screening/prioritization signal, not a GPU-grade result."]
         rec = {
-            "id": f"cdec-{uuid.uuid4().hex[:8]}", "workflow_run_id": workflow_run_id,
+            "id": f"cdec-{uuid.uuid4().hex[:8]}", "project_id": project_id,
+            "workflow_run_id": workflow_run_id,
             "stage": cap, "requested_capability": cap, "selected_backend": backend,
             "selected_method": method, "fallback_method": sub["cpu_method"],
-            "reason": reason, "expected_quality": ("GPU-grade" if gpu_ok else "CPU-baseline / screening signal"),
-            "expected_latency": "seconds-minutes (CPU)" if not gpu_ok else "minutes (GPU, queued)",
+            "reason": reason, "expected_quality": expected_quality,
+            "expected_latency": expected_latency,
             "estimated_cost": 0.0 if not gpu_ok else None,
             "human_approval_required": approval, "gpu_would_add": sub["gpu_would_add"],
             "quality_lost_without_gpu": sub["quality_lost"], "source_type": source_type,
-            "limitations": ["CPU substitute is a screening/prioritization signal, not a GPU-grade result."]
-                           if not gpu_ok else ["GPU result requires artifact validation before use."],
+            "limitations": limitations,
             "created_at": utcnow(),
         }
         if workflow_run_id:
             db.insert("compute_decisions", rec)
         decisions.append(rec)
 
+    replay_selected = any(d["selected_backend"] == ExecutionBackend.RECORDED_ARTIFACT for d in decisions)
     return {
-        "profile": profile, "gpu_enabled": gpu_ok, "recorded_replay_available": recorded_ok,
+        "profile": profile, "gpu_enabled": gpu_ok, "recorded_replay_available": replay_selected,
         "decisions": decisions, "decision_count": len(decisions),
         "summary": ("All GPU tasks routed to validated CPU substitutes (no GPU present)."
-                    if not gpu_ok and not recorded_ok else
+                    if not gpu_ok and not replay_selected else
                     "GPU/replay routing available for selected capabilities."),
         "safety_note": ("The planner cannot add wet-lab, synthesis, dosage, or shell steps; "
                         "GPU work is an allowlisted, human-approved spec only."),
@@ -114,5 +130,4 @@ def plan_compute(capabilities: dict[str, Any], requested_capabilities: list[str]
 
 
 def get_decisions(run_id: str) -> list[dict[str, Any]]:
-    return [d for d in db.list_records("compute_decisions", limit=500)
-            if d.get("workflow_run_id") == run_id]
+    return db.list_records("compute_decisions", workflow_run_id=run_id, limit=500)

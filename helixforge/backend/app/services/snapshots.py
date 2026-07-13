@@ -9,6 +9,7 @@ timestamp. This is the demo-day safety net for flaky networks.
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import uuid
 from pathlib import Path
@@ -31,16 +32,20 @@ REPLAY_WARNING = (
     "call was made during replay."
 )
 
+# Built-in fixtures are part of the trusted application image. Pin their
+# canonical payload checksum so a modified file is rejected even when the DB
+# is empty and the fixture is being registered for the first time.
+BUILTIN_CHECKSUMS = {
+    "builtin-egfr-nsclc": "sha256:ab85a89b95a4e1dfb5587b70d7f2ca7c",
+}
+
 
 def _sanitize(obj: Any) -> Any:
     """Recursively redact secrets from any string in a captured payload."""
-    if isinstance(obj, str):
-        return redact_secrets(obj)
-    if isinstance(obj, list):
-        return [_sanitize(x) for x in obj]
-    if isinstance(obj, dict):
-        return {k: _sanitize(v) for k, v in obj.items()}
-    return obj
+    # The shared redactor handles both nested values and sensitive dictionary
+    # keys (api_key, token, password, ...). Delegating the whole object avoids
+    # losing key-aware redaction while recursing here.
+    return redact_secrets(obj)
 
 
 def _checksum(payload: Any) -> str:
@@ -49,9 +54,21 @@ def _checksum(payload: Any) -> str:
 
 
 def _by_run(table: str, run_id: str, project_id: Optional[str]) -> list[dict]:
-    rows = db.list_records(table, project_id=project_id, limit=4000)
-    scoped = [r for r in rows if r.get("workflow_run_id") == run_id]
-    return scoped if scoped else rows
+    return db.list_records(
+        table, project_id=project_id, workflow_run_id=run_id, limit=4000
+    )
+
+
+def _report_for_run(report_id: Optional[str], run_id: str, project_id: Optional[str]) -> Optional[dict]:
+    if not report_id:
+        return None
+    report = db.get("reports", report_id)
+    if not report:
+        return None
+    if (report.get("project_id") != project_id
+            or report.get("workflow_run_id") != run_id):
+        return None
+    return report
 
 
 def _count_source_types(*lists: list[dict]) -> dict[str, int]:
@@ -76,20 +93,19 @@ def create_snapshot_from_run(run_id: str, name: str, description: str = "", crea
 
     payload = {
         "run": run,
-        "plan": next((p for p in db.list_records("agent_plans", project_id=project_id, limit=100)
-                      if p.get("workflow_run_id") == run_id), None),
+        "plan": next(iter(_by_run("agent_plans", run_id, project_id)), None),
         "agent_runs": _by_run("agent_runs", run_id, project_id),
         "tool_runs": _by_run("tool_runs", run_id, project_id),
         "audit_events": _by_run("audit_events", run_id, project_id),
-        "evidence_items": db.list_records("evidence_items", project_id=project_id, limit=500),
-        "target_candidates": db.list_records("target_candidates", project_id=project_id, limit=200),
-        "molecule_candidates": db.list_records("molecule_candidates", project_id=project_id, limit=500),
-        "hypotheses": db.list_records("hypotheses", project_id=project_id, limit=100),
+        "evidence_items": _by_run("evidence_items", run_id, project_id),
+        "target_candidates": _by_run("target_candidates", run_id, project_id),
+        "molecule_candidates": _by_run("molecule_candidates", run_id, project_id),
+        "hypotheses": _by_run("hypotheses", run_id, project_id),
         "evaluation_results": _by_run("evaluation_results", run_id, project_id),
         "revision_events": _by_run("revision_events", run_id, project_id),
         "reports": {
-            "en": db.get("reports", run.get("report_id") or ""),
-            "ko": db.get("reports", run.get("ko_report_id") or ""),
+            "en": _report_for_run(run.get("report_id"), run_id, project_id),
+            "ko": _report_for_run(run.get("ko_report_id"), run_id, project_id),
         },
         "counts": run.get("counts", {}),
         "metrics": run.get("metrics", {}),
@@ -104,7 +120,7 @@ def create_snapshot_from_run(run_id: str, name: str, description: str = "", crea
                    "molecules": len(payload["molecule_candidates"])}
 
     storage_path = SNAP_DIR / f"{snap_id}.json"
-    storage_path.write_text(json.dumps(payload, indent=2, default=str))
+    storage_path.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
 
     manifest = {
         "condition": run.get("condition"), "target_query": run.get("target_query"),
@@ -113,7 +129,8 @@ def create_snapshot_from_run(run_id: str, name: str, description: str = "", crea
     }
     snap = {
         "id": snap_id, "name": name, "description": description, "source_run_id": run_id,
-        "project_id": project_id, "created_at": utcnow(), "created_by": created_by,
+        "project_id": project_id, "workflow_run_id": run_id,
+        "created_at": utcnow(), "created_by": created_by,
         "condition": run.get("condition"), "target_query": run.get("target_query"),
         "tool_output_counts": tool_counts, "source_type_counts": st_counts,
         "checksum": checksum, "manifest": manifest, "storage_path": str(storage_path),
@@ -150,8 +167,12 @@ def list_snapshots() -> list[dict]:
 
 def _register_builtin(path: Path) -> Optional[dict]:
     try:
-        payload = json.loads(path.read_text())
+        payload = json.loads(path.read_text(encoding="utf-8"))
     except Exception:
+        return None
+    checksum = _checksum(payload)
+    expected = BUILTIN_CHECKSUMS.get(path.stem)
+    if expected is None or not hmac.compare_digest(expected, checksum):
         return None
     run = payload.get("run", {})
     snap = {
@@ -163,7 +184,7 @@ def _register_builtin(path: Path) -> Optional[dict]:
                                "evidence": len(payload.get("evidence_items", [])),
                                "molecules": len(payload.get("molecule_candidates", []))},
         "source_type_counts": _count_source_types(payload.get("agent_runs", []), payload.get("tool_runs", [])),
-        "checksum": _checksum(payload), "manifest": {"builtin": True}, "storage_path": str(path),
+        "checksum": checksum, "manifest": {"builtin": True}, "storage_path": str(path),
         "is_builtin": True, "notes": "Built-in EGFR/NSCLC recorded real snapshot — limited, sanitized, timestamped.",
     }
     db.insert("run_snapshots", snap)
@@ -175,7 +196,12 @@ def get_snapshot(snap_id: str) -> Optional[dict]:
 
 
 def _load_payload(snap: dict) -> dict:
-    return json.loads(Path(snap["storage_path"]).read_text())
+    payload = json.loads(Path(snap["storage_path"]).read_text(encoding="utf-8"))
+    expected = str(snap.get("checksum") or "")
+    actual = _checksum(payload)
+    if not expected or not hmac.compare_digest(expected, actual):
+        raise ValueError("snapshot checksum mismatch; refusing export/replay")
+    return payload
 
 
 def snapshot_manifest(snap_id: str) -> dict:
@@ -260,9 +286,12 @@ def replay_snapshot(snap_id: str) -> dict[str, Any]:
             db.insert(table, c)
         return cloned
 
-    evidence = persist("evidence_items", payload.get("evidence_items", []), False)
-    targets = persist("target_candidates", payload.get("target_candidates", []), False)
-    molecules = persist("molecule_candidates", payload.get("molecule_candidates", []), False)
+    # These entities are run-owned in the current schema. Older/built-in
+    # snapshots predate workflow_run_id, so force the replay run id instead of
+    # leaving their rows unscoped and invisible to exact-run queries.
+    evidence = persist("evidence_items", payload.get("evidence_items", []), True)
+    targets = persist("target_candidates", payload.get("target_candidates", []), True)
+    molecules = persist("molecule_candidates", payload.get("molecule_candidates", []), True)
     hypotheses = persist("hypotheses", payload.get("hypotheses", []), True)
     agent_runs = persist("agent_runs", payload.get("agent_runs", []), True)
     persist("tool_runs", payload.get("tool_runs", []), True)

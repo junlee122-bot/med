@@ -86,8 +86,8 @@ def test_plausibility_accepts_druglike():
 
 @pytest.mark.unit
 def test_plausibility_run_handles_no_run():
-    res = scientific_plausibility.check_run("nonexistent-run-id")
-    assert res["status"] in ("NO_RUN", "REVIEW_REQUIRED", "PASS")
+    with pytest.raises(ValueError, match="workflow run not found"):
+        scientific_plausibility.check_run("nonexistent-run-id")
 
 
 # ---- HWPX handoff ----

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { api, HUMAN_RESPONSIBILITY } from '@/lib/api'
+import { api, HUMAN_RESPONSIBILITY, rememberRunId } from '@/lib/api'
 import type { ErrorInjectionResult } from '@/lib/api'
 import { Icon } from '@/components/Icon'
 import { Badge, Disclaimer, Empty, ErrorNote, PageHeader, Panel, Spinner } from '@/components/ui'
@@ -22,7 +22,10 @@ export function DemoLab() {
 
   async function run(scenario: string) {
     setLoading(scenario); setActive(scenario); setError(''); setResult(null)
-    try { setResult(await api.runErrorInjectionDemo(scenario)) }
+    try {
+      const next = await api.runErrorInjectionDemo(scenario)
+      setResult(next); rememberRunId(next.workflow_run_id)
+    }
     catch (e: any) { setError(e.message) } finally { setLoading('') }
   }
 

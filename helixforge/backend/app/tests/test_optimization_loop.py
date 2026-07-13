@@ -56,6 +56,7 @@ def _seed_run(extra_mols: list[dict] | None = None) -> str:
             {
                 "id": f"mol-{uuid.uuid4().hex[:8]}",
                 "project_id": project_id,
+                "workflow_run_id": run_id,
                 "canonical_smiles": smiles,
                 "smiles": smiles,
                 "molecule_chembl_id": f"CHEMBL_{uuid.uuid4().hex[:6]}",
@@ -71,6 +72,7 @@ def _seed_run(extra_mols: list[dict] | None = None) -> str:
         )
     for m in extra_mols or []:
         m.setdefault("project_id", project_id)
+        m.setdefault("workflow_run_id", run_id)
         m.setdefault("created_at", utcnow())
         db.insert("molecule_candidates", m)
     return run_id
@@ -152,6 +154,8 @@ def test_invalid_generated_candidates_rejected():
 @pytest.mark.unit
 @pytest.mark.local_tool
 def test_safety_blocked_not_recommended():
+    if not safety_gate.RDKIT:
+        pytest.skip("RDKit not available")
     # Neutral descriptor text of a real molecule passes.
     assert safety_gate.screen("CC(=O)Oc1ccccc1C(=O)O")["ok"] is True
     # Injecting blocked (actionable) content makes the lint gate reject it.

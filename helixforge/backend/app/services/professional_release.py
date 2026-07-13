@@ -8,6 +8,7 @@ replace, the existing release_readiness module.
 """
 from __future__ import annotations
 
+import uuid
 from typing import Any, Callable
 
 from app.models.schemas import utcnow
@@ -21,7 +22,12 @@ def _safe(fn: Callable, default=None):
         return default
 
 
-def _latest_run() -> dict[str, Any]:
+def _latest_run(run_id: str | None = None) -> dict[str, Any]:
+    if run_id:
+        run = db.get("workflow_runs", run_id)
+        if not run:
+            raise ValueError("workflow run not found")
+        return run
     runs = db.list_records("workflow_runs", limit=200)
     return runs[0] if runs else {}
 
@@ -32,8 +38,8 @@ def _cat(key, label, score, status, blocking, warnings, page, action):
             "recommended_action": action}
 
 
-def compute() -> dict[str, Any]:
-    run = _latest_run()
+def compute(run_id: str | None = None) -> dict[str, Any]:
+    run = _latest_run(run_id)
     rid = run.get("id")
     pid = run.get("project_id")
     has_run = bool(run)
@@ -61,7 +67,8 @@ def compute() -> dict[str, Any]:
                      "Run target biology review."))
 
     # C. Molecule quality readiness
-    mols = db.list_records("molecule_candidates", project_id=pid, limit=500) if pid else []
+    mols = (db.list_records("molecule_candidates", project_id=pid, workflow_run_id=rid, limit=500)
+            if pid and rid else [])
     valid = [m for m in mols if m.get("valid", m.get("rdkit_validity"))]
     c_score = (len(valid) / len(mols) * 100) if mols else 20
     cats.append(_cat("C", "Molecule quality readiness", c_score, _st(c_score, [] if mols else ["No molecules"]),
@@ -94,7 +101,9 @@ def compute() -> dict[str, Any]:
                      "Assess applicability domain."))
 
     # G. ADMET validation readiness
-    admet_jobs = db.list_records("admet_validation_jobs", limit=10)
+    admet_jobs = (db.list_records("admet_validation_jobs", project_id=pid,
+                                  workflow_run_id=rid, limit=10)
+                  if pid and rid else [])
     completed = [j for j in admet_jobs if j.get("status") == "COMPLETED"]
     g_score = 65 if completed else 40
     cats.append(_cat("G", "ADMET validation readiness", g_score, _st(g_score, []),
@@ -130,13 +139,22 @@ def compute() -> dict[str, Any]:
                      "Review clinical precedent."))
 
     # K. Safety & ethics readiness
-    k_findings = _safe(lambda: __import__("app.services.safety_lint", fromlist=["lint_report"]), None)
-    k_score = 85
-    cats.append(_cat("K", "Safety & ethics readiness", k_score, _st(k_score, []),
-                     [], [], "/safety", "Confirm safety lint + disclaimers."))
+    safety_statuses = [str(m.get("safety_status") or "UNKNOWN").upper() for m in mols]
+    unsafe_statuses = [status for status in safety_statuses if status != "PASS"]
+    if not mols:
+        k_score, k_block = 25, ["No run-scoped molecule safety screens"]
+    elif unsafe_statuses:
+        k_score, k_block = 35, [f"{len(unsafe_statuses)} molecules lack a PASS safety screen"]
+    else:
+        k_score, k_block = 85, []
+    cats.append(_cat("K", "Safety & ethics readiness", k_score, _st(k_score, k_block),
+                     k_block, [], "/safety", "Confirm safety lint + disclaimers."))
 
     # L. Source-type governance
-    gov = _safe(lambda: __import__("app.services.source_type_governance", fromlist=["audit"]).audit(), {})
+    gov = _safe(
+        lambda: __import__("app.services.source_type_governance", fromlist=["audit"]).audit(pid, rid),
+        {},
+    )
     gov_status = (gov or {}).get("status", "REVIEW_REQUIRED")
     l_block = ["Source-type governance BLOCKED"] if gov_status == "BLOCKED" else []
     l_score = 90 if gov_status == "PASS" else (55 if gov_status == "REVIEW_REQUIRED" else 20)
@@ -144,14 +162,16 @@ def compute() -> dict[str, Any]:
                      "/safety", "Resolve mislabeled source types."))
 
     # M. Reproducibility & replay
-    snaps = db.list_records("run_snapshots", limit=5)
+    snaps = (db.list_records("run_snapshots", project_id=pid, workflow_run_id=rid, limit=5)
+             if pid and rid else [])
     m_score = 80 if snaps else 45
     cats.append(_cat("M", "Reproducibility & replay", m_score, _st(m_score, []),
                      [], ([] if snaps else ["No recorded snapshot"]), "/snapshots",
                      "Record a snapshot for offline replay."))
 
     # N. Professional documentation
-    docs = db.list_records("professional_documents", limit=50)
+    docs = (db.list_records("professional_documents", project_id=pid, workflow_run_id=rid, limit=50)
+            if pid and rid else [])
     n_score = 75 if docs else 35
     cats.append(_cat("N", "Professional documentation", n_score, _st(n_score, []),
                      [], ([] if docs else ["No professional docs generated"]), "/submission",
@@ -159,9 +179,12 @@ def compute() -> dict[str, Any]:
 
     # O. Expert review readiness
     ers = _safe(lambda: __import__("app.services.expert_review_board", fromlist=["summary_for_run"]).summary_for_run(rid), {}) if rid else {}
-    pending_high = (ers or {}).get("pending_high_risk", 1)
-    o_block = [f"{pending_high} high-risk items awaiting expert sign-off"] if pending_high else []
-    o_score = 80 if (ers and not pending_high) else (40 if ers else 25)
+    unresolved_high = (ers or {}).get("unresolved_high_risk", 1)
+    signed_off = bool((ers or {}).get("all_high_risk_signed_off"))
+    if not signed_off and not unresolved_high:
+        unresolved_high = 1  # no high-risk queue/sign-offs is itself blocking
+    o_block = [f"{unresolved_high} high-risk items require proposal sign-off"] if not signed_off else []
+    o_score = 80 if signed_off else (40 if ers else 25)
     cats.append(_cat("O", "Expert review readiness", o_score, _st(o_score, o_block),
                      o_block, [], "/expert-review", "Complete expert review sign-off."))
 
@@ -173,7 +196,7 @@ def compute() -> dict[str, Any]:
 
     overall = round(sum(c["score"] for c in cats) / len(cats), 1)
     blocking_total = sum(len(c["blocking_issues"]) for c in cats)
-    status = _overall_status(overall, blocking_total, has_run, pending_high)
+    status = _overall_status(overall, blocking_total, has_run, unresolved_high)
     payload = {
         "status": status, "overall_score": overall, "categories": cats,
         "blocking_count": blocking_total,
@@ -190,10 +213,10 @@ def _st(score, blocking):
     return "READY" if score >= 70 else ("PARTIAL" if score >= 45 else "NOT_READY")
 
 
-def _overall_status(overall, blocking_total, has_run, pending_high):
+def _overall_status(overall, blocking_total, has_run, unresolved_high):
     if not has_run:
         return "NOT_READY"
-    if blocking_total > 0 or pending_high:
+    if blocking_total > 0 or unresolved_high:
         # can still be demo/proposal ready even with expert sign-off pending
         if overall >= 60:
             return "PROPOSAL_READY"
@@ -209,6 +232,15 @@ def _overall_status(overall, blocking_total, has_run, pending_high):
     return "PROPOSAL_READY"
 
 
-def persist() -> dict[str, Any]:
-    card = compute()
+def persist(run_id: str | None = None) -> dict[str, Any]:
+    card = dict(compute(run_id))
+    rid = card.get("run_id")
+    run = db.get("workflow_runs", rid) if rid else None
+    card.update({
+        "id": f"professional-release-{uuid.uuid4().hex[:8]}",
+        "project_id": run.get("project_id") if run else None,
+        "workflow_run_id": rid,
+        "created_at": card.get("computed_at") or utcnow(),
+    })
+    db.insert("professional_evaluations", card)
     return card

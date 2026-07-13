@@ -31,9 +31,12 @@ class SafetyAuditorAgent(BaseAgent):
             target["safety_status"] = "BLOCKED"
             target["recommendation"] = "Do not advance"
             target["composite_score"] = 0.0
+            target["workflow_run_id"] = ctx.workflow_run_id
             db.insert("molecule_candidates", target)
             flag = {
-                "id": f"sf-{ctx.workflow_run_id}-inj", "project_id": ctx.project_id, "created_at": utcnow(),
+                "id": f"sf-{ctx.workflow_run_id}-inj",
+                "project_id": ctx.project_id, "workflow_run_id": ctx.workflow_run_id,
+                "created_at": utcnow(),
                 "entity_type": "molecule", "entity_id": target["id"], "entity_label": target.get("label"),
                 "severity": "critical", "category": "Injected structural-alert category (non-actionable)",
                 "status": "BLOCKED", "redacted_summary": "Candidate matched a restricted category. Details withheld by policy; cannot advance.",
@@ -45,18 +48,22 @@ class SafetyAuditorAgent(BaseAgent):
             out.warnings.append("Safety flag injected — candidate quarantined (non-actionable summary only).")
 
         for m in molecules:
-            st = m.get("safety_status", "PASS")
+            st = m.get("safety_status") or "UNKNOWN"
             if st == "BLOCKED":
                 if not any(f["entity_id"] == m["id"] for f in flags):
                     blocked += 1
-            elif st == "REVIEW_REQUIRED":
+            elif st != "PASS":
                 review += 1
 
         ctx.shared["safety_flags"] = flags
         ctx.shared["blocked_count"] = blocked
         ctx.shared["review_count"] = review
 
-        out.output_summary = f"Safety gate complete: {blocked} blocked/quarantined, {review} review-required, text screen {txt.get('status', 'PASS')}."
+        text_status = txt.get("status") or "UNKNOWN"
+        if text_status not in ("PASS", "BLOCKED"):
+            review += 1
+            ctx.shared["review_count"] = review
+        out.output_summary = f"Safety gate complete: {blocked} blocked/quarantined, {review} review-required, text screen {text_status}."
         out.rationale = "Hazardous or dual-use content is blocked with only a category shown; toxicity is screened, never optimized. No synthesis routes."
         out.assumptions = ["Blocked candidates are excluded from the recommended package."]
         out.next_action = "Clinical Strategy Agent."

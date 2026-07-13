@@ -23,13 +23,15 @@ def _seed_run(target="EGFR", condition="non-small cell lung cancer", with_eviden
     ev_id = None
     if with_evidence:
         ev_id = f"ev-{uuid.uuid4().hex[:6]}"
-        db.insert("evidence_items", {"id": ev_id, "project_id": pid, "created_at": "2026-02-01T00:00:00Z",
+        db.insert("evidence_items", {"id": ev_id, "project_id": pid, "workflow_run_id": rid,
+                                     "created_at": "2026-02-01T00:00:00Z",
                                      "source_name": "PubMed", "source_type": "REAL_TOOL_OUTPUT",
                                      "verification_status": "VERIFIED" if verified else "FAILED",
                                      "evidence_direction": "support", "title": f"{target} in {condition}",
                                      "identifier": "12345678", "identifier_type": "PMID"})
     if with_molecule:
         db.insert("molecule_candidates", {"id": f"mol-{uuid.uuid4().hex[:6]}", "project_id": pid,
+                                          "workflow_run_id": rid,
                                           "created_at": "2026-02-01T00:00:00Z", "canonical_smiles": "CCO",
                                           "label": "M1", "composite_score": 60, "valid": True,
                                           "safety_status": "PASS", "source_type": "REAL_TOOL_OUTPUT"})
@@ -98,6 +100,35 @@ def test_hybrid_plan_report_includes_observable_summary_only(monkeypatch):
     blob = str(out).lower()
     assert "<thinking>" not in blob and "chain-of-thought" not in blob
     assert out["plan"]["selected_stages"][0]["rationale_summary"]
+
+
+@pytest.mark.unit
+def test_hybrid_planner_derives_project_and_rejects_mismatch(monkeypatch):
+    monkeypatch.setenv("HELIXFORGE_USE_LLM", "false")
+    rid, pid, _ = _seed_run()
+    planned = dynamic_planner.plan_run(
+        condition="NSCLC", target_query="EGFR", run_id=rid,
+    )
+    assert planned["project_id"] == pid
+    assert planned["workflow_run_id"] == rid
+    with pytest.raises(ValueError, match="does not match"):
+        dynamic_planner.plan_run(
+            condition="NSCLC", target_query="EGFR", run_id=rid,
+            project_id="wrong-project",
+        )
+
+
+@pytest.mark.integration
+def test_hybrid_run_endpoints_reject_unknown_run():
+    missing = f"missing-{uuid.uuid4().hex}"
+    assert client.post("/api/workflow/plan-hybrid", json={
+        "condition": "NSCLC", "target_query": "EGFR", "run_id": missing,
+    }).status_code == 404
+    assert client.get(f"/api/workflow/runs/{missing}/replans").status_code == 404
+    assert client.get(f"/api/hypotheses/run/{missing}/hybrid").status_code == 404
+    assert client.get(f"/api/critic/semantic/run/{missing}").status_code == 404
+    assert client.post("/api/rediscovery/run", json={"run_id": missing}).status_code == 404
+    assert client.post("/api/optimization-loop/run", json={"run_id": missing}).status_code == 404
 
 
 # ---- Hypothesis reasoner ----

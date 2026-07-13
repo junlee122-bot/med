@@ -253,8 +253,12 @@ def recompute_candidate_scores(run_id: str | None = None, persist: bool = False)
     from app.services import scoring
     runs = db.list_records("workflow_runs", limit=200)
     run = db.get("workflow_runs", run_id) if run_id else (runs[0] if runs else {})
+    if run_id and not run:
+        raise ValueError("workflow run not found")
     pid = run.get("project_id") if run else None
-    mols = db.list_records("molecule_candidates", project_id=pid, limit=500) if pid else db.list_records("molecule_candidates", limit=500)
+    rid = run.get("id") if run else None
+    mols = (db.list_records("molecule_candidates", project_id=pid, workflow_run_id=rid, limit=500)
+            if pid and rid else [])
     rows = []
     for m in mols:
         recs = _molecule_activity_records(m)
@@ -280,7 +284,7 @@ def recompute_candidate_scores(run_id: str | None = None, persist: bool = False)
             "tdc_readiness_score": 0.5,
             "provenance_confidence": 0.5 + 0.4 * rel["reliability_score"],
             "novelty_or_diversity_proxy": 0.5,
-            "safety_status": m.get("safety_status", "PASS"),
+            "safety_status": m.get("safety_status") or "UNKNOWN",
             "uncertainty": round(0.15 + 0.35 * (1.0 - rel["reliability_score"]), 3),
         }
         scored = scoring.score_molecule(inputs)
@@ -299,8 +303,12 @@ def recompute_candidate_scores(run_id: str | None = None, persist: bool = False)
 def normalize_run(run_id: str | None = None) -> dict[str, Any]:
     runs = db.list_records("workflow_runs", limit=200)
     run = db.get("workflow_runs", run_id) if run_id else (runs[0] if runs else {})
+    if run_id and not run:
+        raise ValueError("workflow run not found")
     pid = run.get("project_id") if run else None
-    mols = db.list_records("molecule_candidates", project_id=pid, limit=500) if pid else db.list_records("molecule_candidates", limit=500)
+    rid = run.get("id") if run else None
+    mols = (db.list_records("molecule_candidates", project_id=pid, workflow_run_id=rid, limit=500)
+            if pid and rid else [])
     all_records = []
     per_mol = {}
     for m in mols:
@@ -308,8 +316,9 @@ def normalize_run(run_id: str | None = None) -> dict[str, Any]:
         all_records.extend(recs)
         per_mol[m.get("id")] = molecule_activity_reliability(recs)
     result = normalize_activities(all_records)
-    payload = {"id": f"actnorm-{uuid.uuid4().hex[:8]}", "run_id": run.get("id") if run else None,
-               "molecule_reliability": per_mol, **result}
+    payload = {"id": f"actnorm-{uuid.uuid4().hex[:8]}", "project_id": pid,
+               "run_id": rid, "workflow_run_id": rid,
+               "molecule_reliability": per_mol, "created_at": utcnow(), **result}
     try:
         db.insert("activity_normalizations", payload)
     except Exception:

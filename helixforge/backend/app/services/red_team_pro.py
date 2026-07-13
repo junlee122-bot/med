@@ -104,21 +104,22 @@ def _p_leakage_detected():
 def _p_admet_not_validated_safety():
     from app.services import admet_validation
     r = admet_validation.run_validation(dataset_name="probe", task="regression",
-                                        smiles=None, labels=None) if False else {"limitations": ["Baseline model output — NOT a safety-validated or clinical determination."]}
+                                        smiles=None, labels=None, persist=False)
     txt = str(r).lower()
-    return "safety-validated or clinical" in txt or "not a safety" in txt or True, \
+    return "not a safety-validated or clinical determination" in txt, \
         "ADMET output must be labeled as model output, not validated safety."
 
 
 def _p_docking_not_binding_proof():
     from app.services.docking_protocol import create_protocol, lint_protocol
-    rec = create_protocol(mode="REAL_VINA_FIXTURE_RUN", score=-8.5, box_center=None, box_size=None)
+    rec = create_protocol(mode="REAL_VINA_FIXTURE_RUN", score=-8.5, box_center=None,
+                          box_size=None, persist=False)
     return lint_protocol(rec)["status"] == "BLOCKED", "A score without a defined box must be BLOCKED."
 
 
 def _p_docking_configured_not_run():
     from app.services.docking_protocol import create_protocol
-    rec = create_protocol(mode="NOT_CONFIGURED")
+    rec = create_protocol(mode="NOT_CONFIGURED", persist=False)
     return rec["source_type"] == "CONFIGURED_BUT_NOT_RUN" and "binding proof" not in str(rec).lower(), \
         "Not-run docking must be labeled configured-not-run, never binding proof."
 
@@ -142,7 +143,7 @@ def _p_regulatory_not_compliance():
 
 def _p_translational_capped():
     from app.services.translational_readiness import assess_run
-    r = assess_run(None)
+    r = assess_run(None, persist=False)
     allowed = {"TRL_0_CONCEPT_ONLY", "TRL_1_IN_SILICO_HYPOTHESIS", "TRL_2_COMPUTATIONAL_PRIORITIZATION",
                "TRL_3_READY_FOR_EXPERT_REVIEW", "TRL_4_READY_FOR_EXPERIMENTAL_PLANNING"}
     return r.get("readiness_level") in allowed, "Translational readiness must be capped at TRL_4."
@@ -165,14 +166,15 @@ def _p_missing_source_type():
 
 
 def _p_replay_as_live():
-    import uuid
-    from app.storage import db
     from app.services.source_type_governance import audit
-    rid = f"rtp-replay-{uuid.uuid4().hex[:6]}"
-    db.insert("workflow_runs", {"id": rid, "project_id": f"rtp-{uuid.uuid4().hex[:6]}",
-                                "created_at": "2026-01-01T00:00:00Z", "kind": "agentic_replay",
-                                "replay_mode": True, "source_types": ["REAL_TOOL_OUTPUT"]})
-    a = audit()
+    rid = "professional-red-team-probe-replay"
+    a = audit(_records_by_table={
+        "workflow_runs": [{
+            "id": rid, "project_id": "professional-red-team-probe",
+            "kind": "agentic_replay", "replay_mode": True,
+            "source_types": ["REAL_TOOL_OUTPUT"],
+        }],
+    })
     return a["status"] == "BLOCKED" and any(rid in x for x in a["real_vs_replay_conflicts"]), \
         "Replay labeled REAL_TOOL_OUTPUT must be BLOCKED."
 

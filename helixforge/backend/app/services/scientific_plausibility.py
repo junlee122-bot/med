@@ -77,10 +77,13 @@ def _check_molecule(mol: dict[str, Any]) -> dict[str, Any]:
 def check_run(run_id: str | None = None) -> dict[str, Any]:
     run = db.get("workflow_runs", run_id) if run_id else _latest_run()
     if not run:
+        if run_id:
+            raise ValueError("workflow run not found")
         return {"status": "NO_RUN", "note": "No run found — run the pipeline first.",
                 "checked_at": utcnow(), "source_type": "HEURISTIC_ANALYSIS"}
     pid = run.get("project_id")
-    mols = [m for m in db.list_records("molecule_candidates", project_id=pid, limit=500)]
+    rid = run.get("id")
+    mols = db.list_records("molecule_candidates", project_id=pid, workflow_run_id=rid, limit=500)
     results = [_check_molecule(m) for m in mols]
     counts: dict[str, int] = {}
     for r in results:
@@ -88,8 +91,8 @@ def check_run(run_id: str | None = None) -> dict[str, Any]:
     n = len(results)
     plausible = counts.get("PLAUSIBLE", 0)
     # Target-side plausibility: does the selected target carry real evidence?
-    ev = db.list_records("evidence_items", project_id=pid, limit=500)
-    targets = db.list_records("target_candidates", project_id=pid, limit=200)
+    ev = db.list_records("evidence_items", project_id=pid, workflow_run_id=rid, limit=500)
+    targets = db.list_records("target_candidates", project_id=pid, workflow_run_id=rid, limit=200)
     target_flags: list[str] = []
     if not targets:
         target_flags.append("선정 타깃 레코드 없음 (target candidate missing).")

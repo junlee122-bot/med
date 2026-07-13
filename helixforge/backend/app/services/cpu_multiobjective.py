@@ -27,7 +27,7 @@ def _decision_policy(candidate: dict[str, Any]) -> str:
         return "DO_NOT_ADVANCE"
     if len(missing) >= 4:
         return "DATA_ACQUISITION_CANDIDATE"
-    if rank == 0:
+    if rank == 1:
         if safety is not None and safety >= 0.75 and (applic or 0) >= 0.6:
             return "SAFETY_PRIORITY_CANDIDATE"
         if (novelty or 0) >= 0.7:
@@ -41,22 +41,24 @@ def _decision_policy(candidate: dict[str, Any]) -> str:
 def analyze(molecules: list[dict[str, Any]], backend: str = "CPU_SELECTION") -> dict[str, Any]:
     """Run Pareto + attach decision policy. `backend` is a provenance label only."""
     base = pareto.compute(molecules)
-    candidates = base.get("candidates", []) or base.get("pareto_candidates", []) or []
+    candidates = base.get("all_candidates", [])
     for c in candidates:
         c["decision_policy"] = _decision_policy(c)
     policy_counts: dict[str, int] = {}
     for c in candidates:
         policy_counts[c["decision_policy"]] = policy_counts.get(c["decision_policy"], 0) + 1
-    # Only name a single best if there is exactly one rank-0 candidate with no missing objectives.
-    rank0 = [c for c in candidates if c.get("pareto_rank") == 0]
+    # Only name a single best when the base analysis found one strict dominator
+    # and the sole rank-1 candidate has complete objective data.
+    rank1 = [c for c in candidates if c.get("pareto_rank") == 1]
     single_best = None
-    if len(rank0) == 1 and not rank0[0].get("missing_objectives"):
-        single_best = rank0[0].get("molecule_id")
+    if not base.get("no_single_best", True) and len(rank1) == 1 and not rank1[0].get("missing_objectives"):
+        single_best = rank1[0].get("molecule_id")
     return {
         **base, "backend": backend, "backend_source_type": SourceType.COMPUTE_FALLBACK_OUTPUT.value
         if backend.startswith("CPU") else SourceType.RECORDED_GPU_OUTPUT.value,
+        "pareto_front_size": len(base.get("front", [])),
         "decision_policy_counts": policy_counts, "single_best_molecule": single_best,
-        "single_best_note": ("A single best was named only because one rank-0 candidate dominates with "
+        "single_best_note": ("A single best was named only because one rank-1 candidate dominates with "
                              "complete objective data." if single_best else
                              "No single 'best molecule' — tradeoffs across objectives are presented instead."),
         "analyzed_at": utcnow(),

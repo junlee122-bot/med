@@ -33,12 +33,10 @@ def run_hybrid_pipeline(payload: dict[str, Any], client: Any = None) -> dict[str
     mode = payload.get("mode") or LLMMode.DETERMINISTIC_ONLY
     warnings: list[str] = []
 
-    # 1) Dynamic plan (LLM or deterministic fallback).
-    plan_out = dynamic_planner.plan_run(condition=condition, target_query=target_query,
-                                        scenario_id=scenario_id, mode=mode, tools_health=_tools_health(),
-                                        budget_usd=float(payload.get("budget_usd", 2.0)), client=client)
-
-    # 2) Deterministic scientific backbone — the source of all scientific facts.
+    # 1) Deterministic scientific backbone — the source of all scientific facts.
+    # It creates the authoritative project/run identifiers.  The optional LLM
+    # planner must use those identifiers so its call, budget, and persisted plan
+    # cannot end up as an unowned/global record.
     det = agent_engine.run_agentic_pipeline({
         "condition": condition, "target_query": target_query,
         "max_results": int(payload.get("max_pubmed_results", 8)),
@@ -48,13 +46,15 @@ def run_hybrid_pipeline(payload: dict[str, Any], client: Any = None) -> dict[str
     run_id = det["run_id"]
     project_id = det["project_id"]
 
-    # Attach the plan to this run.
-    plan_out["run_id"] = run_id
-    plan_out["project_id"] = project_id
-    try:
-        db.insert("hybrid_plans", plan_out)
-    except Exception:
-        pass
+    # 2) Dynamic plan (LLM or deterministic fallback), now fully run-scoped.
+    # This planner is advisory in the current implementation; it does not drive
+    # execution of the deterministic scientific backbone above.
+    plan_out = dynamic_planner.plan_run(
+        condition=condition, target_query=target_query,
+        scenario_id=scenario_id, mode=mode, tools_health=_tools_health(),
+        budget_usd=float(payload.get("budget_usd", 2.0)), run_id=run_id,
+        project_id=project_id, client=client,
+    )
 
     # 2b) Compute-aware planning (Phase 8, deterministic). Records ComputeDecisions
     # so GPU tasks route to CPU substitutes when no GPU is present. Never fails the run.
@@ -112,7 +112,7 @@ def run_hybrid_pipeline(payload: dict[str, Any], client: Any = None) -> dict[str
     # 8) Summaries.
     cost_summary = model_router.cost_ledger(run_id)
     ledger_summary = ai_interaction_ledger.summary_for_run(run_id)
-    llm_calls = [c for c in db.list_records("llm_calls", limit=500) if c.get("run_id") == run_id]
+    llm_calls = db.list_records("llm_calls", workflow_run_id=run_id, limit=500)
 
     # Overall status.
     any_fallback = hyp.get("fallback_used") or critic.get("fallback_used") or plan_out.get("fallback_used")

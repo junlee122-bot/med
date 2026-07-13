@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { api } from '@/lib/api'
+import { api, getRememberedRunId } from '@/lib/api'
 import { Icon } from '@/components/Icon'
 import { Badge, Disclaimer, Empty, ErrorNote, PageHeader, Panel, Spinner } from '@/components/ui'
 import { HUMAN_RESPONSIBILITY } from '@/lib/api'
@@ -14,17 +14,18 @@ const DOC_TYPES: [string, string][] = [
 ]
 
 export function ProfessionalDocs() {
+  const [runId] = useState(getRememberedRunId)
   const [doc, setDoc] = useState<any | null>(null)
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState('')
 
   async function gen(kind: string) {
     setLoading(true); setErr('')
-    try { setDoc(await api.professionalDocsGenerate(kind)) } catch (e: any) { setErr(e.message) } finally { setLoading(false) }
+    try { setDoc(await api.professionalDocsGenerate(kind, runId || undefined)) } catch (e: any) { setErr(e.message) } finally { setLoading(false) }
   }
   async function whitepaper(lang: string) {
     setLoading(true); setErr('')
-    try { const wp = await api.whitepaperGenerate(lang); setDoc({ ...wp, title: wp.title || `Whitepaper (${lang})`, markdown: wp.markdown }) }
+    try { const wp = await api.whitepaperGenerate(lang, runId || undefined); setDoc({ ...wp, title: wp.title || `Whitepaper (${lang})`, markdown: wp.markdown }) }
     catch (e: any) { setErr(e.message) } finally { setLoading(false) }
   }
   function copy(t: string) { navigator.clipboard?.writeText(t) }

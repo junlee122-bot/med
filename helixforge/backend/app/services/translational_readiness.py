@@ -67,15 +67,15 @@ def _has_value(v: Any) -> bool:
     return v not in _EMPTY
 
 
-def _safe_list(table: str, pid: str | None, limit: int) -> list[dict[str, Any]]:
+def _safe_list(table: str, pid: str | None, rid: str | None, limit: int) -> list[dict[str, Any]]:
     try:
-        return (db.list_records(table, project_id=pid, limit=limit) if pid
-                else db.list_records(table, limit=limit))
+        return (db.list_records(table, project_id=pid, workflow_run_id=rid, limit=limit)
+                if pid and rid else [])
     except Exception:
         return []
 
 
-def assess_run(run_id: str | None = None) -> dict[str, Any]:
+def assess_run(run_id: str | None = None, *, persist: bool = True) -> dict[str, Any]:
     """Produce a capped translational-readiness assessment for a run.
 
     Args:
@@ -87,15 +87,17 @@ def assess_run(run_id: str | None = None) -> dict[str, Any]:
     """
     runs = db.list_records("workflow_runs", limit=200)
     run = db.get("workflow_runs", run_id) if run_id else (runs[0] if runs else {})
+    if run_id and not run:
+        raise ValueError("workflow run not found")
     run = run or {}
     pid = run.get("project_id")
     rid = run.get("id")
     has_run = bool(run)
 
-    targets = _safe_list("target_candidates", pid, 200)
-    molecules = _safe_list("molecule_candidates", pid, 500)
-    evidence = _safe_list("evidence_items", pid, 1000)
-    docking = _safe_list("docking_jobs", pid, 100)
+    targets = _safe_list("target_candidates", pid, rid, 200)
+    molecules = _safe_list("molecule_candidates", pid, rid, 500)
+    evidence = _safe_list("evidence_items", pid, rid, 1000)
+    docking = _safe_list("docking_jobs", pid, rid, 100)
 
     # --- Derived signals (all computational / database-level) ----------------
     valid_molecules = [m for m in molecules if m.get("valid")]
@@ -263,6 +265,7 @@ def assess_run(run_id: str | None = None) -> dict[str, Any]:
         "id": f"transl-{uuid.uuid4().hex[:8]}",
         "project_id": pid,
         "run_id": rid,
+        "workflow_run_id": rid,
         "target_readiness": target_readiness,
         "molecule_readiness": molecule_readiness,
         "biomarker_readiness": biomarker_readiness,
@@ -283,10 +286,11 @@ def assess_run(run_id: str | None = None) -> dict[str, Any]:
         "created_at": now,
     }
 
-    try:
-        db.insert("translational_assessments", payload)
-    except Exception:
-        pass
+    if persist:
+        try:
+            db.insert("translational_assessments", payload)
+        except Exception:
+            pass
     return payload
 
 

@@ -22,6 +22,7 @@ def _dataset(n=14):
 
 # ---- Dataset curation ----
 @pytest.mark.unit
+@pytest.mark.local_tool
 def test_curation_counts_invalid_and_duplicates():
     recs = [{"smiles": "CCO", "label": 1}, {"smiles": "CCO", "label": 1},
             {"smiles": "not_valid", "label": 0}, {"smiles": "c1ccccc1", "label": 1}]
@@ -31,6 +32,7 @@ def test_curation_counts_invalid_and_duplicates():
 
 
 @pytest.mark.unit
+@pytest.mark.local_tool
 def test_curation_flags_mixed_endpoints():
     recs = [{"smiles": s, "label": 1, "standard_type": ("IC50" if i % 2 else "EC50"), "standard_units": "nM"}
             for i, s in enumerate(_SMIS[:10])]
@@ -40,6 +42,7 @@ def test_curation_flags_mixed_endpoints():
 
 
 @pytest.mark.unit
+@pytest.mark.local_tool
 def test_curation_unsupported_unit_warns():
     recs = [{"smiles": s, "label": 1, "standard_units": "ug.mL-1"} for s in _SMIS[:9]]
     ds = dataset_curation.curate(recs, dataset_name="u")
@@ -47,6 +50,7 @@ def test_curation_unsupported_unit_warns():
 
 
 @pytest.mark.unit
+@pytest.mark.local_tool
 def test_curation_missing_license_warns_and_data_card():
     ds = dataset_curation.curate(_dataset(9), dataset_name="dc", license_status="REVIEW_REQUIRED")
     assert any("license" in w.lower() for w in ds["warnings"])
@@ -55,10 +59,19 @@ def test_curation_missing_license_warns_and_data_card():
 
 
 @pytest.mark.integration
+@pytest.mark.local_tool
 def test_curate_endpoint():
     r = client.post("/api/datasets/curate", json={"records": _dataset(9), "dataset_name": "e"})
     assert r.status_code == 200
     assert r.json()["quality_score"] >= 0
+
+
+@pytest.mark.integration
+def test_curate_endpoint_cannot_forge_real_tool_provenance():
+    r = client.post("/api/datasets/curate", json={
+        "records": _dataset(9), "dataset_name": "forged", "source": "chembl",
+    })
+    assert r.status_code == 422
 
 
 # ---- CPU QSAR ----
@@ -107,6 +120,7 @@ def test_cpu_model_train_and_predict_endpoint():
 
 # ---- Ligand screening ----
 @pytest.mark.unit
+@pytest.mark.local_tool
 def test_ligand_exact_match_similarity_one():
     ref = ["c1ccccc1", "CCO"]
     res = ligand_screening.screen(["c1ccccc1", "CCCCCCCC"], ref, target="X")
@@ -116,6 +130,7 @@ def test_ligand_exact_match_similarity_one():
 
 
 @pytest.mark.unit
+@pytest.mark.local_tool
 def test_ligand_invalid_rejected_and_no_binding_language():
     res = ligand_screening.screen(["not_smiles", "CCO"], ["CCO"])
     assert any(c["recommendation"] == "REJECT_INVALID" for c in res["top_candidates"])
@@ -124,6 +139,7 @@ def test_ligand_invalid_rejected_and_no_binding_language():
 
 
 @pytest.mark.unit
+@pytest.mark.local_tool
 def test_ligand_out_of_domain_flagged():
     # a very different molecule vs a tiny reference
     res = ligand_screening.screen(["C1CC2CCC3CCCCC3C2C1"], ["CCO"])
@@ -164,3 +180,5 @@ def test_cpu_multiobjective_no_single_best_overclaim():
     body = r.json()
     assert "decision_policy_counts" in body
     assert "single_best_note" in body
+    assert sum(body["decision_policy_counts"].values()) == len(body["all_candidates"])
+    assert body["pareto_front_size"] == len(body["front"])

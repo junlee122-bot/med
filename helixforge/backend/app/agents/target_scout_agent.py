@@ -35,12 +35,15 @@ class TargetScoutAgent(BaseAgent):
 
         pubmed_count = len(ctx.shared.get("evidence", []))
         ranked = []
-        for t in targets_res.get("items", []):
+        for index, t in enumerate(targets_res.get("items", []), start=1):
             inputs = scoring.target_inputs_from_chembl(
                 t, ctx.target_query, pubmed_count, len(trials), activity_count=8)
             sc = scoring.score_target(inputs)
+            source_id = t.get("target_chembl_id") or f"item-{index}"
             rec = {
-                "id": f"tgt-{t.get('target_chembl_id')}", "project_id": ctx.project_id, "created_at": utcnow(),
+                "id": f"tgt-{ctx.workflow_run_id}-{source_id}",
+                "project_id": ctx.project_id, "workflow_run_id": ctx.workflow_run_id,
+                "created_at": utcnow(),
                 "target_chembl_id": t.get("target_chembl_id"), "pref_name": t.get("pref_name"),
                 "organism": t.get("organism"), "target_type": t.get("target_type"),
                 "score": sc["score"], "score_breakdown": sc["breakdown"], "score_warnings": sc["warnings"],

@@ -20,6 +20,7 @@ from app.models.schemas import (
     ValidationStatus,
 )
 from app.services import audit
+from app.services.provenance import redact_secrets
 
 
 class ToolAdapter(ABC):
@@ -61,10 +62,12 @@ class ToolAdapter(ABC):
 
     # -- helpers ----------------------------------------------------------
     def _summarize_input(self, payload: dict[str, Any]) -> str:
-        keys = [k for k in payload.keys() if k != "project_id"]
+        safe_payload = redact_secrets(payload)
+        safe_payload = safe_payload if isinstance(safe_payload, dict) else {}
+        keys = [k for k in safe_payload.keys() if k not in ("project_id", "workflow_run_id")]
         parts = []
         for k in keys[:4]:
-            v = payload[k]
+            v = safe_payload[k]
             if isinstance(v, (list, dict)):
                 v = f"<{type(v).__name__}:{len(v)}>"
             parts.append(f"{k}={v}")
@@ -76,13 +79,14 @@ class ToolAdapter(ABC):
         try:
             h = self.health_check()
         except Exception as exc:  # never let a health check crash the app
+            detail = redact_secrets(f"health check raised: {exc}")
             h = ToolHealth(
                 tool_id=self.id,
                 name=self.name,
                 category=self.category,
                 status=HealthStatus.ERROR,
                 mode=self.mode,
-                detail=f"health check raised: {exc}",
+                detail=str(detail),
                 required_config=self.required_config,
             )
         if h.latency_ms is None:
@@ -99,16 +103,25 @@ class ToolAdapter(ABC):
     ) -> dict[str, Any]:
         """Run + validate + audit in one call. Guarantees a labeled envelope."""
         t0 = time.perf_counter()
+        # The explicit execution context is authoritative.  Thread it into the
+        # adapter payload so adapter-owned records (jobs, flags, etc.) carry the
+        # same run ownership as their audit event.
+        run_payload = dict(payload)
+        if project_id is not None:
+            run_payload["project_id"] = project_id
+        if workflow_run_id is not None:
+            run_payload["workflow_run_id"] = workflow_run_id
         try:
-            output = self.run(payload)
+            output = self.run(run_payload)
         except Exception as exc:
+            safe_error = redact_secrets(f"{type(exc).__name__}: {exc}")
             output = {
                 "tool_name": self.name,
                 "source": self.name,
                 "source_type": SourceType.TOOL_ERROR.value,
-                "input_summary": self._summarize_input(payload),
+                "input_summary": self._summarize_input(run_payload),
                 "output_summary": "Unhandled tool error.",
-                "errors": [f"{type(exc).__name__}: {exc}"],
+                "errors": [str(safe_error)],
                 "warnings": [],
             }
         latency = round((time.perf_counter() - t0) * 1000, 1)
@@ -116,20 +129,30 @@ class ToolAdapter(ABC):
         validation = self.validate_output(output)
         output.setdefault("validation_status", validation.status.value)
 
+        # Redact the adapter-owned envelope before crossing the persistence
+        # boundary. audit.record_tool_run repeats this defensively.
+        audit_fields = redact_secrets({
+            "input_summary": output.get("input_summary", self._summarize_input(run_payload)),
+            "output_summary": output.get("output_summary", ""),
+            "raw_output_ref": output.get("raw_output_ref"),
+            "errors": output.get("errors"),
+            "warnings": output.get("warnings"),
+        })
+        audit_fields = audit_fields if isinstance(audit_fields, dict) else {}
         audit_id = audit.record_tool_run(
             tool_name=self.name,
             tool_category=self.category,
             source_type=SourceType(output.get("source_type", SourceType.TOOL_ERROR.value)),
-            input_summary=output.get("input_summary", self._summarize_input(payload)),
-            output_summary=output.get("output_summary", ""),
+            input_summary=str(audit_fields.get("input_summary") or ""),
+            output_summary=str(audit_fields.get("output_summary") or ""),
             validation_status=ValidationStatus(output.get("validation_status", ValidationStatus.SKIPPED.value)),
-            project_id=project_id or payload.get("project_id"),
+            project_id=project_id or run_payload.get("project_id"),
             workflow_run_id=workflow_run_id,
             agent_name=agent_name,
             latency_ms=latency,
-            raw_output_ref=output.get("raw_output_ref"),
-            errors=output.get("errors"),
-            warnings=output.get("warnings"),
+            raw_output_ref=audit_fields.get("raw_output_ref"),
+            errors=audit_fields.get("errors"),
+            warnings=audit_fields.get("warnings"),
         )
         output["audit_event_id"] = audit_id
         return output

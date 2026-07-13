@@ -17,11 +17,23 @@ class DiversityRequest(BaseModel):
     near_dup_threshold: float = 0.85
 
 
+def _resolve_run_project(project_id: str | None, run_id: str) -> str | None:
+    run = db.get("workflow_runs", run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+    run_project = run.get("project_id")
+    if project_id is not None and project_id != run_project:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found in project {project_id}")
+    return run_project
+
+
 def _molecules_for(project_id: str | None, run_id: str | None) -> list[dict]:
     if run_id:
-        run = db.get("workflow_runs", run_id)
-        project_id = project_id or (run.get("project_id") if run else None)
-    mols = db.list_records("molecule_candidates", project_id=project_id, limit=500)
+        project_id = _resolve_run_project(project_id, run_id)
+    mols = db.list_records(
+        "molecule_candidates", project_id=project_id,
+        workflow_run_id=run_id, limit=500,
+    )
     return mols
 
 
@@ -37,6 +49,8 @@ def assay_summary(target_chembl_id: str = Query(default="CHEMBL203"), max_result
 @router.post("/molecules/analyze-diversity")
 def analyze_diversity(req: DiversityRequest):
     smiles = req.smiles
+    if req.run_id:
+        _resolve_run_project(req.project_id, req.run_id)
     if not smiles:
         mols = _molecules_for(req.project_id, req.run_id)
         smiles = [m.get("smiles") for m in mols if m.get("smiles")]
@@ -95,7 +109,7 @@ def recompute_scores(run_id: str | None = None, project_id: str | None = None):
         inp = scoring.molecule_inputs_from_rdkit(
             {"valid": True, "descriptors": m.get("descriptors")},
             {"pchembl_value": m.get("pchembl_value")} if m.get("pchembl_value") else None,
-            m.get("safety_status", "PASS"), tdc_ready=True, provenance=0.7)
+            m.get("safety_status") or "UNKNOWN", tdc_ready=True, provenance=0.7)
         # Diversity penalty: duplicate/near-duplicate cluster lowers novelty proxy.
         is_dup = any(nd.get("a") is not None for nd in div.get("near_duplicates", []))
         if is_dup:

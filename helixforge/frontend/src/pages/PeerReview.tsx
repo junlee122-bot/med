@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { api } from '@/lib/api'
+import { api, getRememberedRunId } from '@/lib/api'
 import { Icon } from '@/components/Icon'
 import { Badge, Disclaimer, Empty, ErrorNote, PageHeader, Panel, Spinner, StatCard } from '@/components/ui'
 import { HUMAN_RESPONSIBILITY } from '@/lib/api'
@@ -10,6 +10,7 @@ const VERDICT_TONE: Record<string, string> = {
 }
 
 export function PeerReview() {
+  const [runId] = useState(getRememberedRunId)
   const [scorecard, setScorecard] = useState<any | null>(null)
   const [redTeam, setRedTeam] = useState<any | null>(null)
   const [plaus, setPlaus] = useState<any | null>(null)
@@ -21,14 +22,19 @@ export function PeerReview() {
   async function load() {
     setLoading(true); setErr('')
     try {
-      const [sc, rt, pl, gv, dr] = await Promise.all([
-        api.rubricScorecard(), api.redTeamRun(), api.plausibilityCheck(),
-        api.sourceTypeAudit(), api.dataRights(),
+      const results = await Promise.allSettled([
+        api.rubricScorecard(), api.redTeamRun(), api.plausibilityCheck(runId || undefined),
+        api.sourceTypeAudit(runId || undefined), api.dataRights(),
       ])
-      setScorecard(sc); setRedTeam(rt); setPlaus(pl); setGov(gv); setRights(dr)
+      const setters = [setScorecard, setRedTeam, setPlaus, setGov, setRights]
+      results.forEach((result, index) => {
+        setters[index](result.status === 'fulfilled' ? result.value : null)
+      })
+      const failures = results.filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+      if (failures.length) setErr(failures.map((failure) => failure.reason instanceof Error ? failure.reason.message : String(failure.reason)).join('; '))
     } catch (e: any) { setErr(e.message) } finally { setLoading(false) }
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [runId])
 
   return (
     <div>

@@ -24,10 +24,14 @@ class PlanRequest(BaseModel):
 
 @router.post("/workflow/plan-hybrid")
 def plan_hybrid(req: PlanRequest):
-    return dynamic_planner.plan_run(
-        condition=req.condition, target_query=req.target_query, scenario_id=req.scenario_id,
-        mode=req.mode, budget_usd=req.budget_usd, safety_strictness=req.safety_strictness,
-        user_goals=req.user_goals, run_id=req.run_id, project_id=req.project_id)
+    try:
+        return dynamic_planner.plan_run(
+            condition=req.condition, target_query=req.target_query, scenario_id=req.scenario_id,
+            mode=req.mode, budget_usd=req.budget_usd, safety_strictness=req.safety_strictness,
+            user_goals=req.user_goals, run_id=req.run_id, project_id=req.project_id)
+    except ValueError as exc:
+        status = 404 if "not found" in str(exc) else 400
+        raise HTTPException(status_code=status, detail=str(exc)) from exc
 
 
 @router.get("/workflow/hybrid-plans/{plan_id}")
@@ -40,6 +44,8 @@ def get_hybrid_plan(plan_id: str):
 
 @router.get("/workflow/runs/{run_id}/replans")
 def run_replans(run_id: str):
+    if not db.get("workflow_runs", run_id):
+        raise HTTPException(status_code=404, detail="workflow run not found")
     return {"run_id": run_id, "replan_events": dynamic_planner.list_replans(run_id)}
 
 
@@ -51,11 +57,16 @@ class HypothesisRequest(BaseModel):
 
 @router.post("/hypotheses/generate-hybrid")
 def hypotheses_generate_hybrid(req: HypothesisRequest):
-    return hypothesis_reasoner.generate_hybrid(run_id=req.run_id, mode=req.mode)
+    try:
+        return hypothesis_reasoner.generate_hybrid(run_id=req.run_id, mode=req.mode)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.get("/hypotheses/run/{run_id}/hybrid")
 def hypotheses_run_hybrid(run_id: str):
+    if not db.get("workflow_runs", run_id):
+        raise HTTPException(status_code=404, detail="workflow run not found")
     return hypothesis_reasoner.get_hybrid(run_id)
 
 
@@ -66,10 +77,15 @@ class CriticRequest(BaseModel):
 
 @router.post("/critic/semantic/run/{run_id}")
 def semantic_critic_run(run_id: str, req: CriticRequest):
-    return semantic_critic.run_semantic_critic(run_id, mode=req.mode)
+    try:
+        return semantic_critic.run_semantic_critic(run_id, mode=req.mode)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.get("/critic/semantic/run/{run_id}")
 def semantic_critic_get(run_id: str):
+    if not db.get("workflow_runs", run_id):
+        raise HTTPException(status_code=404, detail="workflow run not found")
     c = semantic_critic.get_semantic_critic(run_id)
     return c or {"run_id": run_id, "critique_items": [], "note": "no semantic critique yet"}

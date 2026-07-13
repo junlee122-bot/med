@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.services import evidence_grading
@@ -11,12 +11,18 @@ router = APIRouter(prefix="/api", tags=["evidence-grading"])
 
 @router.get("/evidence-grades/run/{run_id}")
 def evidence_grades_run(run_id: str):
-    return evidence_grading.grade_run(run_id)
+    try:
+        return evidence_grading.grade_run(run_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.post("/evidence-grades/compute")
 def evidence_grades_compute(run_id: str | None = None):
-    return evidence_grading.grade_run(run_id)
+    try:
+        return evidence_grading.grade_run(run_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 class GradeClaimRequest(BaseModel):
@@ -28,7 +34,16 @@ class GradeClaimRequest(BaseModel):
 
 @router.post("/evidence-grades/grade-claim")
 def evidence_grade_claim(req: GradeClaimRequest):
-    ev = db.list_records("evidence_items", limit=1000)
+    if req.run_id:
+        run = db.get("workflow_runs", req.run_id)
+        if not run:
+            raise HTTPException(status_code=404, detail="workflow run not found")
+        ev = db.list_records(
+            "evidence_items", project_id=run.get("project_id"),
+            workflow_run_id=req.run_id, limit=1000,
+        )
+    else:
+        ev = []
     return evidence_grading.grade_claim(req.model_dump(), ev)
 
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { api } from '@/lib/api'
+import { api, getRememberedRunId } from '@/lib/api'
 import { Icon } from '@/components/Icon'
 import { Badge, Empty, ErrorNote, PageHeader, Panel, Spinner } from '@/components/ui'
 
@@ -18,7 +18,10 @@ export function Release() {
 
   async function load() {
     setLoading(true); setErr('')
-    try { setData(await api.releaseReadiness()) } catch (e: any) { setErr(e.message) } finally { setLoading(false) }
+    try {
+      const runId = getRememberedRunId()
+      setData(await api.releaseReadiness(runId || undefined))
+    } catch (e: any) { setErr(e.message) } finally { setLoading(false) }
   }
   useEffect(() => { load() }, [])
 

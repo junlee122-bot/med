@@ -1,15 +1,12 @@
 import { useEffect, useState } from 'react'
-import { api } from '@/lib/api'
+import { api, getSessionAuthToken, setSessionAuthToken } from '@/lib/api'
 import { Icon } from '@/components/Icon'
-import { Badge, Empty, ErrorNote, Field, PageHeader, Panel, Spinner } from '@/components/ui'
+import { Badge, Empty, ErrorNote, PageHeader, Panel, Spinner } from '@/components/ui'
 
 interface FieldDef { key: string; label: string; type: 'password' | 'text' | 'number'; hint: string; secret?: boolean }
 const FIELDS: FieldDef[] = [
   { key: 'ncbi_api_key', label: 'NCBI API Key', type: 'password', hint: 'Optional. Raises PubMed rate limits. Stored server-side, never echoed back.', secret: true },
   { key: 'ncbi_email', label: 'NCBI Email', type: 'text', hint: 'Recommended by NCBI E-utilities usage policy.' },
-  { key: 'reinvent4_python', label: 'REINVENT4 Python', type: 'text', hint: 'Path to the Python interpreter of a REINVENT4 install.' },
-  { key: 'reinvent4_bin', label: 'REINVENT4 Bin', type: 'text', hint: 'Path to the REINVENT4 entrypoint (alternative to the Python path).' },
-  { key: 'vina_bin', label: 'AutoDock Vina Bin', type: 'text', hint: 'Path/name of the vina executable (default: "vina").' },
   { key: 'chunk_size', label: 'Chunk Size', type: 'number', hint: 'Pagination/batch size for external API calls.' },
   { key: 'timeout_seconds', label: 'Timeout (seconds)', type: 'number', hint: 'HTTP timeout for external API calls.' },
 ]
@@ -21,10 +18,17 @@ export function Settings() {
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
   const [savedKeys, setSavedKeys] = useState<string[]>([])
+  const [authToken, setAuthToken] = useState('')
+  const [hasAuthToken, setHasAuthToken] = useState(false)
 
   async function load() {
     setLoading(true)
-    try { const r = await api.getSettings(); setValues(r.values || {}) } catch (e: any) { setErr(e.message) } finally { setLoading(false) }
+    try {
+      const r = await api.getSettings()
+      setValues(r.values || {})
+      setHasAuthToken(Boolean(getSessionAuthToken()))
+      setErr('')
+    } catch (e: any) { setHasAuthToken(false); setErr(e.message) } finally { setLoading(false) }
   }
   useEffect(() => { load() }, [])
 
@@ -52,15 +56,56 @@ export function Settings() {
     return ''
   }
 
+  async function saveSessionToken() {
+    const candidate = authToken.trim()
+    if (!setSessionAuthToken(candidate)) {
+      setHasAuthToken(false)
+      setErr('Session storage is unavailable; the administrator token was not saved.')
+      return
+    }
+    setLoading(true); setErr('')
+    try {
+      const response = await api.getSettings()
+      setValues(response.values || {})
+      setHasAuthToken(true)
+      setAuthToken('')
+    } catch (error: unknown) {
+      setSessionAuthToken('')
+      setHasAuthToken(false)
+      setErr(error instanceof Error ? `Token validation failed: ${error.message}` : 'Token validation failed.')
+    } finally { setLoading(false) }
+  }
+
   return (
     <div>
       <PageHeader
         icon={<Icon name="Settings" size={22} />}
         title="Settings"
-        subtitle="Configure tool credentials and operational parameters at runtime. Secret values are stored server-side and never returned in full or written to logs."
+        subtitle="Configure safe operational parameters and the administrator token used by this browser tab. Executable paths are deployment-only settings and cannot be changed here."
         actions={<button className="btn-secondary" onClick={load} disabled={loading}><Icon name="RefreshCw" size={14} /> Reload</button>}
       />
       {err && <div className="mb-4"><ErrorNote error={err} /></div>}
+      <Panel className="mb-4 max-w-3xl">
+        <div className="grid gap-3 sm:grid-cols-[240px_1fr] sm:items-end">
+          <div>
+            <div className="text-sm font-medium text-slate-200">Administrator session</div>
+            <div className="text-[11px] text-slate-500">The bearer token is kept in session storage, sent to protected APIs, and cleared when this browser tab session ends.</div>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              className="input"
+              type="password"
+              autoComplete="off"
+              aria-label="Administrator bearer token"
+              placeholder={hasAuthToken ? 'Token set for this session' : 'Enter administrator token'}
+              value={authToken}
+              onChange={(event) => setAuthToken(event.target.value)}
+            />
+            <button className="btn-secondary" onClick={saveSessionToken} disabled={!authToken.trim() || loading}><Icon name="KeyRound" size={14} /> Set & verify</button>
+            {hasAuthToken && <button className="btn-ghost" onClick={() => { setSessionAuthToken(''); setHasAuthToken(false) }}>Clear</button>}
+          </div>
+        </div>
+      </Panel>
       {loading ? <Spinner label="Loading settings…" /> : (
         <Panel className="max-w-3xl">
           <div className="space-y-4">

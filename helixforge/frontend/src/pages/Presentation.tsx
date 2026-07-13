@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { api } from '@/lib/api'
+import { api, rememberRunId } from '@/lib/api'
 import type { AgenticRunResult, ErrorInjectionResult } from '@/lib/api'
 import { Icon } from '@/components/Icon'
-import { Badge } from '@/components/ui'
+import { Badge, ErrorNote } from '@/components/ui'
 
 const AGENTS = ['Orchestrator', 'Evidence Miner', 'Citation Verifier', 'Target Scout', 'Hypothesis',
   'Molecule Design', 'Cheminformatics Validator', 'ADMET/TDC', 'Binding', 'Safety Auditor',
@@ -16,19 +16,30 @@ export function Presentation() {
   const [demo, setDemo] = useState<ErrorInjectionResult | null>(null)
   const [busy, setBusy] = useState('')
   const [koReady, setKoReady] = useState('')
+  const [err, setErr] = useState('')
 
   async function runPipeline() {
-    setBusy('pipeline')
-    try { setRun(await api.runAgenticPipeline({ target_query: 'EGFR', max_results: 6, create_reinvent_config: true, error_injections: {} })) }
+    setBusy('pipeline'); setErr('')
+    try {
+      const next = await api.runAgenticPipeline({ target_query: 'EGFR', max_results: 6, create_reinvent_config: true, error_injections: {} })
+      setRun(next); rememberRunId(next.run_id)
+    }
+    catch (error: unknown) { setErr(error instanceof Error ? error.message : 'Pipeline failed.') }
     finally { setBusy('') }
   }
   async function runDemo(scenario: string) {
-    setBusy(scenario)
-    try { setDemo(await api.runErrorInjectionDemo(scenario)) } finally { setBusy('') }
+    setBusy(scenario); setErr('')
+    try {
+      const next = await api.runErrorInjectionDemo(scenario)
+      setDemo(next); rememberRunId(next.workflow_run_id)
+    }
+    catch (error: unknown) { setErr(error instanceof Error ? error.message : 'Demo failed.') }
+    finally { setBusy('') }
   }
   async function genKo() {
-    setBusy('ko')
-    try { const r = run ?? await api.runAgenticPipeline({ target_query: 'EGFR', max_results: 6, create_reinvent_config: false }); setRun(r); setKoReady(r.ko_report_id || '') }
+    setBusy('ko'); setErr('')
+    try { const r = run ?? await api.runAgenticPipeline({ target_query: 'EGFR', max_results: 6, create_reinvent_config: false }); setRun(r); rememberRunId(r.run_id); setKoReady(r.ko_report_id || '') }
+    catch (error: unknown) { setErr(error instanceof Error ? error.message : 'Korean report generation failed.') }
     finally { setBusy('') }
   }
 
@@ -113,13 +124,14 @@ export function Presentation() {
       </div>
       <div className="flex flex-1 items-center justify-center px-8">
         <div className="w-full max-w-4xl">
+          {err && <div className="mb-4"><ErrorNote error={err} /></div>}
           <h1 className="mb-6 text-4xl font-bold tracking-tight text-white">{s.title}</h1>
           <div className="min-h-[220px]">{s.body}</div>
         </div>
       </div>
       <div className="flex items-center justify-between border-t border-line px-6 py-4">
         <button className="btn-secondary" onClick={() => setI((v) => Math.max(0, v - 1))} disabled={i === 0}><Icon name="ChevronLeft" size={16} /> Prev</button>
-        <div className="flex gap-1">{slides.map((_, k) => <span key={k} onClick={() => setI(k)} className={`h-2 w-2 cursor-pointer rounded-full ${k === i ? 'bg-helix-cyan' : 'bg-line-bright'}`} />)}</div>
+        <div className="flex gap-1">{slides.map((slide, k) => <button key={slide.title} type="button" aria-label={`Go to slide ${k + 1}`} onClick={() => setI(k)} className={`h-2 w-2 rounded-full ${k === i ? 'bg-helix-cyan' : 'bg-line-bright'}`} />)}</div>
         <button className="btn-primary" onClick={() => setI((v) => Math.min(slides.length - 1, v + 1))} disabled={i === slides.length - 1}>Next <Icon name="ChevronRight" size={16} /></button>
       </div>
     </div>

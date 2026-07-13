@@ -65,5 +65,8 @@ class HypothesisAgent(BaseAgent):
         out.uncertainty_notes = "Confidence reduced for contradictory evidence." if contra else ""
         out.next_action = "Molecule Design Agent imports candidates."
         out.confidence = self.compute_confidence(0.7, out)
-        out.check("hypotheses_linked_or_assumption", all(h["evidence_ids"] or True for h in stored))
+        out.check(
+            "hypotheses_linked_or_assumption",
+            all(bool(h.get("evidence_ids")) or bool(h.get("assumptions")) for h in stored),
+        )
         return out

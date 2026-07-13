@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { api, HUMAN_RESPONSIBILITY } from '@/lib/api'
+import { api, getRememberedRunId, HUMAN_RESPONSIBILITY, rememberRunId } from '@/lib/api'
 import { Icon } from '@/components/Icon'
 import { Badge, Disclaimer, Empty, ErrorNote, PageHeader, Panel, Spinner } from '@/components/ui'
 
@@ -12,15 +12,20 @@ function download(name: string, content: string, type: string) {
 }
 
 export function Reports() {
+  const [runId, setRunId] = useState(getRememberedRunId)
   const [reports, setReports] = useState<any[]>([])
   const [active, setActive] = useState<{ report_id: string; title: string; markdown: string; json_audit: any } | null>(null)
   const [loading, setLoading] = useState<string | null>(null)
   const [err, setErr] = useState('')
 
   async function refresh() {
-    try { const r = await api.listReports(); setReports(r.reports || []) } catch (e: any) { setErr(e.message) }
+    try { const r = await api.listReports(undefined, runId || undefined); setReports(r.reports || []) } catch (e: any) { setReports([]); setErr(e.message) }
   }
-  useEffect(() => { refresh() }, [])
+  useEffect(() => {
+    setActive(null)
+    setReports([])
+    refresh()
+  }, [runId])
 
   async function open(id: string) {
     setLoading('open'); setErr('')
@@ -28,12 +33,18 @@ export function Reports() {
   }
 
   async function generate() {
-    setLoading('gen'); setErr('')
+    setLoading('gen'); setErr(''); setActive(null)
     try {
       const run = await api.runPipeline({ condition: 'non-small cell lung cancer', target_query: 'EGFR', max_results: 5 })
-      const rep = await api.reportGenerate({ project_id: run.project_id, run_id: run.run_id, report_type: 'candidate_package' })
+      rememberRunId(run.run_id); setRunId(run.run_id)
+      const rep = await api.reportGenerate({
+        project_id: run.project_id,
+        workflow_run_id: run.run_id,
+        title: 'HelixForge AI — Candidate Package Report',
+      })
       setActive(rep as any)
-      await refresh()
+      const refreshed = await api.listReports(undefined, run.run_id)
+      setReports(refreshed.reports || [])
     } catch (e: any) { setErr(e.message) } finally { setLoading(null) }
   }
 

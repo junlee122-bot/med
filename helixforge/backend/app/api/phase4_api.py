@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from app.services import (
@@ -24,13 +24,19 @@ def rubric_scorecard_persist():
 # ---- Scientific plausibility ----
 @router.get("/plausibility/check")
 def plausibility_check(run_id: str | None = None):
-    return scientific_plausibility.check_run(run_id)
+    try:
+        return scientific_plausibility.check_run(run_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 # ---- HWPX handoff ----
 @router.get("/hwpx/handoff")
-def hwpx_handoff_get():
-    return hwpx_handoff.build_handoff()
+def hwpx_handoff_get(run_id: str | None = None):
+    try:
+        return hwpx_handoff.build_handoff(run_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 # ---- Red-team suite ----

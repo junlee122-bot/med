@@ -152,13 +152,15 @@ def test_rediscovery_run_smoke_exact_match():
         "condition": "non-small cell lung cancer",
     })
     db.insert("molecule_candidates", {
-        "id": f"mol-{uuid.uuid4().hex[:8]}", "project_id": pid, "created_at": utcnow(),
+        "id": f"mol-{uuid.uuid4().hex[:8]}", "project_id": pid,
+        "workflow_run_id": rid, "created_at": utcnow(),
         "canonical_smiles": known_smiles, "smiles": known_smiles,
         "molecule_chembl_id": "CHEMBL-TEST-1", "label": "known-egfr",
         "composite_score": 0.9, "valid": True, "source_type": "HEURISTIC_ANALYSIS",
     })
     db.insert("molecule_candidates", {
-        "id": f"mol-{uuid.uuid4().hex[:8]}", "project_id": pid, "created_at": utcnow(),
+        "id": f"mol-{uuid.uuid4().hex[:8]}", "project_id": pid,
+        "workflow_run_id": rid, "created_at": utcnow(),
         "canonical_smiles": "CCO", "smiles": "CCO",
         "molecule_chembl_id": "CHEMBL-TEST-2", "label": "ethanol",
         "composite_score": 0.1, "valid": True, "source_type": "HEURISTIC_ANALYSIS",

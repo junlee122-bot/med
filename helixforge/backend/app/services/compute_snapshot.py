@@ -17,12 +17,30 @@ from app.storage import db
 
 
 def create_from_run(run_id: str) -> dict[str, Any]:
-    decisions = [d for d in db.list_records("compute_decisions", limit=500)
-                 if d.get("workflow_run_id") == run_id]
-    cpu_models = [m for m in db.list_records("cpu_models", limit=200) if m.get("run_id") == run_id]
-    jobs = [j for j in db.list_records("compute_jobs", limit=200) if j.get("workflow_run_id") == run_id]
-    artifacts = db.list_records("compute_artifacts", limit=500)
-    cost_events = db.list_records("compute_cost_events", limit=500)
+    run = db.get("workflow_runs", run_id)
+    if not run:
+        raise ValueError("workflow run not found")
+    project_id = run.get("project_id")
+    decisions = db.list_records(
+        "compute_decisions", project_id=project_id, workflow_run_id=run_id, limit=500
+    )
+    cpu_models = db.list_records("cpu_models", workflow_run_id=run_id, limit=500)
+    jobs = db.list_records(
+        "compute_jobs", project_id=project_id, workflow_run_id=run_id, limit=500
+    )
+    job_ids = {str(job.get("id")) for job in jobs if job.get("id")}
+
+    # Artifacts and cost events historically carried only their parent job id.
+    # Join through the exact run-owned job set; never include global rows in a
+    # run snapshot. Newer scoped rows are still constrained by the same parent.
+    artifacts = [
+        artifact for artifact in db.list_records("compute_artifacts", limit=5000)
+        if str(artifact.get("compute_job_id")) in job_ids
+    ]
+    cost_events = [
+        event for event in db.list_records("compute_cost_events", limit=5000)
+        if str(event.get("compute_job_id")) in job_ids
+    ]
 
     def _model_meta(m: dict) -> dict:
         return {"id": m["id"], "task": m.get("task"), "model_family": m.get("model_family"),
@@ -35,8 +53,9 @@ def create_from_run(run_id: str) -> dict[str, Any]:
                 "size_bytes": a.get("size_bytes")}
 
     snap = {
-        "id": f"csnap-{uuid.uuid4().hex[:8]}", "workflow_run_id": run_id, "kind": "compute_snapshot",
-        "compute_profile": (db.list_records("compute_decisions", limit=1) or [{}]),
+        "id": f"csnap-{uuid.uuid4().hex[:8]}", "project_id": project_id,
+        "workflow_run_id": run_id, "kind": "compute_snapshot",
+        "compute_profile": decisions[0] if decisions else {},
         "compute_decisions": decisions,
         "cpu_model_metadata": [_model_meta(m) for m in cpu_models],
         "gpu_job_specs": [{"id": j["id"], "job_type": j.get("job_type"), "status": j.get("status"),
@@ -89,6 +108,28 @@ def manifest(snapshot_id: str) -> dict[str, Any]:
         "artifact_count": len(snap.get("artifact_metadata", [])),
         "excludes": snap.get("excludes", []),
         "contains_credentials": False, "captured_at": snap.get("original_timestamps", {}).get("captured_at"),
+    }
+
+
+def cost_summary(snapshot_id: str) -> dict[str, Any]:
+    """Return only the cost events captured in this compute snapshot."""
+    snap = db.get("compute_snapshots", snapshot_id)
+    if not snap:
+        raise ValueError("compute snapshot not found")
+    events = snap.get("cost_events") or []
+    estimated = round(sum(float(event.get("estimated_cost_usd") or 0.0) for event in events), 4)
+    actual = round(sum(
+        float(event.get("actual_cost_usd") or 0.0)
+        for event in events if event.get("event_type") == "actual_cost"
+    ), 4)
+    return {
+        "snapshot_id": snapshot_id,
+        "workflow_run_id": snap.get("workflow_run_id"),
+        "estimated_total_usd": estimated,
+        "actual_total_usd": actual,
+        "event_count": len(events),
+        "replay_cost_usd": 0.0,
+        "note": "Snapshot-scoped recorded costs; replay incurs zero live cost.",
     }
 
 

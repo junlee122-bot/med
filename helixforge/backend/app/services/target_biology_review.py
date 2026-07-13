@@ -297,13 +297,16 @@ def review_run(run_id: str | None = None) -> dict:
     """
     runs = db.list_records("workflow_runs", limit=200)
     run = db.get("workflow_runs", run_id) if run_id else (runs[0] if runs else {})
+    if run_id and not run:
+        raise ValueError("workflow run not found")
     run = run or {}
     pid = run.get("project_id")
+    rid = run.get("id")
 
-    targets = (db.list_records("target_candidates", project_id=pid, limit=200)
-               if pid else db.list_records("target_candidates", limit=200))
-    evidence = (db.list_records("evidence_items", project_id=pid, limit=500)
-                if pid else db.list_records("evidence_items", limit=500))
+    targets = (db.list_records("target_candidates", project_id=pid, workflow_run_id=rid, limit=200)
+               if pid and rid else [])
+    evidence = (db.list_records("evidence_items", project_id=pid, workflow_run_id=rid, limit=500)
+                if pid and rid else [])
 
     reviews: list[dict[str, Any]] = []
     for t in targets:
@@ -318,7 +321,8 @@ def review_run(run_id: str | None = None) -> dict:
     payload = {
         "id": f"tbr-{uuid.uuid4().hex[:8]}",
         "project_id": pid,
-        "run_id": run.get("id"),
+        "run_id": rid,
+        "workflow_run_id": rid,
         "reviews": reviews,
         "count": len(reviews),
         "status_distribution": status_distribution,
